@@ -1,12 +1,38 @@
-# AppFeed MVP — "TikTok for Apps" (Runnable Prototype)
+# AppFeed MVP — "TikTok for Apps" 🚀
 
-This is a minimal, runnable MVP of a **feed-based discovery + try/use** platform for mini-apps.
-It includes:
-- A **feed** with 3 example apps (Daily Affirmations, This Weekend Near Me, and Todo List)
-- **Watch-first** cards and **Try/Use** flows (Use supports BYOK: bring your own API keys, e.g., OpenAI)
-- Basic UX for **tags**, **creators**, **save to library**, **follow**, and **remix** (parameter defaults)
-- A simple, server-side **runner** that executes app manifests in a **sandboxed policy** (simulated)
-- A local **secrets vault** (encrypted at rest with AES-256-GCM) for BYOK
+A **TikTok-style feed for mini-apps** where creators publish, viewers discover, and everyone remixes.
+
+![AppFeed](https://img.shields.io/badge/Status-MVP-blue)
+![Next.js](https://img.shields.io/badge/Next.js-14.2.5-black)
+![Node](https://img.shields.io/badge/Node.js-20.x-green)
+
+## ✨ Features
+
+### TikTok-Style UI
+- **Vertical scrolling feed** with full-screen cards
+- **Animated GIF previews** for each app
+- **Right-side action buttons**: Like ❤️, Save 🔖, Share 🔗
+- **Bottom navigation**: Home, Search, Library, Profile
+- **Clickable hashtags** → Search by tag
+- **Clickable creators** → View their profile
+
+### App Discovery & Execution
+- **Watch-first** approach with animated previews
+- **Try mode**: Sandbox with read-only, compute-limited runs
+- **Use mode**: Real execution with BYOK (Bring Your Own Keys)
+- **Beautiful app UIs**: Custom gradient cards for each app type
+- **Remix functionality**: Clone apps with different defaults
+
+### Creator Tools
+- **Simple JSON manifests** to publish apps
+- **Automatic attribution** and remix lineage
+- **Profile pages** showing created & saved apps
+- **Follow system** for building audience
+
+### Security & Privacy
+- **BYOK secrets vault**: Encrypted with AES-256-GCM
+- **Sandboxed execution**: Network/compute limits in Try mode
+- **No permanent storage** of API keys on server
 
 > ⚠️ **Prototype notes**
 > - The data store is a simple JSON file on disk at `.data/db.json` (created at runtime).
@@ -53,20 +79,29 @@ ALLOW_NETWORK_IN_TRY=0                                  # 0 or 1 — allow http.
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-## What’s included
+## 📱 Pages & Routes
 
-- **Pages**
-  - `/` — Feed with watch/try/use on cards
-  - `/app/[id]` — App details
-  - `/library` — Saved apps for the current user
-  - `/secrets` — Manage BYOK secrets (OpenAI)
-- **APIs**
-  - `POST /api/runs` — Execute an app (Try or Use)
-  - `GET /api/apps` — List apps (feed)
-  - `GET /api/apps/[id]` — App details
-  - `GET/POST /api/secrets` — List/Set user secrets (encrypted)
-  - `POST /api/library` — Save/Remove apps from library
-  - `POST /api/follow` — Follow/Unfollow creators
+### Public Pages
+- `/` — Landing page with docs and info
+- `/feed` — TikTok-style app feed
+- `/search` — Search apps with hashtag filters
+- `/library` — Your saved apps
+- `/profile` — Your profile (saved & created apps)
+- `/profile/[id]` — View other creators' profiles
+- `/app/[id]` — Individual app details
+- `/secrets` — Manage BYOK API keys
+- `/how-it-works` — Product documentation
+- `/docs` — Developer docs
+- `/faq` — Frequently asked questions
+
+### API Routes
+- `POST /api/runs` — Execute an app (Try or Use)
+- `GET /api/apps` — List all apps
+- `GET /api/apps/[id]` — Get app details
+- `GET/POST /api/secrets` — Manage encrypted user secrets
+- `POST /api/library` — Save/remove apps
+- `POST /api/follow` — Follow/unfollow creators
+- `POST /api/remix` — Create app variants
 
 ## Current "Users"
 This MVP simulates auth. You can switch the current user in the top nav:
@@ -74,10 +109,27 @@ This MVP simulates auth. You can switch the current user in the top nav:
 - **u_jamie** (viewer)
 (Stored as a cookie in the browser; *not secure*, purely for local prototyping.)
 
-## Example Apps
-- **Daily Affirmations** — generates affirmations (LLM if keys available; stub otherwise)
-- **This Weekend Near Me** — returns activities for a city (static dataset; offline)
-- **Todo List** — adds an item to your personal todo list (stored locally)
+## 🎨 Example Apps
+
+Each app has a custom UI with gradients and animations:
+
+### Daily Affirmations ✨
+- Purple gradient card with pulse animation
+- Generates personalized affirmations based on mood
+- Uses OpenAI (LLM) or offline stubs
+- **Preview**: Sparkle GIF animation
+
+### This Weekend Near Me 🎉
+- Pink gradient card with float animation
+- Recommends weekend activities for your city
+- Works offline with static dataset
+- **Preview**: Party GIF animation
+
+### Todo: Add Item ✓
+- Blue gradient card with check animation
+- Adds tasks to your personal todo list
+- Stores locally in your browser
+- **Preview**: Checkmark GIF animation
 
 ## Remix
 Click **Remix** on a card to clone the app with different default inputs (e.g., default city or style).
