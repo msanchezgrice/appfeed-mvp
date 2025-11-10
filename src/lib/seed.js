@@ -13,8 +13,8 @@ export const apps = [
     description: 'Get 3 short affirmations tailored to your mood.',
     tags: ['wellbeing','daily'],
     preview: {
-      type: 'video',
-      url: 'https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif',
+      type: 'image',
+      url: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&auto=format&fit=crop',
       gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
     },
     demo: {
@@ -44,8 +44,8 @@ export const apps = [
     description: 'Ideas for the weekend in your city. Offline dataset, safe to try.',
     tags: ['local','daily'],
     preview: {
-      type: 'video',
-      url: 'https://media.giphy.com/media/26tP3m3i38deSMMCs/giphy.gif',
+      type: 'image',
+      url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop',
       gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
     },
     demo: { sampleInputs: { city: 'Austin' } },
@@ -70,8 +70,8 @@ export const apps = [
     description: 'Add a task to your personal todo list. Try is simulated; Use writes to your store.',
     tags: ['productivity','utility'],
     preview: {
-      type: 'video',
-      url: 'https://media.giphy.com/media/3o6Zt6ML6BklcajjsA/giphy.gif',
+      type: 'image',
+      url: 'https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=800&auto=format&fit=crop',
       gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
     },
     demo: { sampleInputs: { title: 'Book flights', due: '' } },

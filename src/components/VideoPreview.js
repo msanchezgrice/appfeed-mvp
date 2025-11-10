@@ -1,33 +1,12 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 export default function VideoPreview({ app, autoplay = false, onPlay }) {
-  const [isPlaying, setIsPlaying] = useState(autoplay);
+  const [isPlaying, setIsPlaying] = useState(false);
   const previewRef = useRef(null);
 
-  useEffect(() => {
-    if (!previewRef.current) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && autoplay) {
-            setIsPlaying(true);
-            onPlay?.();
-          } else if (!entry.isIntersecting) {
-            setIsPlaying(false);
-          }
-        });
-      },
-      { threshold: 0.6 }
-    );
-
-    observer.observe(previewRef.current);
-    return () => observer.disconnect();
-  }, [autoplay, onPlay]);
-
   const preview = app.preview || {
-    url: 'https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif',
+    url: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&auto=format&fit=crop',
     gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
   };
 
@@ -56,22 +35,31 @@ export default function VideoPreview({ app, autoplay = false, onPlay }) {
         style={{
           width: '100%',
           height: '100%',
-          objectFit: 'cover',
-          opacity: isPlaying ? 1 : 0.7
+          objectFit: 'cover'
         }}
       />
+
+      {/* Dark overlay for better text readability */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0,0,0,0.3)'
+      }} />
 
       <div className="preview-overlay" style={{
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        padding: '80px 20px 20px 20px',
-        background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)',
+        padding: '100px 20px 20px 20px',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 50%, transparent 100%)',
         color: 'white'
       }}>
-        <h2 style={{ margin: '0 0 8px 0', fontSize: 24, fontWeight: 'bold' }}>{app.name}</h2>
-        <p style={{ margin: 0, opacity: 0.9, fontSize: 14 }}>{app.description}</p>
+        <h2 style={{ margin: '0 0 8px 0', fontSize: 24, fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>{app.name}</h2>
+        <p style={{ margin: 0, opacity: 0.95, fontSize: 14, textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>{app.description}</p>
       </div>
 
       {!isPlaying && (
@@ -80,12 +68,12 @@ export default function VideoPreview({ app, autoplay = false, onPlay }) {
           width: 64,
           height: 64,
           borderRadius: '50%',
-          background: 'rgba(255,255,255,0.9)',
+          background: 'rgba(255,255,255,0.95)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 24,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+          boxShadow: '0 4px 16px rgba(0,0,0,0.3)'
         }}>
           ▶
         </div>

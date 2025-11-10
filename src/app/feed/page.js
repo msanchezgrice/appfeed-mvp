@@ -16,18 +16,36 @@ export default function FeedPage() {
   }, []);
 
   return (
-    <div style={{
-      maxWidth: '600px',
-      margin: '0 auto',
-      padding: '0'
-    }}>
-      <div className="feed-scroll" style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px'
+    <>
+      <div style={{
+        maxWidth: '600px',
+        margin: '0 auto',
+        padding: '0',
+        width: '100%'
       }}>
-        {apps.map(app => <TikTokFeedCard key={app.id} app={app} />)}
+        <div className="feed-scroll" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+          padding: '0 8px'
+        }}>
+          {apps.map(app => <TikTokFeedCard key={app.id} app={app} />)}
+        </div>
       </div>
-    </div>
+
+      <style jsx global>{`
+        @media (min-width: 768px) {
+          .feed-scroll {
+            padding: 0 16px !important;
+          }
+        }
+
+        @media (max-width: 767px) {
+          .feed-scroll {
+            gap: 12px !important;
+          }
+        }
+      `}</style>
+    </>
   );
 }
