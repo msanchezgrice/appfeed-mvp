@@ -1,9 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import TikTokFeedCard from '@/src/components/TikTokFeedCard';
 
-export default function SearchPage() {
+function SearchContent() {
   const searchParams = useSearchParams();
   const tagParam = searchParams.get('tag');
 
@@ -102,5 +102,13 @@ export default function SearchPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>}>
+      <SearchContent />
+    </Suspense>
   );
 }
