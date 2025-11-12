@@ -209,7 +209,10 @@ Remember: Make the output visually appealing and easy to read!
     }
     
     console.log('[LLM] Success! Response length:', txt.length);
-    return { output: txt, usedStub: false };
+    return { 
+      output: { markdown: txt },  // Return as object with markdown field
+      usedStub: false 
+    };
   } catch (err) {
     console.error('[LLM] Network/fetch error:', err);
     return {
