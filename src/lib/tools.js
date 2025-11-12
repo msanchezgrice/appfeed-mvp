@@ -205,8 +205,99 @@ export async function tool_todo_add({ userId, args, mode, supabase }) {
   }
 }
 
+// Image processing tool using Gemini Vision
+export async function tool_image_process({ userId, args, mode, supabase }) {
+  console.log('[Image Process] Starting:', { userId, mode, instruction: args.instruction?.substring(0, 50) });
+  
+  const imageData = args.image; // base64 or URL
+  const instruction = args.instruction || 'Describe this image in detail';
+  
+  if (!imageData) {
+    return {
+      output: { markdown: 'No image provided' },
+      error: 'IMAGE_REQUIRED'
+    };
+  }
+  
+  // Get Gemini API key from environment
+  const geminiKey = process.env.GEMINI_API_KEY;
+  
+  if (!geminiKey) {
+    console.error('[Image Process] No Gemini API key');
+    return {
+      output: { markdown: 'Gemini API key not configured' },
+      error: 'NO_GEMINI_KEY'
+    };
+  }
+  
+  try {
+    // Extract base64 data if it's a data URL
+    let base64Data = imageData;
+    if (imageData.startsWith('data:')) {
+      base64Data = imageData.split(',')[1];
+    }
+    
+    console.log('[Image Process] Calling Gemini Vision API...');
+    
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: instruction },
+              {
+                inline_data: {
+                  mime_type: 'image/jpeg',
+                  data: base64Data
+                }
+              }
+            ]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 500
+          }
+        })
+      }
+    );
+    
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('[Image Process] API error:', error);
+      return {
+        output: { markdown: `Image processing failed: ${response.statusText}` },
+        error: 'API_ERROR'
+      };
+    }
+    
+    const result = await response.json();
+    const output = result.candidates?.[0]?.content?.parts?.[0]?.text || 'No result';
+    
+    console.log('[Image Process] Success:', output.substring(0, 100));
+    
+    return {
+      output: { markdown: output },
+      metadata: {
+        model: 'gemini-2.0-flash-exp',
+        tokens: result.usageMetadata?.totalTokenCount || 0
+      }
+    };
+    
+  } catch (error) {
+    console.error('[Image Process] Error:', error);
+    return {
+      output: { markdown: `Error processing image: ${error.message}` },
+      error: 'PROCESSING_ERROR'
+    };
+  }
+}
+
 export const ToolRegistry = {
   'llm.complete': tool_llm_complete,
+  'image.process': tool_image_process,
   'activities.lookup': tool_activities_lookup,
   'todo.add': tool_todo_add
 };
