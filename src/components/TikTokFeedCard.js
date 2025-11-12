@@ -350,9 +350,22 @@ export default function TikTokFeedCard({ app }) {
       {showRemix && (
         <div className="modal" onClick={() => setShowRemix(false)}>
           <div className="dialog" onClick={e => e.stopPropagation()}>
-            <div className="row" style={{justifyContent:'space-between'}}>
+            <div className="row" style={{justifyContent:'space-between', alignItems: 'center'}}>
               <b>Remix: {app.name}</b>
-              <button className="btn ghost" onClick={() => setShowRemix(false)}>Close</button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button 
+                  className="btn ghost" 
+                  onClick={() => {
+                    setShowRemix(false);
+                    setShowAdvancedEditor(true);
+                  }}
+                  style={{ fontSize: 18, padding: '4px 8px' }}
+                  title="Advanced Editor"
+                >
+                  ⚙️
+                </button>
+                <button className="btn ghost" onClick={() => setShowRemix(false)}>Close</button>
+              </div>
             </div>
             <p className="small" style={{marginBottom: 16}}>
               Describe how you want to modify this app. AI will remix it for you and save it to your profile.
