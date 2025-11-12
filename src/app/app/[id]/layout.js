@@ -16,16 +16,19 @@ export async function generateMetadata({ params }) {
     const app = data.app;
     const creator = data.creator;
     
-    const appImage = app.preview_url || 'https://lobodzhfgojceqfvgcit.supabase.co/storage/v1/object/public/app-images/app-previews/wishboard-starter-mhv10wyp.png';
+    // Use app's Nano Banana generated image, fallback to gradient
+    const appImage = (app.preview_url && app.preview_url.includes('supabase.co/storage')) 
+      ? app.preview_url 
+      : `https://lobodzhfgojceqfvgcit.supabase.co/storage/v1/object/public/app-images/app-previews/${app.id}.png`;
     
     return {
-      title: `${app.name} - Clipcade`,
-      description: app.description || 'Try this mini-app on Clipcade',
+      title: `${app.name} | Try on Clipcade`,
+      description: app.description || `Try ${app.name} - a mini-app on Clipcade`,
       openGraph: {
-        title: app.name,
+        title: app.name,  // APP NAME, not Clipcade
         description: app.description,
         images: [{
-          url: appImage,
+          url: appImage,  // APP'S Nano Banana image
           width: 1200,
           height: 630,
           alt: app.name
@@ -36,9 +39,9 @@ export async function generateMetadata({ params }) {
       },
       twitter: {
         card: 'summary_large_image',
-        title: app.name,
+        title: app.name,  // APP NAME
         description: app.description,
-        images: [appImage],
+        images: [appImage],  // APP IMAGE
         creator: creator?.display_name ? `@${creator.display_name}` : '@clipcade'
       }
     };

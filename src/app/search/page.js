@@ -11,6 +11,13 @@ function SearchContent() {
   const [tags, setTags] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState(tagParam || '');
+  const [showAllTags, setShowAllTags] = useState(false);
+  
+  // Popular tags from database
+  const popularTags = [
+    'productivity', 'remix', 'email', 'ai', 'communication', 
+    'image', 'vision', 'writing', 'art', 'coding'
+  ];
 
   useEffect(() => {
     (async () => {
