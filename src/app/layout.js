@@ -1,28 +1,54 @@
-'use client';
+import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
-import Navbar from '@/src/components/Navbar';
 import BottomNav from '@/src/components/BottomNav';
-import { usePathname } from 'next/navigation';
+
+export const metadata = {
+  title: 'AppFeed - Discover, Run & Remix Mini-Apps',
+  description: 'TikTok-style feed for mini-apps. Discover, try, and remix apps with your own AI. Bring your own API key.',
+  keywords: 'apps, mini-apps, AI, remix, TikTok, discover, BYOK',
+  authors: [{ name: 'AppFeed' }],
+  creator: 'AppFeed',
+  publisher: 'AppFeed',
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: 'https://appfeed.app',
+    siteName: 'AppFeed',
+    title: 'AppFeed - Discover, Run & Remix Mini-Apps',
+    description: 'TikTok-style feed for mini-apps. Discover, try, and remix apps with your own AI.',
+    images: [
+      {
+        url: 'https://lobodzhfgojceqfvgcit.supabase.co/storage/v1/object/public/app-images/app-previews/wishboard-starter-mhv10wyp.png',
+        width: 1200,
+        height: 630,
+        alt: 'AppFeed - Discover Mini-Apps',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AppFeed - Discover, Run & Remix Mini-Apps',
+    description: 'TikTok-style feed for mini-apps. Try and remix apps with your own AI.',
+    images: ['https://lobodzhfgojceqfvgcit.supabase.co/storage/v1/object/public/app-images/app-previews/wishboard-starter-mhv10wyp.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
 
 export default function RootLayout({ children }) {
-  const pathname = usePathname();
-
-  // Hide navbar on app pages (feed, search, library, profile)
-  const hideNavbar = pathname.startsWith('/feed') ||
-                     pathname.startsWith('/search') ||
-                     pathname.startsWith('/library') ||
-                     pathname.startsWith('/profile') ||
-                     pathname.startsWith('/secrets');
-
   return (
-    <html lang="en">
-      <body>
-        {!hideNavbar && <Navbar />}
-        <div className="container" style={{ paddingBottom: hideNavbar ? 80 : 20, paddingTop: hideNavbar ? 0 : 20 }}>
+    <ClerkProvider>
+      <html lang="en">
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+        </head>
+        <body>
           {children}
-        </div>
-        <BottomNav />
-      </body>
-    </html>
+          <BottomNav />
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

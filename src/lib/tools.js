@@ -1,5 +1,4 @@
-import { getSecret, addUserTodo, listUserTodos } from './db.js';
-import { decryptString } from './crypto.js';
+import { getDecryptedSecret } from './secrets.js';
 
 const OPENAI_BASE = process.env.OPENAI_API_BASE || 'https://api.openai.com';
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
@@ -13,22 +12,54 @@ function tpl(str, ctx) {
   });
 }
 
-export async function tool_llm_complete({ userId, args, mode }) {
-  // Try to use BYOK OpenAI key; otherwise return stubbed text
-  const sec = getSecret({ userId, provider: 'openai' });
-  if (!sec) {
+export async function tool_llm_complete({ userId, args, mode, supabase }) {
+  // Try to use BYOK OpenAI key from encrypted Supabase secrets
+  console.log('[LLM] Starting - userId:', userId, 'mode:', mode);
+  
+  let apiKey = null;
+  
+  if (!userId) {
+    console.log('[LLM] No userId - user not signed in, using stub');
     return {
-      output: `• I choose to believe in myself.\n• I can take one small step.\n• I am enough. (stubbed — add your OpenAI key on /secrets)`,
-      usedStub: true
+      output: `🔒 Sign in to use real AI - Currently showing stub data.\n\nTo enable real AI responses:\n1. Sign in at /profile\n2. Add your OpenAI API key in Settings\n3. Try this app again!`,
+      usedStub: true,
+      error: 'USER_NOT_SIGNED_IN'
     };
   }
-  let apiKey = '';
-  try { apiKey = JSON.parse(decryptString(sec.encPayload)).apiKey; } catch {}
+  
+  if (!supabase) {
+    console.error('[LLM] No supabase client provided');
+    return {
+      output: `⚠️ Error: Database connection missing. Please contact support.`,
+      usedStub: true,
+      error: 'NO_SUPABASE_CLIENT'
+    };
+  }
+  
+  console.log('[LLM] Attempting to retrieve API key for user:', userId);
+  
+  try {
+    apiKey = await getDecryptedSecret(userId, 'openai', supabase);
+    console.log('[LLM] API key retrieval result:', apiKey ? 'KEY_FOUND' : 'NO_KEY');
+  } catch (err) {
+    console.error('[LLM] Error retrieving API key:', err);
+    return {
+      output: `⚠️ Error retrieving API key: ${err.message}\n\nPlease check:\n1. You're signed in\n2. API key is saved in Settings\n3. Database connection is working`,
+      usedStub: true,
+      error: `KEY_RETRIEVAL_ERROR: ${err.message}`
+    };
+  }
+  
   if (!apiKey) {
+    console.log('[LLM] No API key found for user - need to add in settings');
     return {
-      output: `• I choose to believe in myself... (stubbed; invalid key)`, usedStub: true
+      output: `🔑 No API key found.\n\nTo use real AI:\n1. Go to /profile → Settings\n2. Enter your OpenAI API key (sk-...)\n3. Click "Save API Keys"\n4. Try this app again!`,
+      usedStub: true,
+      error: 'NO_API_KEY_CONFIGURED'
     };
   }
+  
+  console.log('[LLM] API key found, making OpenAI API call...');
   const system = tpl(args.system || '', {});
   const prompt = tpl(args.prompt || '', {});
   const body = {
@@ -40,18 +71,47 @@ export async function tool_llm_complete({ userId, args, mode }) {
     temperature: 0.7,
     max_tokens: 200
   };
-  const res = await fetch(`${OPENAI_BASE}/v1/chat/completions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-    body: JSON.stringify(body)
+  
+  console.log('[LLM] Making OpenAI API request:', {
+    model: DEFAULT_MODEL,
+    promptLength: prompt.length,
+    systemLength: system.length
   });
-  if (!res.ok) {
-    const t = await res.text();
-    return { output: `LLM error: ${t.slice(0,180)}`, usedStub: true };
+  
+  try {
+    const res = await fetch(`${OPENAI_BASE}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Authorization': `Bearer ${apiKey}` 
+      },
+      body: JSON.stringify(body)
+    });
+    
+    console.log('[LLM] OpenAI response status:', res.status);
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('[LLM] OpenAI API error:', res.status, errorText.slice(0, 200));
+      return { 
+        output: `❌ OpenAI API Error (${res.status}):\n${errorText.slice(0, 300)}\n\nCheck:\n1. Your API key is valid\n2. You have OpenAI credits\n3. API key has correct permissions`, 
+        usedStub: true,
+        error: `OPENAI_API_ERROR_${res.status}`
+      };
+    }
+    
+    const j = await res.json();
+    const txt = j.choices?.[0]?.message?.content?.trim() || 'No content';
+    console.log('[LLM] Success! Response length:', txt.length);
+    return { output: txt, usedStub: false };
+  } catch (err) {
+    console.error('[LLM] Network/fetch error:', err);
+    return {
+      output: `⚠️ Network error calling OpenAI:\n${err.message}\n\nThis might be a connection issue or invalid API key format.`,
+      usedStub: true,
+      error: `NETWORK_ERROR: ${err.message}`
+    };
   }
-  const j = await res.json();
-  const txt = j.choices?.[0]?.message?.content?.trim() || 'No content';
-  return { output: txt, usedStub: false };
 }
 
 const ACTIVITY_DB = {
@@ -80,14 +140,40 @@ export async function tool_activities_lookup({ args }) {
   return { output: items };
 }
 
-export async function tool_todo_add({ userId, args, mode }) {
+export async function tool_todo_add({ userId, args, mode, supabase }) {
   const title = String(args.title || '').trim();
   if (!title) return { output: { ok:false, error:'Missing title' } };
   const due = String(args.due || '').trim();
   const item = { id: 'td_' + Math.random().toString(36).slice(2,9), title, due, done:false, createdAt: new Date().toISOString() };
-  if (mode === 'use') {
-    addUserTodo(userId, item);
-    return { output: { ok:true, added: item, total: listUserTodos(userId).length } };
+  
+  if (mode === 'use' && userId && supabase) {
+    // Save to database
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .insert({
+          user_id: userId,
+          title,
+          due_date: due || null,
+          completed: false
+        });
+      
+      if (error) {
+        console.error('Error saving todo:', error);
+        return { output: { ok:false, error: 'Failed to save todo' } };
+      }
+      
+      // Get total count
+      const { count } = await supabase
+        .from('todos')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+      
+      return { output: { ok:true, added: item, total: count || 1 } };
+    } catch (err) {
+      console.error('Todo add error:', err);
+      return { output: { ok:false, error: String(err.message) } };
+    }
   } else {
     return { output: { ok:true, added: item, simulated:true } };
   }

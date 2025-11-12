@@ -1,82 +1,124 @@
 'use client';
-import { useRef, useState } from 'react';
 
-export default function VideoPreview({ app, autoplay = false, onPlay }) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const previewRef = useRef(null);
-
-  const preview = app.preview || {
-    url: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&auto=format&fit=crop',
-    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+export default function VideoPreview({ app, autoplay = false, onClick }) {
+  // Generate elevated, descriptive image URL based on app description
+  const getImageUrl = () => {
+    const seed = app.id ? parseInt(app.id.slice(-4), 36) : Math.floor(Math.random() * 1000);
+    
+    // Create descriptive search terms from app description and name
+    // Extract key concepts for elevated, Apple-like aesthetic
+    let searchTerms = '';
+    
+    const desc = (app.description || app.name || '').toLowerCase();
+    
+    // Map concepts to elevated visual themes
+    if (desc.includes('summarize') || desc.includes('text') || desc.includes('document')) {
+      searchTerms = 'minimal,workspace,clean,desk,paper,professional';
+    } else if (desc.includes('email') || desc.includes('communication') || desc.includes('reply')) {
+      searchTerms = 'communication,office,workspace,minimal,professional,letter';
+    } else if (desc.includes('code') || desc.includes('programming') || desc.includes('developer')) {
+      searchTerms = 'technology,coding,screen,minimal,workspace,developer';
+    } else if (desc.includes('social') || desc.includes('post') || desc.includes('media')) {
+      searchTerms = 'social,connection,people,minimal,lifestyle,modern';
+    } else if (desc.includes('affirmation') || desc.includes('wellbeing') || desc.includes('mood')) {
+      searchTerms = 'nature,calm,peaceful,minimal,wellness,zen';
+    } else if (desc.includes('wish') || desc.includes('vision') || desc.includes('aspiration')) {
+      searchTerms = 'inspiration,dream,vision,minimal,aesthetic,lifestyle';
+    } else {
+      // Fallback to tags
+      const tag = app.tags?.[0] || 'abstract';
+      searchTerms = `${tag},minimal,clean,professional,elevated`;
+    }
+    
+    return `https://source.unsplash.com/800x600/?${searchTerms}&sig=${seed}`;
   };
+
+  const hasVideo = app.preview_type === 'video' && app.preview_url;
+  const hasImage = app.preview_type === 'image' && app.preview_url;
+  const imageUrl = hasImage ? app.preview_url : getImageUrl();
 
   return (
     <div
-      ref={previewRef}
-      className={`video-preview ${isPlaying ? 'playing' : ''}`}
-      onClick={() => setIsPlaying(!isPlaying)}
+      onClick={onClick}
       style={{
-        background: preview.gradient,
-        position: 'relative',
-        width: '100%',
-        aspectRatio: '9/16',
-        borderRadius: 12,
-        overflow: 'hidden',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 12
-      }}
-    >
-      <img
-        src={preview.url}
-        alt={app.name}
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover'
-        }}
-      />
-
-      {/* Dark overlay for better text readability */}
-      <div style={{
+        background: app.preview_gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        background: 'rgba(0,0,0,0.3)'
-      }} />
-
-      <div className="preview-overlay" style={{
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        padding: '100px 20px 20px 20px',
-        background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 50%, transparent 100%)',
-        color: 'white'
-      }}>
-        <h2 style={{ margin: '0 0 8px 0', fontSize: 24, fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>{app.name}</h2>
-        <p style={{ margin: 0, opacity: 0.95, fontSize: 14, textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>{app.description}</p>
-      </div>
-
-      {!isPlaying && (
-        <div className="play-button" style={{
-          position: 'absolute',
-          width: 64,
-          height: 64,
-          borderRadius: '50%',
-          background: 'rgba(255,255,255,0.95)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 24,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.3)'
-        }}>
-          ▶
-        </div>
+        overflow: 'hidden',
+        cursor: onClick ? 'pointer' : 'default'
+      }}
+    >
+      {hasVideo ? (
+        <video
+          src={app.preview_url}
+          autoPlay={autoplay}
+          loop
+          muted
+          playsInline
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover'
+          }}
+        />
+      ) : (
+        <>
+          {/* Dynamic generated image */}
+          <img
+            src={imageUrl}
+            alt={app.name}
+            onError={(e) => {
+              // Fallback to gradient if image fails to load
+              e.target.style.display = 'none';
+            }}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover'
+            }}
+          />
+          
+          {/* Subtle gradient overlay for text contrast */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.5) 100%)',
+            pointerEvents: 'none'
+          }} />
+          
+          {/* Play button overlay */}
+          {onClick && (
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.95)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 32,
+              paddingLeft: 6,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+              transition: 'transform 0.2s',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1.1)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1)'}
+            >
+              ▶
+            </div>
+          )}
+        </>
       )}
 
       <style jsx>{`

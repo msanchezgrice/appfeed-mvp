@@ -21,7 +21,9 @@ export default function FeedPage() {
         maxWidth: '600px',
         margin: '0 auto',
         padding: '0',
-        width: '100%'
+        paddingBottom: '100px',
+        width: '100%',
+        minHeight: 'calc(100vh - 60px)'
       }}>
         <div className="feed-scroll" style={{
           display: 'flex',

@@ -1,33 +1,48 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import VideoPreview from './VideoPreview';
 import AppForm from './AppForm';
 import AppOutput from './AppOutput';
-
-function uid() { return (typeof localStorage !== 'undefined' && localStorage.getItem('uid')) || 'u_jamie'; }
+import SignInModal from './SignInModal';
 
 async function api(path, method='GET', body) {
   const res = await fetch(path, {
-    method, headers: { 'Content-Type':'application/json', 'x-user-id': uid() },
+    method,
+    headers: { 'Content-Type':'application/json' },
+    credentials: 'include', // Use Clerk session
     body: body ? JSON.stringify(body) : undefined
   });
   return await res.json();
 }
 
 export default function TikTokFeedCard({ app }) {
+  const { user, isLoaded } = useUser();
   const [showTry, setShowTry] = useState(false);
   const [showUse, setShowUse] = useState(false);
+  const [showRemix, setShowRemix] = useState(false);
+  const [remixPrompt, setRemixPrompt] = useState('');
+  const [remixing, setRemixing] = useState(false);
   const [run, setRun] = useState(null);
   const [saved, setSaved] = useState(false);
   const [liked, setLiked] = useState(false);
   const [providers, setProviders] = useState({ openai: 'unknown' });
+  const [showSignInModal, setShowSignInModal] = useState(false);
+  const [signInAction, setSignInAction] = useState('');
 
   useEffect(() => {
-    (async () => setProviders((await api('/api/secrets')).providers))();
+    (async () => {
+      const secrets = await api('/api/secrets');
+      if (secrets?.providers) {
+        setProviders(secrets.providers);
+      }
+    })();
     (async () => {
       const lib = await api('/api/library', 'GET');
-      setSaved(!!lib.items.find(x => x.id === app.id));
+      if (lib?.items && Array.isArray(lib.items)) {
+        setSaved(!!lib.items.find(x => x.id === app.id));
+      }
     })();
   }, [app.id]);
 
@@ -37,8 +52,54 @@ export default function TikTokFeedCard({ app }) {
   };
 
   const save = async (add=true) => {
+    if (!user) {
+      setSignInAction('save apps to your library');
+      setShowSignInModal(true);
+      return;
+    }
     await api('/api/library', 'POST', { action: add?'add':'remove', appId: app.id });
     setSaved(add);
+  };
+
+  const handleRemix = async () => {
+    if (!user) {
+      setSignInAction('remix apps and build your own versions');
+      setShowSignInModal(true);
+      return;
+    }
+    
+    if (!remixPrompt.trim()) {
+      alert('Please enter a description of how you want to remix this app');
+      return;
+    }
+
+    setRemixing(true);
+
+    try {
+      const response = await fetch('/api/apps/remix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          appId: app.id,
+          remixPrompt: remixPrompt.trim()
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to remix app');
+      }
+
+      alert('App remixed successfully! Check your profile to see it.');
+      setShowRemix(false);
+      setRemixPrompt('');
+    } catch (error) {
+      alert('Error remixing app: ' + error.message);
+    } finally {
+      setRemixing(false);
+    }
   };
 
   return (
@@ -52,8 +113,8 @@ export default function TikTokFeedCard({ app }) {
       overflow: 'hidden',
       marginBottom: 16
     }}>
-      {/* Video Preview */}
-      <VideoPreview app={app} autoplay={true} />
+      {/* Video Preview - Clickable to open Try modal */}
+      <VideoPreview app={app} autoplay={true} onClick={() => setShowTry(true)} />
 
       {/* Right-side Action Buttons (TikTok style) */}
       <div style={{
@@ -66,7 +127,7 @@ export default function TikTokFeedCard({ app }) {
         zIndex: 10
       }}>
         {/* Creator Avatar */}
-        <Link href={`/profile/${app.creatorId}`} style={{
+        <Link href={`/profile/${app.creator?.id || app.creator_id}`} style={{
           width: 48,
           height: 48,
           borderRadius: '50%',
@@ -75,15 +136,35 @@ export default function TikTokFeedCard({ app }) {
           cursor: 'pointer'
         }}>
           <img
-            src={app?.creator?.avatar || '/avatars/1.svg'}
-            alt={app?.creator?.name}
+            src={app?.creator?.avatar_url || '/avatars/1.svg'}
+            alt={app?.creator?.display_name || app?.creator?.username}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         </Link>
 
         {/* Like Button */}
         <button
-          onClick={() => setLiked(!liked)}
+          onClick={async () => {
+            if (!user) {
+              setSignInAction('like apps and show your support');
+              setShowSignInModal(true);
+              return;
+            }
+            
+            const newLiked = !liked;
+            setLiked(newLiked);
+            try {
+              await fetch('/api/likes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ appId: app.id, action: newLiked ? 'like' : 'unlike' })
+              });
+            } catch (err) {
+              console.error('Error toggling like:', err);
+              setLiked(!newLiked); // Revert on error
+            }
+          }}
           style={{
             background: 'none',
             border: 'none',
@@ -96,12 +177,23 @@ export default function TikTokFeedCard({ app }) {
         >
           <div style={{
             fontSize: 32,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+            transform: liked ? 'scale(1.2)' : 'scale(1)',
+            transition: 'transform 0.2s'
           }}>
             {liked ? '❤️' : '🤍'}
           </div>
-          <div style={{ fontSize: 12, color: 'white', fontWeight: 'bold', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
-            Like
+          <div style={{ 
+            fontSize: 12, 
+            color: 'white', 
+            fontWeight: 'bold', 
+            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+            background: liked ? 'rgba(254, 44, 85, 0.9)' : 'transparent',
+            padding: liked ? '4px 12px' : '0',
+            borderRadius: liked ? '12px' : '0',
+            transition: 'all 0.2s'
+          }}>
+            {liked ? 'Liked' : 'Like'}
           </div>
         </button>
 
@@ -122,21 +214,45 @@ export default function TikTokFeedCard({ app }) {
             fontSize: 32,
             filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
           }}>
-            {saved ? '📥' : '🔖'}
+            {saved ? '✅' : '🔖'}
           </div>
-          <div style={{ fontSize: 12, color: 'white', fontWeight: 'bold', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
-            Save
+          <div style={{ 
+            fontSize: 12, 
+            color: 'white', 
+            fontWeight: 'bold', 
+            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+            background: saved ? 'rgba(16, 185, 129, 0.9)' : 'transparent',
+            padding: saved ? '2px 8px' : '0',
+            borderRadius: saved ? '10px' : '0',
+            transition: 'all 0.2s'
+          }}>
+            {saved ? 'Saved' : 'Save'}
           </div>
         </button>
 
         {/* Share Button */}
         <button
-          onClick={() => {
+          onClick={async () => {
+            const appUrl = `${window.location.origin}/app/${app.id}`;
+            
+            // For native share (mobile), include title and description
             if (navigator.share) {
-              navigator.share({ title: app.name, url: window.location.href });
+              const cleanDescription = app.description?.split('\n\nRemixed with:')[0] || app.description;
+              try {
+                await navigator.share({ 
+                  title: app.name, 
+                  text: cleanDescription,
+                  url: appUrl 
+                });
+              } catch (err) {
+                if (err.name !== 'AbortError') {
+                  console.error('Share failed:', err);
+                }
+              }
             } else {
-              navigator.clipboard.writeText(window.location.href);
-              alert('Link copied to clipboard!');
+              // For clipboard (desktop), only copy URL
+              navigator.clipboard.writeText(appUrl);
+              alert('App link copied to clipboard!');
             }
           }}
           style={{
@@ -172,7 +288,7 @@ export default function TikTokFeedCard({ app }) {
         color: 'white',
         zIndex: 5
       }}>
-        <Link href={`/profile/${app.creatorId}`} style={{
+        <Link href={`/profile/${app.creator?.id || app.creator_id}`} style={{
           display: 'flex',
           alignItems: 'center',
           gap: 8,
@@ -180,7 +296,7 @@ export default function TikTokFeedCard({ app }) {
           textDecoration: 'none',
           color: 'white'
         }}>
-          <div style={{ fontSize: 14, fontWeight: 'bold' }}>@{app?.creator?.name || app.creatorId}</div>
+          <div style={{ fontSize: 14, fontWeight: 'bold' }}>@{app?.creator?.username || app?.creator?.display_name || 'user'}</div>
         </Link>
 
         <h3 style={{ margin: '0 0 8px 0', fontSize: 18, fontWeight: 'bold' }}>
@@ -225,7 +341,7 @@ export default function TikTokFeedCard({ app }) {
             Try
           </button>
           <button
-            onClick={() => setShowUse(true)}
+            onClick={() => setShowRemix(true)}
             style={{
               padding: '8px 16px',
               background: '#fe2c55',
@@ -237,7 +353,7 @@ export default function TikTokFeedCard({ app }) {
               cursor: 'pointer'
             }}
           >
-            Use
+            Remix
           </button>
         </div>
       </div>
@@ -278,6 +394,55 @@ export default function TikTokFeedCard({ app }) {
           </div>
         </div>
       )}
+
+      {/* Remix Modal */}
+      {showRemix && (
+        <div className="modal" onClick={() => setShowRemix(false)}>
+          <div className="dialog" onClick={e => e.stopPropagation()}>
+            <div className="row" style={{justifyContent:'space-between'}}>
+              <b>Remix: {app.name}</b>
+              <button className="btn ghost" onClick={() => setShowRemix(false)}>Close</button>
+            </div>
+            <p className="small" style={{marginBottom: 16}}>
+              Describe how you want to modify this app. AI will remix it for you and save it to your profile.
+            </p>
+
+            <textarea
+              className="input"
+              placeholder="E.g., 'Make it funnier' or 'Add a sentiment analysis step' or 'Change the tone to be more professional'"
+              value={remixPrompt}
+              onChange={(e) => setRemixPrompt(e.target.value)}
+              rows={4}
+              style={{
+                marginBottom: 16,
+                width: '100%',
+                padding: 12,
+                fontSize: 14,
+                borderRadius: 8,
+                border: '1px solid #ddd',
+                fontFamily: 'inherit'
+              }}
+            />
+
+            <button
+              onClick={handleRemix}
+              className="btn primary"
+              disabled={remixing}
+              style={{ width: '100%' }}
+            >
+              {remixing ? 'Remixing...' : 'Remix App →'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sign In Modal */}
+      <SignInModal 
+        show={showSignInModal}
+        onClose={() => setShowSignInModal(false)}
+        message={`Sign in to ${signInAction}`}
+        action={signInAction}
+      />
     </div>
   );
 }

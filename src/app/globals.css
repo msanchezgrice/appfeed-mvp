@@ -20,8 +20,8 @@ a { color: inherit; text-decoration: none; }
 .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas; background:#0b1220; border:1px solid #1f2937; padding:2px 6px; border-radius:6px; font-size:12px; }
 hr { border: none; border-top: 1px solid #1f2937; margin: 16px 0; }
 h1, h2, h3 { margin: 0 0 10px; }
-.modal { position: fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.5); }
-.modal .dialog { width: 560px; max-width: 92vw; background: var(--panel); border:1px solid #1f2937; border-radius:16px; padding:16px; }
+.modal { position: fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.9); z-index: 1000; backdrop-filter: blur(4px); }
+.modal .dialog { width: 560px; max-width: 92vw; max-height: 90vh; overflow-y: auto; background: var(--panel); border:1px solid #1f2937; border-radius:16px; padding:20px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
 .table { width:100%; border-collapse: collapse; }
 .table td, .table th { border-bottom:1px solid #1f2937; padding:10px 8px; text-align:left; }
 .icon { width:16px; height:16px; display:inline-block; }

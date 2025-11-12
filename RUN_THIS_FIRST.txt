@@ -1,0 +1,62 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                  🚨 CRITICAL FIX REQUIRED                     ║
+║              Multiple Routes Failing - RLS Issue              ║
+╚═══════════════════════════════════════════════════════════════╝
+
+PROBLEMS:
+  ❌ Library save failing (RLS policy blocking)
+  ❌ Search throwing errors
+  ❌ Apps using old auth system (localStorage)
+  ❌ Missing database functions
+
+═══════════════════════════════════════════════════════════════════
+
+✅ FIX #1: Database (DO THIS FIRST!)
+
+STEP 1: Go to Supabase Dashboard
+  https://supabase.com/dashboard/project/lobodzhfgojceqfvgcit
+
+STEP 2: Click "SQL Editor" → "New query"
+
+STEP 3: Open this file on your computer:
+  /Users/miguel/Desktop/appfeed-mvp/supabase/FIX_RLS_AND_FUNCTIONS.sql
+
+STEP 4: Copy ALL the SQL (entire file)
+
+STEP 5: Paste into Supabase SQL Editor
+
+STEP 6: Click "Run" (or Cmd+Enter)
+
+STEP 7: Check output - should see:
+  ✅ Policies dropped and recreated
+  ✅ track_app_event function created
+  ✅ All functions listed at end
+
+═══════════════════════════════════════════════════════════════════
+
+What This Fixes:
+  ✅ Library save will work
+  ✅ Analytics tracking will work
+  ✅ RLS policies simplified
+  ✅ No more "row violates policy" errors
+
+═══════════════════════════════════════════════════════════════════
+
+After Running SQL:
+  1. Refresh your app at http://localhost:3000
+  2. Try saving an app (click heart icon)
+  3. Should work now! ✅
+
+═══════════════════════════════════════════════════════════════════
+
+Then I'll fix:
+  - TikTokFeedCard auth
+  - Create working sample apps
+  - Fix search errors
+
+═══════════════════════════════════════════════════════════════════
+
+TIME TO FIX: 2 minutes
+
+🎯 DO THE SQL FIX FIRST - IT UNBLOCKS EVERYTHING!
+

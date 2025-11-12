@@ -60,6 +60,12 @@ export function getAppById(id) {
   return variant || null;
 }
 
+export function addApp(app) {
+  ensureLoaded();
+  state.apps.push(app);
+  flush();
+}
+
 export function addVariant(variant) {
   ensureLoaded();
   state.variants.push(variant);

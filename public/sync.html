@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile Sync - AppFeed</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #0a0a0a;
+      color: #fff;
+    }
+    h1 {
+      text-align: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 24px;
+      margin: 20px 0;
+    }
+    button {
+      width: 100%;
+      padding: 16px;
+      font-size: 18px;
+      font-weight: bold;
+      color: white;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    button:hover {
+      transform: translateY(-2px);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 16px;
+      background: #0a0a0a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .success {
+      border-color: #10b981;
+      color: #10b981;
+    }
+    .error {
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+    .info {
+      color: #888;
+      font-size: 14px;
+      text-align: center;
+      margin-top: 20px;
+    }
+    .loading {
+      text-align: center;
+      color: #667eea;
+    }
+    a {
+      color: #667eea;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔄 Profile Sync Tool</h1>
+  
+  <div class="card">
+    <p>This tool will sync your Clerk user profile to the Supabase database.</p>
+    <p><strong>Make sure you're signed in first!</strong></p>
+    <button id="syncButton" onclick="syncProfile()">
+      🚀 Sync My Profile Now
+    </button>
+  </div>
+
+  <div id="result" style="display: none;"></div>
+
+  <p class="info">
+    <a href="/">← Back to Home</a> | 
+    <a href="/profile">View Profile</a> |
+    <a href="/sign-in">Sign In</a>
+  </p>
+
+  <script>
+    async function syncProfile() {
+      const button = document.getElementById('syncButton');
+      const resultDiv = document.getElementById('result');
+      
+      // Show loading state
+      button.disabled = true;
+      button.textContent = '⏳ Syncing...';
+      resultDiv.style.display = 'block';
+      resultDiv.className = 'loading';
+      resultDiv.textContent = 'Connecting to server...';
+      
+      try {
+        // Make the sync request
+        const response = await fetch('/api/sync-profile', { 
+          method: 'POST',
+          credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        // Display results
+        if (data.ok) {
+          resultDiv.className = 'success';
+          resultDiv.textContent = 
+            '✅ SUCCESS! Profile synced to Supabase!\n\n' +
+            'Action: ' + data.action + '\n' +
+            'User ID: ' + data.profile.id + '\n' +
+            'Username: ' + (data.profile.username || 'N/A') + '\n' +
+            'Email: ' + (data.profile.email || 'N/A') + '\n' +
+            'Display Name: ' + (data.profile.display_name || 'N/A') + '\n\n' +
+            'Full Profile Data:\n' +
+            JSON.stringify(data.profile, null, 2);
+          
+          button.textContent = '✅ Profile Synced!';
+          button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+          
+          // Show next steps
+          setTimeout(() => {
+            alert('✅ Success! Now go to:\n\n1. Supabase Dashboard to verify\n2. Run seed_apps.sql\n3. Check /feed for apps');
+          }, 500);
+        } else {
+          resultDiv.className = 'error';
+          resultDiv.textContent = 
+            '❌ ERROR: ' + (data.error || 'Unknown error') + '\n\n' +
+            'Response:\n' +
+            JSON.stringify(data, null, 2);
+          
+          button.textContent = '❌ Sync Failed - Try Again';
+          button.disabled = false;
+        }
+      } catch (error) {
+        resultDiv.className = 'error';
+        resultDiv.textContent = 
+          '❌ Network Error:\n\n' +
+          error.message + '\n\n' +
+          'Possible causes:\n' +
+          '- Dev server not running (check localhost:3000)\n' +
+          '- Not signed in (go to /sign-in)\n' +
+          '- Network connection issue';
+        
+        button.textContent = '❌ Network Error - Try Again';
+        button.disabled = false;
+      }
+    }
+
+    // Check if user is signed in when page loads
+    window.addEventListener('load', () => {
+      if (window.Clerk?.user) {
+        console.log('✅ User detected:', window.Clerk.user.id);
+      } else {
+        console.log('❌ No user detected - you may need to sign in');
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        resultDiv.className = 'error';
+        resultDiv.textContent = '⚠️ Warning: No user detected!\n\nPlease sign in first:\nhttp://localhost:3000/sign-in';
+      }
+    });
+  </script>
+</body>
+</html>

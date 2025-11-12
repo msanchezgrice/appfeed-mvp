@@ -14,10 +14,16 @@ function SearchContent() {
 
   useEffect(() => {
     (async () => {
-      const res = await fetch('/api/apps');
-      const j = await res.json();
-      setApps(j.apps);
-      setTags(j.tags);
+      try {
+        const res = await fetch('/api/apps');
+        const j = await res.json();
+        setApps(j.apps || []);
+        setTags(j.tags || []);
+      } catch (error) {
+        console.error('Error fetching apps:', error);
+        setApps([]);
+        setTags([]);
+      }
     })();
   }, []);
 
@@ -32,13 +38,15 @@ function SearchContent() {
       app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesTag = !selectedTag || app.tags?.includes(selectedTag);
+    // Fix: Handle both string tags from URL and object tags from API
+    const tagName = typeof selectedTag === 'string' ? selectedTag : selectedTag?.name || '';
+    const matchesTag = !tagName || app.tags?.includes(tagName);
 
     return matchesSearch && matchesTag;
   });
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px 0' }}>
+    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px 0', paddingBottom: '100px', minHeight: 'calc(100vh - 60px)' }}>
       <h1 style={{ marginBottom: 16 }}>Search</h1>
 
       <input
@@ -73,23 +81,26 @@ function SearchContent() {
         >
           All
         </button>
-        {tags.map(tag => (
-          <button
-            key={tag}
-            onClick={() => setSelectedTag(tag)}
-            style={{
-              padding: '8px 16px',
-              borderRadius: 20,
-              border: 'none',
-              background: selectedTag === tag ? '#fe2c55' : '#333',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: 14
-            }}
-          >
-            #{tag}
-          </button>
-        ))}
+        {tags.map((tag, index) => {
+          const tagName = typeof tag === 'string' ? tag : tag.name;
+          return (
+            <button
+              key={`tag-${tagName}-${index}`}
+              onClick={() => setSelectedTag(tagName)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 20,
+                border: 'none',
+                background: selectedTag === tagName ? '#fe2c55' : '#333',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: 14
+              }}
+            >
+              #{tagName}
+            </button>
+          );
+        })}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

@@ -30,17 +30,38 @@ export default function UserProfilePage() {
       const appsRes = await api('/api/apps');
       const allApps = appsRes.apps;
 
-      const creatorApps = allApps.filter(app => app.creatorId === userId);
+      // Fix: Use creator_id instead of creatorId
+      const creatorApps = allApps.filter(app => app.creator_id === userId);
       setApps(creatorApps);
 
-      // Get creator info
-      if (creatorApps.length > 0) {
-        setUser(creatorApps[0].creator);
+      // Get creator info from first app's creator object
+      if (creatorApps.length > 0 && creatorApps[0].creator) {
+        setUser({
+          name: creatorApps[0].creator.display_name || creatorApps[0].creator.username,
+          avatar: creatorApps[0].creator.avatar_url,
+          bio: creatorApps[0].creator.bio
+        });
+      } else {
+        // Fetch user info from profiles if no apps
+        try {
+          const userRes = await fetch(`/api/profile/${userId}`);
+          if (userRes.ok) {
+            const userData = await userRes.json();
+            setUser({
+              name: userData.display_name || userData.username,
+              avatar: userData.avatar_url,
+              bio: userData.bio
+            });
+          }
+        } catch (err) {
+          console.error('Error loading user:', err);
+        }
       }
 
-      // Check if following (you'd implement this in your API)
-      // For now, just set to false
-      setIsFollowing(false);
+      // Check if following
+      const followRes = await api('/api/follow');
+      const following = followRes.following || [];
+      setIsFollowing(following.some(f => f.following_id === userId));
     })();
   }, [userId]);
 

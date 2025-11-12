@@ -34,7 +34,8 @@ function AffirmationsOutput({ output }) {
 }
 
 function WeekendActivitiesOutput({ output }) {
-  const items = output?.items || [];
+  // Handle both formats: { items: [...] } and direct array [...]
+  const items = Array.isArray(output) ? output : (output?.items || []);
 
   return (
     <div style={{
@@ -45,37 +46,43 @@ function WeekendActivitiesOutput({ output }) {
       minHeight: 200
     }}>
       <h3 style={{ margin: '0 0 20px 0', fontSize: 20, opacity: 0.9 }}>This Weekend 🎉</h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {items.map((item, i) => (
-          <div key={i} style={{
-            background: 'rgba(255,255,255,0.15)',
-            padding: 16,
-            borderRadius: 8,
-            backdropFilter: 'blur(10px)'
-          }}>
-            <div style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 4 }}>
-              {item.name}
+      {items.length === 0 ? (
+        <div style={{ fontSize: 16, opacity: 0.9, textAlign: 'center', padding: '40px 20px' }}>
+          No activities found. Try a different city!
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {items.map((item, i) => (
+            <div key={i} style={{
+              background: 'rgba(255,255,255,0.15)',
+              padding: 16,
+              borderRadius: 8,
+              backdropFilter: 'blur(10px)'
+            }}>
+              <div style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 4 }}>
+                {item.name}
+              </div>
+              {item.description && (
+                <div style={{ fontSize: 14, opacity: 0.9 }}>
+                  {item.description}
+                </div>
+              )}
+              {item.vibe && (
+                <div style={{
+                  marginTop: 8,
+                  display: 'inline-block',
+                  background: 'rgba(255,255,255,0.2)',
+                  padding: '4px 8px',
+                  borderRadius: 4,
+                  fontSize: 12
+                }}>
+                  {item.vibe}
+                </div>
+              )}
             </div>
-            {item.description && (
-              <div style={{ fontSize: 14, opacity: 0.9 }}>
-                {item.description}
-              </div>
-            )}
-            {item.vibe && (
-              <div style={{
-                marginTop: 8,
-                display: 'inline-block',
-                background: 'rgba(255,255,255,0.2)',
-                padding: '4px 8px',
-                borderRadius: 4,
-                fontSize: 12
-              }}>
-                {item.vibe}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -166,7 +173,81 @@ export default function AppOutput({ run, app }) {
 
   const lastStep = run.trace[run.trace.length - 1];
   const output = lastStep?.output;
+  const usedStub = lastStep?.usedStub;
 
+  // Show execution diagnostics if stub was used or error occurred
+  if (usedStub || run.error || lastStep?.status === 'error') {
+    return (
+      <div style={{
+        padding: 24,
+        background: '#1a1a1a',
+        borderRadius: 12,
+        color: '#fff',
+        border: '2px solid #fe2c55'
+      }}>
+        <div style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: '#fe2c55' }}>
+          ⚠️ Execution Diagnostic
+        </div>
+        
+        {/* Show the actual output/error */}
+        <div style={{
+          background: '#2a2a2a',
+          padding: 16,
+          borderRadius: 8,
+          marginBottom: 16,
+          fontFamily: 'monospace',
+          fontSize: 14,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word'
+        }}>
+          {typeof output === 'string' ? output : JSON.stringify(output, null, 2)}
+        </div>
+
+        {/* Show execution trace */}
+        <div style={{ fontSize: 12, opacity: 0.8, marginTop: 16 }}>
+          <div style={{ fontWeight: 'bold', marginBottom: 8 }}>Execution Trace:</div>
+          {run.trace.map((step, i) => (
+            <div key={i} style={{
+              background: '#2a2a2a',
+              padding: 12,
+              borderRadius: 6,
+              marginBottom: 8,
+              borderLeft: step.usedStub ? '3px solid #fe2c55' : '3px solid #10b981'
+            }}>
+              <div style={{ fontWeight: 'bold' }}>
+                Step {i}: {step.tool} - {step.status}
+                {step.usedStub && <span style={{ color: '#fe2c55', marginLeft: 8 }}>⚠️ STUB</span>}
+              </div>
+              {step.error && (
+                <div style={{ color: '#ff6b6b', marginTop: 4 }}>
+                  Error: {step.error}
+                </div>
+              )}
+              {step.args && (
+                <div style={{ marginTop: 4, opacity: 0.7 }}>
+                  Args: {JSON.stringify(step.args).slice(0, 100)}...
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Console tip */}
+        <div style={{
+          marginTop: 16,
+          padding: 12,
+          background: '#2a2a2a',
+          borderRadius: 6,
+          fontSize: 12,
+          opacity: 0.8
+        }}>
+          💡 Check your terminal/console for detailed logs with [API /runs], [Runner], [LLM] prefixes
+        </div>
+      </div>
+    );
+  }
+
+  // For successful executions with real AI, use the pretty output formats
   if (run.error) {
     return (
       <div style={{
@@ -181,7 +262,7 @@ export default function AppOutput({ run, app }) {
     );
   }
 
-  // Render based on app type
+  // Render based on app type (only for successful real AI responses)
   if (app.id === 'affirmations-daily' || app.id.includes('affirmations')) {
     return <AffirmationsOutput output={output} />;
   }
@@ -194,10 +275,22 @@ export default function AppOutput({ run, app }) {
     return <TodoOutput output={output} />;
   }
 
-  // Fallback: generic output
+  // Fallback: generic output for real AI responses
   return (
-    <div style={{ padding: 16, background: '#f5f5f5', borderRadius: 8 }}>
-      <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
+    <div style={{ 
+      padding: 24, 
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      borderRadius: 12,
+      color: 'white',
+      minHeight: 100
+    }}>
+      <pre style={{ 
+        whiteSpace: 'pre-wrap', 
+        margin: 0,
+        fontFamily: 'inherit',
+        fontSize: 16,
+        lineHeight: 1.6
+      }}>
         {typeof output === 'string' ? output : JSON.stringify(output, null, 2)}
       </pre>
     </div>

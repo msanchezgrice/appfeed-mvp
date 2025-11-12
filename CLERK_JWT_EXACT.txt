@@ -1,0 +1,43 @@
+CLERK JWT TEMPLATE FOR SUPABASE - EXACT CONFIGURATION
+=====================================================
+
+TEMPLATE NAME (exactly):
+supabase
+
+CLAIMS (copy this JSON exactly - no extra spaces):
+{
+  "aud": "authenticated",
+  "sub": "{{user.id}}",
+  "email": "{{user.primary_email_address}}",
+  "role": "authenticated"
+}
+
+LIFETIME:
+3600
+
+SIGNING ALGORITHM:
+RS256
+
+SHORTCODE (if asked):
+<leave empty or use: supabase>
+
+=====================================================
+IMPORTANT NOTES:
+- Template name MUST be lowercase "supabase"
+- The variables like {{user.id}} should NOT be in quotes in some Clerk versions
+- If you see "Invalid variable" error, try WITHOUT quotes around variables:
+  {
+    "aud": "authenticated",
+    "sub": {{user.id}},
+    "email": {{user.primary_email_address}},
+    "role": "authenticated"
+  }
+
+=====================================================
+ALTERNATIVE MINIMAL TEMPLATE (if above fails):
+{
+  "sub": "{{user.id}}"
+}
+
+This minimal version should always work. Then add other claims one by one.
+=====================================================
