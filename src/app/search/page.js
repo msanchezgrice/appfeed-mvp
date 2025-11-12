@@ -159,42 +159,7 @@ function SearchContent() {
         }}
       />
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
-        <button
-          onClick={() => setSelectedTag('')}
-          style={{
-            padding: '8px 16px',
-            borderRadius: 20,
-            border: 'none',
-            background: !selectedTag ? '#fe2c55' : '#333',
-            color: '#fff',
-            cursor: 'pointer',
-            fontSize: 14
-          }}
-        >
-          All
-        </button>
-        {tags.map((tag, index) => {
-          const tagName = typeof tag === 'string' ? tag : tag.name;
-          return (
-            <button
-              key={`tag-${tagName}-${index}`}
-              onClick={() => setSelectedTag(tagName)}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 20,
-                border: 'none',
-                background: selectedTag === tagName ? '#fe2c55' : '#333',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: 14
-              }}
-            >
-              #{tagName}
-            </button>
-          );
-        })}
-      </div>
+      {/* Duplicate tag section removed */}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {filteredApps.length > 0 ? (
