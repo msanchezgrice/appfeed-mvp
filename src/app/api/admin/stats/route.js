@@ -6,6 +6,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(req) {
   try {
     const { supabase, userId } = await createServerSupabaseClient();
+    const { searchParams } = new URL(req.url);
+    const timeFilter = searchParams.get('time') || 'all'; // 'day', 'week', 'all'
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -24,11 +26,17 @@ export async function GET(req) {
     if (!isAdmin) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
+    
+    // Calculate time ranges
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     // Get platform stats
     const { data: apps } = await supabase
       .from('apps')
-      .select('*, creator:profiles!creator_id(display_name, email)')
+      .select('*, creator:profiles!creator_id(display_name, email, clerk_user_id)')
       .eq('is_published', true)
       .order('created_at', { ascending: false });
 
@@ -41,27 +49,104 @@ export async function GET(req) {
       .from('runs')
       .select('*, app:apps(name), user:profiles!user_id(display_name)')
       .order('created_at', { ascending: false })
-      .limit(20);
+      .limit(50);
+    
+    // Get follow counts for leaderboard
+    const { data: followCounts } = await supabase
+      .from('follows')
+      .select('following_id')
+      .then(({ data }) => {
+        if (!data) return { data: [] };
+        const counts = {};
+        data.forEach(f => {
+          counts[f.following_id] = (counts[f.following_id] || 0) + 1;
+        });
+        return { data: Object.entries(counts).map(([userId, count]) => ({ userId, count })) };
+      })
+      .catch(() => ({ data: [] }));
+    
+    // Get growth data by day for last 30 days
+    const { data: growthData } = await supabase
+      .rpc('get_daily_signups', { days: 30 })
+      .catch(() => ({ data: [] }));
 
     // Calculate overview stats
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
     const totalApps = apps?.length || 0;
     const appsToday = apps?.filter(a => new Date(a.created_at) >= today).length || 0;
+    const appsWeek = apps?.filter(a => new Date(a.created_at) >= weekAgo).length || 0;
     const totalUsers = users?.length || 0;
     const signupsToday = users?.filter(u => new Date(u.created_at) >= today).length || 0;
+    const signupsWeek = users?.filter(u => new Date(u.created_at) >= weekAgo).length || 0;
+    const signupsMonth = users?.filter(u => new Date(u.created_at) >= monthAgo).length || 0;
     
     const totalViews = apps?.reduce((sum, app) => sum + (app.view_count || 0), 0) || 0;
     const totalTries = apps?.reduce((sum, app) => sum + (app.try_count || 0), 0) || 0;
+    const totalSaves = apps?.reduce((sum, app) => sum + (app.save_count || 0), 0) || 0;
     const avgViews = totalApps > 0 ? Math.round(totalViews / totalApps) : 0;
     const conversionRate = totalViews > 0 ? Math.round((totalTries / totalViews) * 100) : 0;
 
-    // Top apps
-    const topApps = [...(apps || [])]
+    // Top apps by time filter
+    let filteredApps = apps || [];
+    if (timeFilter === 'day') {
+      // For day, use apps created today (new apps don't have historical data)
+      filteredApps = apps?.filter(a => new Date(a.created_at) >= today) || [];
+    } else if (timeFilter === 'week') {
+      filteredApps = apps?.filter(a => new Date(a.created_at) >= weekAgo) || [];
+    }
+    
+    const topApps = [...filteredApps]
       .sort((a, b) => (b.view_count || 0) - (a.view_count || 0))
       .slice(0, 10);
+    
+    // Follower leaderboard - top creators by followers
+    const { data: allFollows } = await supabase
+      .from('follows')
+      .select('following_id');
+    
+    const followerCounts = {};
+    (allFollows || []).forEach(f => {
+      followerCounts[f.following_id] = (followerCounts[f.following_id] || 0) + 1;
+    });
+    
+    const followerLeaderboard = Object.entries(followerCounts)
+      .map(([userId, count]) => {
+        const creator = users?.find(u => u.clerk_user_id === userId);
+        return {
+          userId,
+          display_name: creator?.display_name || 'Unknown',
+          email: creator?.email,
+          follower_count: count,
+          app_count: apps?.filter(a => a.creator_id === userId).length || 0
+        };
+      })
+      .sort((a, b) => b.follower_count - a.follower_count)
+      .slice(0, 10);
+    
+    // Growth data by day/week/month
+    const growthByDay = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+      const dateStr = date.toISOString().split('T')[0];
+      const count = users?.filter(u => {
+        const uDate = new Date(u.created_at).toISOString().split('T')[0];
+        return uDate === dateStr;
+      }).length || 0;
+      growthByDay.push({ date: dateStr, signups: count });
+    }
+    
+    const growthByWeek = [];
+    for (let i = 3; i >= 0; i--) {
+      const weekStart = new Date(now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
+      const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+      const count = users?.filter(u => {
+        const uDate = new Date(u.created_at);
+        return uDate >= weekStart && uDate < weekEnd;
+      }).length || 0;
+      growthByWeek.push({ 
+        week: `Week ${4 - i}`, 
+        signups: count 
+      });
+    }
 
     // Recent activity
     const recentActivity = (runs || []).slice(0, 20).map(run => {
@@ -81,15 +166,23 @@ export async function GET(req) {
       overview: {
         totalApps,
         appsToday,
+        appsWeek,
         totalUsers,
         signupsToday,
+        signupsWeek,
+        signupsMonth,
         totalViews,
         totalTries,
+        totalSaves,
         avgViews,
         conversionRate
       },
       topApps,
-      recentActivity
+      followerLeaderboard,
+      growthByDay,
+      growthByWeek,
+      recentActivity,
+      timeFilter
     });
 
   } catch (error) {
