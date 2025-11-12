@@ -7,8 +7,8 @@ export async function GET(req) {
   try {
     const { supabase, userId } = await createServerSupabaseClient();
     const { searchParams } = new URL(req.url);
-    const timeFilter = searchParams.get('time') || 'all'; // 'day', 'week', 'all'
-    const tab = searchParams.get('tab') || 'apps'; // 'apps', 'creators', 'viral', 'growth'
+    const timeFilter = searchParams.get('time') || 'all';
+    const tab = searchParams.get('tab') || 'apps';
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -21,12 +21,44 @@ export async function GET(req) {
       .eq('clerk_user_id', userId)
       .single();
     
-    // Check if admin (hardcoded for now)
     const isAdmin = profile?.email === 'msanchezgrice@gmail.com';
     
     if (!isAdmin) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
+
+    // Try to get from cache first (much faster!)
+    const { data: cachedStats } = await supabase
+      .from('admin_stats_cache')
+      .select('*')
+      .eq('id', 'current')
+      .single();
+
+    if (cachedStats && cachedStats.stats_data) {
+      console.log('[Admin Stats] Using cached data from:', cachedStats.last_updated);
+      
+      // Return cached data - super fast!
+      const cached = cachedStats.stats_data;
+      const response = {
+        overview: cached.overview,
+        timeFilter,
+        cached: true,
+        lastUpdated: cachedStats.last_updated
+      };
+      
+      if (tab === 'apps') response.topApps = cached.topApps;
+      else if (tab === 'viral') response.viralityLeaderboard = cached.viralApps;
+      else if (tab === 'creators') response.followerLeaderboard = cached.topCreators;
+      else if (tab === 'growth') {
+        response.growthByDay = cached.growthByDay;
+        response.growthByWeek = cached.growthByWeek;
+      }
+      
+      return NextResponse.json(response);
+    }
+
+    // If no cache, fall back to live calculation (slower)
+    console.log('[Admin Stats] No cache, calculating live...');
     
     // Calculate time ranges
     const now = new Date();

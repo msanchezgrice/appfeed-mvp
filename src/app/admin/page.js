@@ -94,14 +94,29 @@ export default function AdminDashboard() {
               Logged in as: {user.emailAddresses?.[0]?.emailAddress}
             </p>
           </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {stats?.cached && (
+            <span className="small" style={{ color: '#888', padding: '8px 12px' }}>
+              Cached: {new Date(stats.lastUpdated).toLocaleTimeString()}
+            </span>
+          )}
           <button 
-            onClick={() => window.location.reload()}
-            className="btn ghost"
-            style={{ fontSize: 20 }}
+            onClick={async () => {
+              if (confirm('Refresh all stats? This takes ~10 seconds.')) {
+                const res = await fetch('/api/admin/refresh-stats', { method: 'POST' });
+                if (res.ok) {
+                  alert('Stats refreshed! Reloading...');
+                  window.location.reload();
+                }
+              }
+            }}
+            className="btn primary"
+            style={{ fontSize: 13, padding: '8px 16px' }}
           >
-            ↻
+            🔄 Refresh Stats
           </button>
         </div>
+      </div>
         
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 8, borderBottom: '2px solid #333', paddingBottom: 0 }}>
