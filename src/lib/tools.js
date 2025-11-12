@@ -180,7 +180,18 @@ Remember: Make the output visually appealing and easy to read!
     }
     
     const j = await res.json();
-    const txt = j.choices?.[0]?.message?.content?.trim() || 'No content';
+    
+    // Handle both Responses API and Chat Completions responses
+    let txt;
+    if (hasUrl && j.output) {
+      // Responses API format: { output: "text" }
+      txt = j.output.trim();
+      console.log('[LLM] Responses API success! Used web search:', j.used_tools?.includes('web_search'));
+    } else {
+      // Chat Completions format: { choices: [{ message: { content: "text" } }] }
+      txt = j.choices?.[0]?.message?.content?.trim() || 'No content';
+    }
+    
     console.log('[LLM] Success! Response length:', txt.length);
     return { output: txt, usedStub: false };
   } catch (err) {
