@@ -3,8 +3,10 @@ import { createServerSupabaseClient } from '@/src/lib/supabase-server';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
+  console.log('[API /apps] Request received');
   try {
     const { supabase, userId } = await createServerSupabaseClient({ allowAnonymous: true });
+    console.log('[API /apps] Supabase client created, userId:', userId);
     const { searchParams } = new URL(req.url);
     
     // Get query parameters for filtering

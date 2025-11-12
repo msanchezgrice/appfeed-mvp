@@ -383,12 +383,20 @@ export default function TikTokFeedCard({ app }) {
       )}
 
       {/* Sign In Modal */}
-      <SignInModal 
+      <SignInModal
         show={showSignInModal}
         onClose={() => setShowSignInModal(false)}
         message={`Sign in to ${signInAction}`}
         action={signInAction}
       />
+      
+      {showAdvancedEditor && (
+        <AdvancedRemixEditor
+          app={app}
+          onSave={handleSaveRemix}
+          onCancel={() => setShowAdvancedEditor(false)}
+        />
+      )}
     </div>
   );
 }
