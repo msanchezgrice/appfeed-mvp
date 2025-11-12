@@ -59,19 +59,11 @@ export default function AdvancedRemixEditor({ app, onSave, onCancel, inline = fa
     setEditedTags(editedTags.filter(t => t !== tag));
   };
 
-  // If inline, don't render modal wrapper
-  const content = (
-    <div style={{
-      background: inline ? 'transparent' : 'var(--bg-dark)',
-      borderRadius: inline ? 0 : 12,
-      maxWidth: inline ? '100%' : 700,
-      width: '100%',
-      maxHeight: inline ? 'none' : '90vh',
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
-        {/* Header */}
+  // Render editor content
+  const editorContent = (
+    <>
+      {/* Header */}
+      {!inline && (
         <div style={{
           padding: '20px 24px',
           borderBottom: '1px solid #333',
@@ -93,6 +85,7 @@ export default function AdvancedRemixEditor({ app, onSave, onCancel, inline = fa
             ×
           </button>
         </div>
+      )}
 
         {/* Tabs */}
         <div style={{
@@ -440,12 +433,12 @@ export default function AdvancedRemixEditor({ app, onSave, onCancel, inline = fa
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
   
-  // Return with or without modal wrapper
+  // Render with or without modal wrapper
   if (inline) {
-    return content;
+    return editorContent;
   }
   
   return (
@@ -462,7 +455,18 @@ export default function AdvancedRemixEditor({ app, onSave, onCancel, inline = fa
       zIndex: 1000,
       padding: 16
     }}>
-      {content}
+      <div style={{
+        background: 'var(--bg-dark)',
+        borderRadius: 12,
+        maxWidth: 700,
+        width: '100%',
+        maxHeight: '90vh',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        {editorContent}
+      </div>
     </div>
   );
 }
