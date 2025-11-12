@@ -13,7 +13,7 @@ export async function POST(req) {
         headers: { 'Content-Type': 'application/json' }
       });
     }
-    
+
     const result = await syncProfileFromClerk(userId, {
       username,
       email,
@@ -22,8 +22,8 @@ export async function POST(req) {
     });
     
     return new Response(JSON.stringify(result), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+        headers: { 'Content-Type': 'application/json' } 
+      });
   } catch (e) {
     console.error('Sync profile error:', e);
     return new Response(JSON.stringify({ error: String(e?.message || e) }), {

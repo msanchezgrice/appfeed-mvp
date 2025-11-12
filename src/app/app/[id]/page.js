@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import Head from 'next/head';
 import TikTokFeedCard from '@/src/components/TikTokFeedCard';
 
 export default function AppDetailPage() {
