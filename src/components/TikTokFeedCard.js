@@ -6,6 +6,10 @@ import VideoPreview from './VideoPreview';
 import AppForm from './AppForm';
 import AppOutput from './AppOutput';
 import SignInModal from './SignInModal';
+import dynamic from 'next/dynamic';
+
+// Dynamically import to avoid SSR issues
+const AdvancedRemixEditor = dynamic(() => import('./AdvancedRemixEditor'), { ssr: false });
 
 async function api(path, method='GET', body) {
   const res = await fetch(path, {
@@ -30,6 +34,7 @@ export default function TikTokFeedCard({ app }) {
   const [providers, setProviders] = useState({ openai: 'unknown' });
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [signInAction, setSignInAction] = useState('');
+  const [showAdvancedEditor, setShowAdvancedEditor] = useState(false);
 
   useEffect(() => {
     (async () => {
