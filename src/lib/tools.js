@@ -456,17 +456,17 @@ export async function tool_email_send({ userId, args, mode, supabase }) {
     console.log('[Email Send] Sending email via Resend...');
     
     const { data, error } = await resend.emails.send({
-      from: 'AppFeed <noreply@clipcade.com>',
+      from: 'Clipcade <noreply@clipcade.com>',
       to: [to],
-      subject: subject || 'Your AppFeed Result',
+      subject: subject || 'Your Clipcade Result',
       html: `
         <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #667eea;">Your AppFeed Result</h2>
+          <h2 style="color: #667eea;">Your Clipcade Result</h2>
           <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
             ${content.replace(/\n/g, '<br>')}
           </div>
           <p style="color: #888; font-size: 12px;">
-            Sent from <a href="https://www.clipcade.com">AppFeed</a>
+            Sent from <a href="https://www.clipcade.com">Clipcade</a>
           </p>
         </div>
       `

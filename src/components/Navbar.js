@@ -9,7 +9,7 @@ export default function Navbar() {
     <div className="nav">
       <Link href="/" className="row" style={{gap:8}}>
         <img src="/logo.svg" width={28} height={28} alt="logo" />
-        <strong>AppFeed</strong>
+        <strong>Clipcade</strong>
       </Link>
       <div className="row" style={{gap:6}}>
         <Link className="btn ghost" href="/">Feed</Link>

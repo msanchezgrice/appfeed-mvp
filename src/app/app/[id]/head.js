@@ -5,8 +5,8 @@ export default async function Head({ params }) {
   
   return (
     <>
-      <title>App Details - AppFeed</title>
-      <meta name="description" content="Discover and try this app on AppFeed" />
+      <title>App Details - Clipcade</title>
+      <meta name="description" content="Discover and try this app on Clipcade" />
     </>
   );
 }

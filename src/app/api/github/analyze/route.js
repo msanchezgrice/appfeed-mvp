@@ -81,7 +81,7 @@ export async function POST(request) {
       }, { status: 500 });
     }
 
-    const analysisPrompt = `Analyze this GitHub repository and generate an AppFeed adapter manifest.
+    const analysisPrompt = `Analyze this GitHub repository and generate an Clipcade adapter manifest.
 
 Repository: ${repoData.full_name}
 Description: ${repoData.description || 'No description'}
@@ -93,7 +93,7 @@ ${readmeContent.substring(0, 2000)}
 
 ${packageJson ? `Package.json dependencies: ${Object.keys({...packageJson.dependencies, ...packageJson.devDependencies}).join(', ')}` : ''}
 
-Generate a JSON manifest for AppFeed with the following structure:
+Generate a JSON manifest for Clipcade with the following structure:
 {
   "name": "App Name",
   "description": "Brief description",
@@ -131,7 +131,7 @@ Return ONLY valid JSON, no markdown or explanation.`;
         messages: [
           {
             role: 'system',
-            content: 'You are an expert at analyzing code repositories and generating AppFeed adapter manifests. Always respond with valid JSON only.'
+            content: 'You are an expert at analyzing code repositories and generating Clipcade adapter manifests. Always respond with valid JSON only.'
           },
           {
             role: 'user',

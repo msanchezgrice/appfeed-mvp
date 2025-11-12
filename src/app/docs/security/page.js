@@ -1,4 +1,4 @@
-export const metadata = { title: 'Security — AppFeed Docs' };
+export const metadata = { title: 'Security — Clipcade Docs' };
 
 export default function SecurityDocs() {
   return (

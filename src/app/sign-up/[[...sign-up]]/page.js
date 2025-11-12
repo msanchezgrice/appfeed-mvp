@@ -11,7 +11,7 @@ export default function SignUpPage() {
       padding: '20px'
     }}>
       <h1 style={{ marginBottom: '32px', fontSize: '2rem', fontWeight: 'bold' }}>
-        Join AppFeed
+        Join Clipcade
       </h1>
       <SignUp 
         appearance={{

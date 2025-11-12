@@ -1,4 +1,4 @@
-export const metadata = { title: 'Platform API — AppFeed Docs' };
+export const metadata = { title: 'Platform API — Clipcade Docs' };
 
 export default function APIDocs() {
   return (

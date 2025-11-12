@@ -11,7 +11,7 @@ export default function SignInPage() {
       padding: '20px'
     }}>
       <h1 style={{ marginBottom: '32px', fontSize: '2rem', fontWeight: 'bold' }}>
-        Sign in to AppFeed
+        Sign in to Clipcade
       </h1>
       <SignIn 
         appearance={{

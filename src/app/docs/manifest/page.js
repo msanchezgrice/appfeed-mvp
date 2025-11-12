@@ -1,4 +1,4 @@
-export const metadata = { title: 'Manifest — AppFeed Docs' };
+export const metadata = { title: 'Manifest — Clipcade Docs' };
 
 export default function ManifestDocs() {
   return (

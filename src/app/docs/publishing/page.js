@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-export const metadata = { title: 'Publishing — AppFeed Docs' };
+export const metadata = { title: 'Publishing — Clipcade Docs' };
 
 export default function Publishing() {
   return (

@@ -508,7 +508,7 @@ POST /run
             <div className="card" style={{ marginBottom: 16 }}>
               <h3 style={{ marginTop: 0 }}>GitHub Repository URL</h3>
               <p className="small" style={{ marginBottom: 16 }}>
-                Paste your GitHub repository URL. We'll analyze the code and automatically generate an adapter for AppFeed.
+                Paste your GitHub repository URL. We'll analyze the code and automatically generate an adapter for Clipcade.
               </p>
 
               <div style={{ marginBottom: 16 }}>
@@ -544,7 +544,7 @@ POST /run
                   <div style={{ fontWeight: 'bold', marginBottom: 8 }}>What happens next?</div>
                   <ul className="small" style={{ marginLeft: 20, marginBottom: 0 }}>
                     <li>We clone and analyze your repository</li>
-                    <li>AI generates a custom AppFeed adapter</li>
+                    <li>AI generates a custom Clipcade adapter</li>
                     <li>Quality checks ensure it works correctly</li>
                     <li>We verify rendering on mobile and desktop</li>
                     <li>The adapter is deployed automatically</li>

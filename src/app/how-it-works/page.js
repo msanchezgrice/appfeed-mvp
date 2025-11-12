@@ -22,7 +22,7 @@ export default function HowItWorks() {
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text'
         }}>
-          How AppFeed Works
+          How Clipcade Works
         </h1>
         <p style={{
           fontSize: 'clamp(1rem, 2vw, 1.2rem)',

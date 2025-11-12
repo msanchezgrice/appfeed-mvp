@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-export const metadata = { title: 'Remote Adapter — AppFeed Docs' };
+export const metadata = { title: 'Remote Adapter — Clipcade Docs' };
 
 export default function RemoteAdapterDocs() {
   return (
@@ -16,7 +16,7 @@ export default function RemoteAdapterDocs() {
           Quick Start
         </h3>
         <p style={{ marginBottom: 16 }}>
-          Deploy your app to Vercel, Cloudflare, or any hosting provider, then connect it to AppFeed.
+          Deploy your app to Vercel, Cloudflare, or any hosting provider, then connect it to Clipcade.
         </p>
         <Link href="/publish" className="btn primary" style={{ display: 'inline-block' }}>
           Connect Your App →
@@ -25,7 +25,7 @@ export default function RemoteAdapterDocs() {
 
       <h2>Contract</h2>
       <p style={{ marginBottom: 16 }}>
-        Your adapter must implement two HTTP endpoints that AppFeed will call:
+        Your adapter must implement two HTTP endpoints that Clipcade will call:
       </p>
 
       <div className="card" style={{ marginBottom: 24 }}>
