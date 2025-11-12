@@ -38,8 +38,7 @@ export async function POST(req) {
     }
 
     console.log('[Admin] Refreshing stats...');
-    */";
-
+    
     // Get all data
     const { data: apps } = await supabase
       .from('apps')
@@ -183,6 +182,7 @@ export async function POST(req) {
       message: 'Stats refreshed',
       timestamp: new Date().toISOString()
     });
+    */ // END DISABLED CODE
 
   } catch (error) {
     console.error('[Admin] Refresh error:', error);

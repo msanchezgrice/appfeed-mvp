@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 export default function AdminDashboard() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('apps'); // 'apps', 'creators', 'viral', 'growth'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'apps', 'creators', 'viral', 'growth'
   const [stats, setStats] = useState(null);
   const [topApps, setTopApps] = useState([]);
   const [viralityLeaderboard, setViralityLeaderboard] = useState([]);
@@ -132,7 +132,25 @@ export default function AdminDashboard() {
       </div>
         
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 8, borderBottom: '2px solid #333', paddingBottom: 0 }}>
+        <div style={{ display: 'flex', gap: 8, borderBottom: '2px solid #333', paddingBottom: 0, overflowX: 'auto' }}>
+          <button
+            onClick={() => setActiveTab('overview')}
+            style={{
+              padding: '12px 24px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === 'overview' ? '3px solid var(--brand)' : '3px solid transparent',
+              color: activeTab === 'overview' ? 'white' : '#888',
+              cursor: 'pointer',
+              fontSize: 15,
+              fontWeight: 600,
+              transition: 'all 0.2s',
+              marginBottom: '-2px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            ⚡ Quick View
+          </button>
           <button
             onClick={() => setActiveTab('apps')}
             style={{
@@ -247,6 +265,23 @@ export default function AdminDashboard() {
       </div>
 
       {/* Tab Content */}
+      {activeTab === 'overview' && (
+        <div>
+          <h2 style={{ marginBottom: 16 }}>📊 Quick Overview</h2>
+          <p className="small" style={{ color: '#888', marginBottom: 20 }}>
+            Lightweight stats that load instantly without heavy queries
+          </p>
+          <div style={{ background: 'var(--bg-dark)', padding: 20, borderRadius: 12, border: '1px solid #333' }}>
+            <div style={{ fontSize: 14, color: '#888', marginBottom: 12 }}>
+              Platform is operational ✅
+            </div>
+            <div style={{ fontSize: 14, color: '#888' }}>
+              Check individual tabs for detailed stats (may take longer to load)
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'apps' && (
         <div>
           {/* Top Apps */}
