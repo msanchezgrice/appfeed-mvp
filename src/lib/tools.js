@@ -92,11 +92,13 @@ export async function tool_llm_complete({ userId, args, mode, supabase }) {
   const system = tpl(args.system || '', {});
   const prompt = tpl(args.prompt || '', {});
   
-  // Check if prompt contains URLs - if so, use web search tool
+  // Check if prompt needs web search (contains URL OR asks to search web/news)
   const hasUrl = /https?:\/\/[^\s]+/.test(prompt);
+  const needsWebSearch = hasUrl || 
+    /search the web|today'?s.*news|current.*news|latest.*news|recent.*news|top.*stories/i.test(prompt);
   
-  if (hasUrl) {
-    console.log('[LLM] URL detected in prompt, using Responses API with web search tool');
+  if (needsWebSearch) {
+    console.log('[LLM] Web search needed (URL or news request), using Responses API with web_search tool');
   }
   
   // Enhanced design guidelines for prettier outputs
@@ -128,23 +130,23 @@ Remember: Make the output visually appealing and easy to read!
     model: DEFAULT_MODEL,
     promptLength: prompt.length,
     systemLength: system.length,
-    hasUrl
+    needsWebSearch
   });
   
   try {
-    // Use Responses API with web search for URLs, otherwise Chat Completions
-    const endpoint = hasUrl 
+    // Use Responses API with web search when needed, otherwise Chat Completions
+    const endpoint = needsWebSearch 
       ? `${OPENAI_BASE}/v1/responses`
       : `${OPENAI_BASE}/v1/chat/completions`;
     
-    const requestBody = hasUrl ? {
-      // Responses API format
+    const requestBody = needsWebSearch ? {
+      // Responses API format with web search
       model: DEFAULT_MODEL,
       input: prompt,
       instructions: enhancedSystem,
       tools: [{ type: "web_search" }],
       temperature: 0.7,
-      max_output_tokens: 500
+      max_output_tokens: 800  // More tokens for news summaries
     } : {
       // Chat Completions format  
       model: DEFAULT_MODEL,
@@ -156,7 +158,7 @@ Remember: Make the output visually appealing and easy to read!
       max_tokens: 500
     };
     
-    console.log('[LLM] Calling:', endpoint);
+    console.log('[LLM] Calling:', endpoint, needsWebSearch ? '(with web_search tool)' : '(standard)');
     
     const res = await fetch(endpoint, {
       method: 'POST',
@@ -190,7 +192,7 @@ Remember: Make the output visually appealing and easy to read!
     
     // Handle both Responses API and Chat Completions responses
     let txt;
-    if (hasUrl && j.output !== undefined) {
+    if (needsWebSearch && j.output !== undefined) {
       // Responses API returns complex nested structure
       console.log('[LLM] Parsing Responses API output...');
       
