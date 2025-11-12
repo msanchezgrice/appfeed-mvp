@@ -295,9 +295,85 @@ export async function tool_image_process({ userId, args, mode, supabase }) {
   }
 }
 
+// Email sending tool using Resend
+export async function tool_email_send({ userId, args, mode, supabase }) {
+  console.log('[Email Send] Starting:', { userId, to: args.to, subject: args.subject });
+  
+  const { to, subject, content } = args;
+  
+  if (!to || !content) {
+    return {
+      output: { markdown: '❌ Email and content are required' },
+      error: 'MISSING_PARAMS'
+    };
+  }
+  
+  // Get Resend API key from environment
+  const resendKey = process.env.RESEND_API_KEY;
+  
+  if (!resendKey) {
+    console.error('[Email Send] No Resend API key configured');
+    return {
+      output: { markdown: '⚠️ Email service not configured. Contact support.' },
+      error: 'NO_EMAIL_KEY'
+    };
+  }
+  
+  try {
+    const { Resend } = await import('resend');
+    const resend = new Resend(resendKey);
+    
+    console.log('[Email Send] Sending email via Resend...');
+    
+    const { data, error } = await resend.emails.send({
+      from: 'AppFeed <noreply@clipcade.com>',
+      to: [to],
+      subject: subject || 'Your AppFeed Result',
+      html: `
+        <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #667eea;">Your AppFeed Result</h2>
+          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            ${content.replace(/\n/g, '<br>')}
+          </div>
+          <p style="color: #888; font-size: 12px;">
+            Sent from <a href="https://www.clipcade.com">AppFeed</a>
+          </p>
+        </div>
+      `
+    });
+    
+    if (error) {
+      console.error('[Email Send] Error:', error);
+      return {
+        output: { markdown: `❌ Email failed: ${error.message}` },
+        error: 'SEND_ERROR'
+      };
+    }
+    
+    console.log('[Email Send] Success:', data);
+    
+    return {
+      output: { 
+        markdown: `✅ **Email sent successfully!**\n\nSent to: ${to}\n\nCheck your inbox! 📬` 
+      },
+      metadata: {
+        emailId: data.id
+      }
+    };
+    
+  } catch (error) {
+    console.error('[Email Send] Error:', error);
+    return {
+      output: { markdown: `❌ Error sending email: ${error.message}` },
+      error: 'EMAIL_ERROR'
+    };
+  }
+}
+
 export const ToolRegistry = {
   'llm.complete': tool_llm_complete,
   'image.process': tool_image_process,
+  'email.send': tool_email_send,
   'activities.lookup': tool_activities_lookup,
   'todo.add': tool_todo_add
 };
