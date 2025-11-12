@@ -1,16 +1,27 @@
 'use client';
 
-function AffirmationsOutput({ output }) {
+function AffirmationsOutput({ output, app }) {
   const text = typeof output === 'string' ? output : output?.markdown || '';
   const affirmations = text.split('\n').filter(line => line.trim().match(/^[\d•\-*]|^[IWY]/));
 
+  // Design variables - configurable via remix
+  const design = app?.design || {};
+  const containerColor = design.containerColor || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+  const fontColor = design.fontColor || 'white';
+  const fontFamily = design.fontFamily || 'inherit';
+  
+  // Fixed variables - NOT configurable
+  const containerSize = { padding: '24px', borderRadius: 12, minHeight: 200 }; // FIXED
+  const maxWidth = '100%'; // FIXED
+  const layoutStructure = 'vertical'; // FIXED
+
   return (
     <div style={{
-      padding: '24px',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      borderRadius: 12,
-      color: 'white',
-      minHeight: 200
+      ...containerSize, // FIXED layout
+      background: containerColor, // CONFIGURABLE
+      color: fontColor, // CONFIGURABLE  
+      fontFamily: fontFamily, // CONFIGURABLE
+      maxWidth: maxWidth // FIXED
     }}>
       <h3 style={{ margin: '0 0 20px 0', fontSize: 20, opacity: 0.9 }}>Your Daily Affirmations ✨</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

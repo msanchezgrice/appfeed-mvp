@@ -62,14 +62,40 @@ export async function tool_llm_complete({ userId, args, mode, supabase }) {
   console.log('[LLM] API key found, making OpenAI API call...');
   const system = tpl(args.system || '', {});
   const prompt = tpl(args.prompt || '', {});
+  
+  // Enhanced design guidelines for prettier outputs
+  const designGuidelines = `
+
+OUTPUT DESIGN GUIDELINES:
+- Use clear markdown formatting with headers (##, ###)
+- Include relevant emojis to make content engaging
+- Structure: Use bullet points or numbered lists where appropriate
+- Tone: Friendly, professional, and helpful
+- Format: Keep paragraphs short and scannable
+- Style: Use **bold** for emphasis, *italics* for nuance
+- Always end with a helpful tip or call-to-action when appropriate
+
+APP DESIGN CONTEXT (for reference):
+- Container color: ${args.design?.containerColor || 'purple-blue gradient'}
+- Font color: ${args.design?.fontColor || 'white'}
+- Font family: ${args.design?.fontFamily || 'system default'}
+- Input layout: ${args.design?.inputLayout || 'vertical'}
+
+Note: Container size, max width, and core layout are FIXED and cannot be changed.
+
+Remember: Make the output visually appealing and easy to read!
+`;
+
+  const enhancedSystem = system ? `${system}${designGuidelines}` : `You are a helpful AI assistant.${designGuidelines}`;
+  
   const body = {
     model: DEFAULT_MODEL,
     messages: [
-      ...(system ? [{ role: 'system', content: system }] : []),
+      { role: 'system', content: enhancedSystem },
       { role: 'user', content: prompt }
     ],
     temperature: 0.7,
-    max_tokens: 200
+    max_tokens: 300 // Increased for better formatted responses
   };
   
   console.log('[LLM] Making OpenAI API request:', {
