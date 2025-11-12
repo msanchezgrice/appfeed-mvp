@@ -42,6 +42,9 @@ export async function runApp({ app, inputs, userId, mode='try', supabase }) {
   // Pass supabase and userId to tools for accessing secrets
   const toolContext = { userId, mode, supabase };
   
+  // Store step outputs for interpolation
+  const stepOutputs = {};
+  
   for (let i=0; i<app.runtime.steps.length; i++) {
     const step = app.runtime.steps[i];
     console.log(`[Runner] Step ${i}: tool="${step.tool}", args=${JSON.stringify(step.args).slice(0, 100)}...`);
@@ -53,16 +56,16 @@ export async function runApp({ app, inputs, userId, mode='try', supabase }) {
       continue;
     }
     
-    // Interpolate args with inputs at TOP LEVEL for {{variable}} replacement
-    // Also include inputs.variable for {{inputs.variable}} format
+    // Interpolate args with inputs AND previous step outputs
     const interpolationContext = { 
-      ...inputs,       // Spread inputs to top level so {{tone}} works
-      inputs: inputs,  // Also keep nested for {{inputs.tone}} format
+      ...inputs,         // Spread inputs to top level so {{tone}} works
+      ...stepOutputs,    // Include previous step outputs (e.g., {{summary}})
+      inputs: inputs,    // Also keep nested for {{inputs.tone}} format
       steps: trace 
     };
     
     const args = interpolateArgs(step.args || {}, interpolationContext);
-    console.log(`[Runner] Step ${i} context:`, { hasInputs: !!inputs, inputKeys: Object.keys(inputs) });
+    console.log(`[Runner] Step ${i} context:`, { hasInputs: !!inputs, inputKeys: Object.keys(inputs), stepOutputKeys: Object.keys(stepOutputs) });
     console.log(`[Runner] Step ${i} RAW template:`, step.args);
     console.log(`[Runner] Step ${i} interpolated args:`, JSON.stringify(args).slice(0, 300));
     trace.push({ i, tool: step.tool, status:'running', args: args });
@@ -75,6 +78,12 @@ export async function runApp({ app, inputs, userId, mode='try', supabase }) {
       });
       trace[i] = { ...trace[i], status:'ok', output: res.output, usedStub: res.usedStub || false };
       outputs = res.output;
+      
+      // Store step output by name for next steps to reference
+      if (step.output) {
+        stepOutputs[step.output] = res.output;
+        console.log(`[Runner] Step ${i} output stored as:`, step.output);
+      }
     } catch (err) {
       console.error(`[Runner] Step ${i} error:`, err);
       trace[i] = { ...trace[i], status:'error', error: String(err?.message || err) };
