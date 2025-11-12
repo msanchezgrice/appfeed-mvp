@@ -8,21 +8,26 @@ export async function POST(req) {
   try {
     const { supabase, userId } = await createServerSupabaseClient();
     
-    if (!userId) {
+    // Allow cron job (no userId) OR admin users
+    const isCronJob = req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
+    
+    if (!isCronJob && !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check admin
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('clerk_user_id', userId)
-      .single();
-    
-    const isAdmin = profile?.email === 'msanchezgrice@gmail.com';
-    
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+    if (!isCronJob) {
+      // Check admin for manual refresh
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('clerk_user_id', userId)
+        .single();
+      
+      const isAdmin = profile?.email === 'msanchezgrice@gmail.com';
+      
+      if (!isAdmin) {
+        return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+      }
     }
 
     console.log('[Admin] Refreshing stats...');
