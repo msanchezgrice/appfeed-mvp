@@ -287,6 +287,19 @@ export default function AppOutput({ run, app }) {
   }
 
   // Fallback: generic output for real AI responses
+  // Extract text content from various output formats
+  let textContent;
+  if (typeof output === 'string') {
+    textContent = output;
+  } else if (output?.markdown) {
+    textContent = output.markdown;
+  } else {
+    textContent = JSON.stringify(output, null, 2);
+  }
+
+  // Clean up escaped newlines and render nicely
+  const cleanText = textContent.replace(/\\n\\n/g, '\n\n').replace(/\\n/g, '\n');
+
   return (
     <div style={{ 
       padding: 24, 
@@ -295,15 +308,14 @@ export default function AppOutput({ run, app }) {
       color: 'white',
       minHeight: 100
     }}>
-      <pre style={{ 
+      <div style={{ 
         whiteSpace: 'pre-wrap', 
-        margin: 0,
         fontFamily: 'inherit',
         fontSize: 16,
         lineHeight: 1.6
       }}>
-        {typeof output === 'string' ? output : JSON.stringify(output, null, 2)}
-      </pre>
+        {cleanText}
+      </div>
     </div>
   );
 }
