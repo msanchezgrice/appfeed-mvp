@@ -23,39 +23,52 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403 });
     }
 
-    // LIGHTWEIGHT queries - only counts, no JOINs, no aggregations
-    const { count: totalApps } = await supabase
+    console.log('[Simple Stats] Fetching lightweight stats...');
+
+    // SUPER LIGHTWEIGHT queries - just what we need
+    
+    // Get basic counts
+    const { data: appStats } = await supabase
       .from('apps')
-      .select('*', { count: 'exact', head: true })
+      .select('view_count, try_count, save_count, share_count')
       .eq('is_published', true);
-
-    const { count: totalUsers } = await supabase
+    
+    const { data: users } = await supabase
       .from('profiles')
-      .select('*', { count: 'exact', head: true });
+      .select('id');
 
-    // Get just top 5 apps by view_count (no creator join)
+    // Calculate totals
+    const totalApps = appStats?.length || 0;
+    const totalUsers = users?.length || 0;
+    const totalViews = appStats?.reduce((sum, app) => sum + (app.view_count || 0), 0) || 0;
+    const totalTries = appStats?.reduce((sum, app) => sum + (app.try_count || 0), 0) || 0;
+    const totalSaves = appStats?.reduce((sum, app) => sum + (app.save_count || 0), 0) || 0;
+
+    console.log('[Simple Stats] Calculated:', { totalApps, totalUsers, totalViews, totalTries });
+
+    // Get top 5 apps (simple, no JOIN)
     const { data: topApps } = await supabase
       .from('apps')
-      .select('id, name, view_count, try_count, save_count')
+      .select('id, name, view_count, try_count, save_count, share_count')
       .eq('is_published', true)
       .order('view_count', { ascending: false })
       .limit(5);
 
-    // Simple sums - let Postgres do the work
-    const { data: viewStats } = await supabase
-      .rpc('get_total_stats')
-      .single()
-      .catch(() => ({ data: null }));
+    console.log('[Simple Stats] Top apps:', topApps?.length);
 
     return NextResponse.json({
       overview: {
-        totalApps: totalApps || 0,
-        totalUsers: totalUsers || 0,
-        totalViews: viewStats?.total_views || 0,
-        totalTries: viewStats?.total_tries || 0
+        totalApps,
+        totalUsers,
+        totalViews,
+        totalTries,
+        totalSaves,
+        avgViews: totalApps > 0 ? Math.round(totalViews / totalApps) : 0,
+        conversionRate: totalViews > 0 ? Math.round((totalTries / totalViews) * 100) : 0
       },
       topApps: topApps || [],
-      lightweight: true
+      lightweight: true,
+      timestamp: new Date().toISOString()
     });
 
   } catch (error) {
