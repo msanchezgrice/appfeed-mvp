@@ -61,7 +61,23 @@ export async function tool_llm_complete({ userId, args, mode, supabase }) {
   
   console.log('[LLM] API key found, making OpenAI API call...');
   const system = tpl(args.system || '', {});
-  const prompt = tpl(args.prompt || '', {});
+  let prompt = tpl(args.prompt || '', {});
+  
+  // If prompt contains a URL, fetch the article content first
+  const urlMatch = prompt.match(/https?:\/\/[^\s]+/);
+  if (urlMatch) {
+    const articleUrl = urlMatch[0];
+    console.log('[LLM] URL detected, fetching article content:', articleUrl);
+    
+    const articleContent = await fetchArticleContent(articleUrl);
+    if (articleContent) {
+      // Replace the URL with the actual content
+      prompt = prompt.replace(articleUrl, `\n\nArticle Content:\n${articleContent}\n\n`);
+      console.log('[LLM] Article fetched, new prompt length:', prompt.length);
+    } else {
+      console.warn('[LLM] Could not fetch article, using URL as-is');
+    }
+  }
   
   // Enhanced design guidelines for prettier outputs
   const designGuidelines = `
@@ -88,6 +104,9 @@ Remember: Make the output visually appealing and easy to read!
 
   const enhancedSystem = system ? `${system}${designGuidelines}` : `You are a helpful AI assistant.${designGuidelines}`;
   
+  // Check if prompt contains URLs - if so, enable web browsing
+  const hasUrl = /https?:\/\/[^\s]+/.test(prompt);
+  
   const body = {
     model: DEFAULT_MODEL,
     messages: [
@@ -95,8 +114,28 @@ Remember: Make the output visually appealing and easy to read!
       { role: 'user', content: prompt }
     ],
     temperature: 0.7,
-    max_tokens: 300 // Increased for better formatted responses
+    max_tokens: 500 // Increased for web content
   };
+  
+  // Enable web browsing if URL detected
+  if (hasUrl) {
+    console.log('[LLM] URL detected in prompt, enabling web browsing...');
+    body.tools = [{
+      type: "function",
+      function: {
+        name: "web_search",
+        description: "Search the web or fetch content from URLs",
+        parameters: {
+          type: "object",
+          properties: {
+            url: { type: "string", description: "The URL to fetch" }
+          }
+        }
+      }
+    }];
+    // Note: OpenAI doesn't have built-in web browsing yet
+    // For now, we'll use a simple fetch for URL content
+  }
   
   console.log('[LLM] Making OpenAI API request:', {
     model: DEFAULT_MODEL,
