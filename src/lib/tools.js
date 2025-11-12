@@ -205,12 +205,12 @@ export async function tool_todo_add({ userId, args, mode, supabase }) {
   }
 }
 
-// Image processing tool using Gemini Vision
+// Image processing tool using Gemini Image Generation
 export async function tool_image_process({ userId, args, mode, supabase }) {
   console.log('[Image Process] Starting:', { userId, mode, instruction: args.instruction?.substring(0, 50) });
   
   const imageData = args.image; // base64 or URL
-  const instruction = args.instruction || 'Describe this image in detail';
+  const instruction = args.instruction || 'Transform this image artistically';
   
   if (!imageData) {
     return {
@@ -233,14 +233,21 @@ export async function tool_image_process({ userId, args, mode, supabase }) {
   try {
     // Extract base64 data if it's a data URL
     let base64Data = imageData;
+    let mimeType = 'image/jpeg';
+    
     if (imageData.startsWith('data:')) {
-      base64Data = imageData.split(',')[1];
+      const matches = imageData.match(/^data:(image\/[^;]+);base64,(.+)$/);
+      if (matches) {
+        mimeType = matches[1];
+        base64Data = matches[2];
+      }
     }
     
-    console.log('[Image Process] Calling Gemini Vision API...');
+    console.log('[Image Process] Calling Gemini 2.5 Flash Image API for generation...');
     
+    // Use gemini-2.5-flash-image for actual image generation
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${geminiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -250,15 +257,17 @@ export async function tool_image_process({ userId, args, mode, supabase }) {
               { text: instruction },
               {
                 inline_data: {
-                  mime_type: 'image/jpeg',
+                  mime_type: mimeType,
                   data: base64Data
                 }
               }
             ]
           }],
           generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 500
+            responseModalities: ["Image"], // Request image output, not text
+            imageConfig: {
+              aspectRatio: "1:1" // Square output
+            }
           }
         })
       }
@@ -268,23 +277,41 @@ export async function tool_image_process({ userId, args, mode, supabase }) {
       const error = await response.text();
       console.error('[Image Process] API error:', error);
       return {
-        output: { markdown: `Image processing failed: ${response.statusText}` },
+        output: { markdown: `Image generation failed: ${response.statusText}` },
         error: 'API_ERROR'
       };
     }
     
     const result = await response.json();
-    const output = result.candidates?.[0]?.content?.parts?.[0]?.text || 'No result';
     
-    console.log('[Image Process] Success:', output.substring(0, 100));
+    // Extract generated image from response
+    const imagePart = result.candidates?.[0]?.content?.parts?.find(p => p.inline_data || p.inlineData);
     
-    return {
-      output: { markdown: output },
-      metadata: {
-        model: 'gemini-2.0-flash-exp',
-        tokens: result.usageMetadata?.totalTokenCount || 0
-      }
-    };
+    if (imagePart) {
+      const generatedImage = imagePart.inline_data || imagePart.inlineData;
+      const imageBase64 = generatedImage.data;
+      const imageMime = generatedImage.mime_type || generatedImage.mimeType || 'image/png';
+      
+      console.log('[Image Process] Image generated successfully!', imageBase64.substring(0, 50));
+      
+      return {
+        output: { 
+          image: `data:${imageMime};base64,${imageBase64}`,
+          markdown: '✨ **Image transformed successfully!**\n\nYour artistic image is ready!'
+        },
+        metadata: {
+          model: 'gemini-2.5-flash-image',
+          tokens: result.usageMetadata?.totalTokenCount || 1290
+        }
+      };
+    } else {
+      // Fallback to text if no image generated
+      const textOutput = result.candidates?.[0]?.content?.parts?.[0]?.text || 'No result';
+      return {
+        output: { markdown: textOutput },
+        metadata: { model: 'gemini-2.5-flash-image' }
+      };
+    }
     
   } catch (error) {
     console.error('[Image Process] Error:', error);

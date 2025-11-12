@@ -287,6 +287,9 @@ export default function AppOutput({ run, app }) {
   }
 
   // Fallback: generic output for real AI responses
+  // Check if output contains a generated image
+  const hasImage = output?.image;
+  
   // Extract text content from various output formats
   let textContent;
   if (typeof output === 'string') {
@@ -308,6 +311,19 @@ export default function AppOutput({ run, app }) {
       color: 'white',
       minHeight: 100
     }}>
+      {hasImage && (
+        <div style={{ marginBottom: 20, textAlign: 'center' }}>
+          <img 
+            src={output.image} 
+            alt="Generated image" 
+            style={{
+              maxWidth: '100%',
+              borderRadius: 8,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+            }}
+          />
+        </div>
+      )}
       <div style={{ 
         whiteSpace: 'pre-wrap', 
         fontFamily: 'inherit',
