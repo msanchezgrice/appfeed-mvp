@@ -12,6 +12,35 @@ function tpl(str, ctx) {
   });
 }
 
+// Fetch article content from URL using Jina AI Reader
+async function fetchArticleContent(url) {
+  try {
+    console.log('[Article Fetch] Fetching:', url);
+    
+    // Use Jina AI Reader API - free service for clean article extraction
+    const jinaUrl = `https://r.jina.ai/${url}`;
+    
+    const response = await fetch(jinaUrl, {
+      headers: { 'Accept': 'text/plain' }
+    });
+    
+    if (!response.ok) {
+      console.error('[Article Fetch] Failed:', response.status);
+      return null;
+    }
+    
+    const content = await response.text();
+    console.log('[Article Fetch] Success, content length:', content.length);
+    
+    // Limit to first 3000 chars to fit in context
+    return content.substring(0, 3000);
+    
+  } catch (error) {
+    console.error('[Article Fetch] Error:', error);
+    return null;
+  }
+}
+
 export async function tool_llm_complete({ userId, args, mode, supabase }) {
   // Try to use BYOK OpenAI key from encrypted Supabase secrets
   console.log('[LLM] Starting - userId:', userId, 'mode:', mode);
