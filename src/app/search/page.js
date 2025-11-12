@@ -64,27 +64,59 @@ function SearchContent() {
       
       {/* Popular Tags Autocomplete */}
       <div style={{ marginBottom: 16 }}>
+        <button
+          onClick={() => setSelectedTag('')}
+          style={{
+            padding: '6px 14px',
+            borderRadius: 16,
+            border: !selectedTag ? 'none' : '1px solid #444',
+            background: !selectedTag ? '#ff2d55' : '#1a1a1a',
+            color: 'white',
+            cursor: 'pointer',
+            fontSize: 13,
+            fontWeight: 600,
+            marginRight: 8
+          }}
+        >
+          All
+        </button>
         <div style={{ 
-          display: 'flex', 
+          display: 'inline-flex', 
           flexWrap: 'wrap', 
           gap: 6,
-          marginBottom: 12,
-          maxHeight: showAllTags ? 'none' : '56px',
+          maxHeight: showAllTags ? 'none' : '64px',
           overflow: 'hidden',
           transition: 'max-height 0.3s'
         }}>
-          {popularTags.map(tag => (
+          {allUniqueTags.length > 0 ? allUniqueTags.map(tag => (
             <button
               key={tag}
               onClick={() => setSelectedTag(tag)}
               style={{
-                padding: '4px 10px',
-                borderRadius: 12,
+                padding: '6px 12px',
+                borderRadius: 16,
                 border: selectedTag === tag ? 'none' : '1px solid #444',
                 background: selectedTag === tag ? 'var(--brand)' : '#1a1a1a',
                 color: 'white',
                 cursor: 'pointer',
-                fontSize: 12,
+                fontSize: 13,
+                transition: 'all 0.2s'
+              }}
+            >
+              #{tag}
+            </button>
+          )) : popularTags.map(tag => (
+            <button
+              key={tag}
+              onClick={() => setSelectedTag(tag)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 16,
+                border: selectedTag === tag ? 'none' : '1px solid #444',
+                background: selectedTag === tag ? 'var(--brand)' : '#1a1a1a',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: 13,
                 transition: 'all 0.2s'
               }}
             >
@@ -92,7 +124,7 @@ function SearchContent() {
             </button>
           ))}
         </div>
-        {popularTags.length > 10 && (
+        <div style={{ marginTop: 8 }}>
           <button 
             onClick={() => setShowAllTags(!showAllTags)}
             className="small"
@@ -101,12 +133,13 @@ function SearchContent() {
               border: 'none', 
               color: '#888', 
               cursor: 'pointer',
-              padding: 0
+              padding: 0,
+              fontSize: 12
             }}
           >
-            {showAllTags ? '▲ Show less tags' : '▼ Show all tags'}
+            {showAllTags ? '▲ Show less' : '▼ Show all tags'}
           </button>
-        )}
+        </div>
       </div>
 
       <input
