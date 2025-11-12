@@ -26,8 +26,17 @@ export default function TikTokFeedCard({ app }) {
   const [showTry, setShowTry] = useState(false);
   const [showUse, setShowUse] = useState(false);
   const [showRemix, setShowRemix] = useState(false);
+  const [remixTab, setRemixTab] = useState('quick'); // 'quick' or 'advanced'
   const [remixPrompt, setRemixPrompt] = useState('');
   const [remixing, setRemixing] = useState(false);
+  
+  // Advanced editor state
+  const [editedName, setEditedName] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
+  const [editedTags, setEditedTags] = useState([]);
+  const [containerColor, setContainerColor] = useState('');
+  const [fontColor, setFontColor] = useState('');
+  const [fontFamily, setFontFamily] = useState('');
   const [run, setRun] = useState(null);
   const [saved, setSaved] = useState(false);
   const [liked, setLiked] = useState(false);
@@ -346,56 +355,105 @@ export default function TikTokFeedCard({ app }) {
         </div>
       )}
 
-      {/* Remix Modal */}
+      {/* Remix Modal with Tabs */}
       {showRemix && (
         <div className="modal" onClick={() => setShowRemix(false)}>
-          <div className="dialog" onClick={e => e.stopPropagation()}>
-            <div className="row" style={{justifyContent:'space-between', alignItems: 'center'}}>
+          <div className="dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 700 }}>
+            {/* Header */}
+            <div className="row" style={{justifyContent:'space-between', alignItems: 'center', marginBottom: 16}}>
               <b>Remix: {app.name}</b>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <button 
-                  className="btn ghost" 
-                  onClick={() => {
-                    setShowRemix(false);
-                    setShowAdvancedEditor(true);
-                  }}
-                  style={{ fontSize: 18, padding: '4px 8px' }}
-                  title="Advanced Editor"
-                >
-                  ⚙️
-                </button>
-                <button className="btn ghost" onClick={() => setShowRemix(false)}>Close</button>
-              </div>
+              <button className="btn ghost" onClick={() => setShowRemix(false)}>Close</button>
             </div>
-            <p className="small" style={{marginBottom: 16}}>
-              Describe how you want to modify this app. AI will remix it for you and save it to your profile.
-            </p>
 
-            <textarea
-              className="input"
-              placeholder="E.g., 'Make it funnier' or 'Add a sentiment analysis step' or 'Change the tone to be more professional'"
-              value={remixPrompt}
-              onChange={(e) => setRemixPrompt(e.target.value)}
-              rows={4}
-              style={{
-                marginBottom: 16,
-                width: '100%',
-                padding: 12,
-                fontSize: 14,
-                borderRadius: 8,
-                border: '1px solid #ddd',
-                fontFamily: 'inherit'
-              }}
-            />
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20, borderBottom: '2px solid #333' }}>
+              <button
+                onClick={() => setRemixTab('quick')}
+                style={{
+                  padding: '10px 16px',
+                  background: 'none',
+                  border: 'none',
+                  borderBottom: remixTab === 'quick' ? '3px solid var(--brand)' : '3px solid transparent',
+                  color: remixTab === 'quick' ? 'white' : '#888',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  marginBottom: '-2px'
+                }}
+              >
+                💬 Quick Remix
+              </button>
+              <button
+                onClick={() => {
+                  setRemixTab('advanced');
+                  // Initialize advanced state
+                  if (!editedName) {
+                    setEditedName(app.name);
+                    setEditedDescription(app.description || '');
+                    setEditedTags(app.tags || []);
+                    setContainerColor(app.design?.containerColor || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)');
+                    setFontColor(app.design?.fontColor || 'white');
+                    setFontFamily(app.design?.fontFamily || 'inherit');
+                  }
+                }}
+                style={{
+                  padding: '10px 16px',
+                  background: 'none',
+                  border: 'none',
+                  borderBottom: remixTab === 'advanced' ? '3px solid var(--brand)' : '3px solid transparent',
+                  color: remixTab === 'advanced' ? 'white' : '#888',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  marginBottom: '-2px'
+                }}
+              >
+                ⚙️ Advanced Editor
+              </button>
+            </div>
 
-            <button
-              onClick={handleRemix}
-              className="btn primary"
-              disabled={remixing}
-              style={{ width: '100%' }}
-            >
-              {remixing ? 'Remixing...' : 'Remix App →'}
-            </button>
+            {/* Quick Tab Content */}
+            {remixTab === 'quick' && (
+              <div>
+                <p className="small" style={{marginBottom: 16, color: '#888'}}>
+                  Describe how you want to modify this app. AI will remix it for you.
+                </p>
+
+                <textarea
+                  className="input"
+                  placeholder="E.g., 'Make it pink' or 'Add neon style' or 'Change to dark theme'"
+                  value={remixPrompt}
+                  onChange={(e) => setRemixPrompt(e.target.value)}
+                  rows={4}
+                  style={{
+                    marginBottom: 16,
+                    width: '100%',
+                    padding: 12,
+                    fontSize: 14,
+                    borderRadius: 8
+                  }}
+                />
+
+                <button
+                  onClick={handleRemix}
+                  className="btn primary"
+                  disabled={remixing}
+                  style={{ width: '100%' }}
+                >
+                  {remixing ? 'Remixing...' : '✨ AI Remix →'}
+                </button>
+              </div>
+            )}
+
+            {/* Advanced Tab Content - Inline */}
+            {remixTab === 'advanced' && (
+              <AdvancedRemixEditor
+                app={app}
+                onSave={handleSaveRemix}
+                onCancel={() => setRemixTab('quick')}
+                inline={true}
+              />
+            )}
           </div>
         </div>
       )}

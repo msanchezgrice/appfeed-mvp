@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 
-export default function AdvancedRemixEditor({ app, onSave, onCancel }) {
+export default function AdvancedRemixEditor({ app, onSave, onCancel, inline = false }) {
   const [activeTab, setActiveTab] = useState('design');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showLocked, setShowLocked] = useState(false);
@@ -59,30 +59,18 @@ export default function AdvancedRemixEditor({ app, onSave, onCancel }) {
     setEditedTags(editedTags.filter(t => t !== tag));
   };
 
-  return (
+  // If inline, don't render modal wrapper
+  const content = (
     <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0,0,0,0.8)',
+      background: inline ? 'transparent' : 'var(--bg-dark)',
+      borderRadius: inline ? 0 : 12,
+      maxWidth: inline ? '100%' : 700,
+      width: '100%',
+      maxHeight: inline ? 'none' : '90vh',
+      overflow: 'hidden',
       display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      padding: 16
+      flexDirection: 'column'
     }}>
-      <div style={{
-        background: 'var(--bg-dark)',
-        borderRadius: 12,
-        maxWidth: 700,
-        width: '100%',
-        maxHeight: '90vh',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column'
-      }}>
         {/* Header */}
         <div style={{
           padding: '20px 24px',
@@ -452,6 +440,29 @@ export default function AdvancedRemixEditor({ app, onSave, onCancel }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+  
+  // Return with or without modal wrapper
+  if (inline) {
+    return content;
+  }
+  
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0,0,0,0.8)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: 16
+    }}>
+      {content}
     </div>
   );
 }
