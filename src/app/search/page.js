@@ -48,6 +48,53 @@ function SearchContent() {
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px 0', paddingBottom: '100px', minHeight: 'calc(100vh - 60px)' }}>
       <h1 style={{ marginBottom: 16 }}>Search</h1>
+      
+      {/* Popular Tags Autocomplete */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ 
+          display: 'flex', 
+          flexWrap: 'wrap', 
+          gap: 6,
+          marginBottom: 12,
+          maxHeight: showAllTags ? 'none' : '56px',
+          overflow: 'hidden',
+          transition: 'max-height 0.3s'
+        }}>
+          {popularTags.map(tag => (
+            <button
+              key={tag}
+              onClick={() => setSelectedTag(tag)}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 12,
+                border: selectedTag === tag ? 'none' : '1px solid #444',
+                background: selectedTag === tag ? 'var(--brand)' : '#1a1a1a',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: 12,
+                transition: 'all 0.2s'
+              }}
+            >
+              #{tag}
+            </button>
+          ))}
+        </div>
+        {popularTags.length > 10 && (
+          <button 
+            onClick={() => setShowAllTags(!showAllTags)}
+            className="small"
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              color: '#888', 
+              cursor: 'pointer',
+              padding: 0
+            }}
+          >
+            {showAllTags ? '▲ Show less tags' : '▼ Show all tags'}
+          </button>
+        )}
+      </div>
 
       <input
         type="text"
