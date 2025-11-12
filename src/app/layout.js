@@ -3,18 +3,18 @@ import './globals.css';
 import BottomNav from '@/src/components/BottomNav';
 
 export const metadata = {
-  title: 'AppFeed - Discover, Run & Remix Mini-Apps',
+  title: 'Clipcade - Discover, Run & Remix Mini-Apps',
   description: 'TikTok-style feed for mini-apps. Discover, try, and remix apps with your own AI. Bring your own API key.',
   keywords: 'apps, mini-apps, AI, remix, TikTok, discover, BYOK',
-  authors: [{ name: 'AppFeed' }],
-  creator: 'AppFeed',
-  publisher: 'AppFeed',
+  authors: [{ name: 'Clipcade' }],
+  creator: 'Clipcade',
+  publisher: 'Clipcade',
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://appfeed.app',
-    siteName: 'AppFeed',
-    title: 'AppFeed - Discover, Run & Remix Mini-Apps',
+    url: 'https://www.clipcade.com',
+    siteName: 'Clipcade',
+    title: 'Clipcade - Discover, Run & Remix Mini-Apps',
     description: 'TikTok-style feed for mini-apps. Discover, try, and remix apps with your own AI.',
     images: [
       {

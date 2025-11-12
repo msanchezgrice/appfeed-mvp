@@ -143,60 +143,6 @@ export default function TikTokFeedCard({ app }) {
         </Link>
 
         {/* Like Button */}
-        <button
-          onClick={async () => {
-            if (!user) {
-              setSignInAction('like apps and show your support');
-              setShowSignInModal(true);
-              return;
-            }
-            
-            const newLiked = !liked;
-            setLiked(newLiked);
-            try {
-              await fetch('/api/likes', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ appId: app.id, action: newLiked ? 'like' : 'unlike' })
-              });
-            } catch (err) {
-              console.error('Error toggling like:', err);
-              setLiked(!newLiked); // Revert on error
-            }
-          }}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 4
-          }}
-        >
-          <div style={{
-            fontSize: 32,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
-            transform: liked ? 'scale(1.2)' : 'scale(1)',
-            transition: 'transform 0.2s'
-          }}>
-            {liked ? '❤️' : '🤍'}
-          </div>
-          <div style={{ 
-            fontSize: 12, 
-            color: 'white', 
-            fontWeight: 'bold', 
-            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-            background: liked ? 'rgba(254, 44, 85, 0.9)' : 'transparent',
-            padding: liked ? '4px 12px' : '0',
-            borderRadius: liked ? '12px' : '0',
-            transition: 'all 0.2s'
-          }}>
-            {liked ? 'Liked' : 'Like'}
-          </div>
-        </button>
-
         {/* Save Button */}
         <button
           onClick={() => save(!saved)}
