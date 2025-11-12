@@ -191,18 +191,36 @@ Remember: Make the output visually appealing and easy to read!
     // Handle both Responses API and Chat Completions responses
     let txt;
     if (hasUrl && j.output !== undefined) {
-      // Responses API format: output can be string or array
+      // Responses API returns complex nested structure
+      console.log('[LLM] Parsing Responses API output...');
+      
       if (typeof j.output === 'string') {
         txt = j.output.trim();
       } else if (Array.isArray(j.output)) {
-        // If output is array of content parts
-        txt = j.output.map(part => typeof part === 'string' ? part : part.text || JSON.stringify(part)).join('\n');
+        // Output is array of parts - find the message with text
+        const textParts = j.output
+          .filter(part => part.type === 'message' || part.text)
+          .map(part => {
+            if (part.text) return part.text;
+            if (part.content && Array.isArray(part.content)) {
+              return part.content
+                .filter(c => c.type === 'output_text' || c.text)
+                .map(c => c.text)
+                .join('\n');
+            }
+            return '';
+          })
+          .filter(Boolean);
+        txt = textParts.join('\n\n');
       } else if (j.output.content) {
         txt = j.output.content;
+      } else if (j.text) {
+        // Sometimes the text is at top level
+        txt = j.text;
       } else {
         txt = JSON.stringify(j.output);
       }
-      console.log('[LLM] Responses API success! Used web search:', j.used_tools?.includes('web_search'));
+      console.log('[LLM] Responses API parsed! Text extracted:', txt.substring(0, 100));
     } else {
       // Chat Completions format: { choices: [{ message: { content: "text" } }] }
       txt = j.choices?.[0]?.message?.content?.trim() || 'No content';
