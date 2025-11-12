@@ -39,12 +39,24 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!user) return;
     
+    // Stop loading immediately - show UI first
+    setLoading(false);
+    
     const fetchData = async () => {
       try {
+        console.log('[Admin] Fetching data for tab:', activeTab);
+        const startTime = Date.now();
+        
         // Only fetch data for active tab to speed up loading
-        const res = await fetch(`/api/admin/stats?time=${timeFilter}&tab=${activeTab}`);
+        const res = await fetch(`/api/admin/stats?time=${timeFilter}&tab=${activeTab}`, {
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        });
+        
+        console.log('[Admin] Fetch completed in:', Date.now() - startTime, 'ms');
+        
         if (res.ok) {
           const data = await res.json();
+          console.log('[Admin] Data received:', Object.keys(data));
           setStats(data.overview);
           
           // Set data based on active tab
@@ -58,30 +70,36 @@ export default function AdminDashboard() {
             setGrowthByDay(data.growthByDay || []);
             setGrowthByWeek(data.growthByWeek || []);
           }
+        } else {
+          console.error('[Admin] API returned error:', res.status);
         }
       } catch (err) {
-        console.error('Error fetching admin data:', err);
-      } finally {
-        setLoading(false);
+        console.error('[Admin] Error fetching admin data:', err);
+        // Show error but don't freeze
+        setStats({
+          totalApps: 0,
+          totalUsers: 0,
+          totalViews: 0,
+          totalTries: 0
+        });
       }
     };
 
-    fetchData();
-    
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
+    // Fetch after a short delay to let UI render
+    setTimeout(fetchData, 100);
   }, [user, timeFilter, activeTab]);
 
-  if (!isLoaded || loading) {
+  if (!isLoaded) {
     return (
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 16px', textAlign: 'center' }}>
-        <p>Loading admin dashboard...</p>
+        <p>Loading authentication...</p>
       </div>
     );
   }
 
   if (!user) return null;
+  
+  // Show UI immediately, data loads in background
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 16px', paddingBottom: '100px' }}>
