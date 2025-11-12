@@ -8,6 +8,7 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState(null);
   const [topApps, setTopApps] = useState([]);
+  const [viralityLeaderboard, setViralityLeaderboard] = useState([]);
   const [followerLeaderboard, setFollowerLeaderboard] = useState([]);
   const [growthByDay, setGrowthByDay] = useState([]);
   const [growthByWeek, setGrowthByWeek] = useState([]);
@@ -45,6 +46,7 @@ export default function AdminDashboard() {
           const data = await res.json();
           setStats(data.overview);
           setTopApps(data.topApps || []);
+          setViralityLeaderboard(data.viralityLeaderboard || []);
           setFollowerLeaderboard(data.followerLeaderboard || []);
           setGrowthByDay(data.growthByDay || []);
           setGrowthByWeek(data.growthByWeek || []);
@@ -187,6 +189,7 @@ export default function AdminDashboard() {
                 <th style={{ padding: 12, textAlign: 'center', fontSize: 12, color: '#888' }}>Views</th>
                 <th style={{ padding: 12, textAlign: 'center', fontSize: 12, color: '#888' }}>Tries</th>
                 <th style={{ padding: 12, textAlign: 'center', fontSize: 12, color: '#888' }}>Saves</th>
+                <th style={{ padding: 12, textAlign: 'center', fontSize: 12, color: '#888' }}>Shares</th>
                 <th style={{ padding: 12, textAlign: 'left', fontSize: 12, color: '#888' }}>Creator</th>
               </tr>
             </thead>
@@ -202,6 +205,7 @@ export default function AdminDashboard() {
                   <td style={{ padding: 12, textAlign: 'center' }}>{app.view_count || 0}</td>
                   <td style={{ padding: 12, textAlign: 'center' }}>{app.try_count || 0}</td>
                   <td style={{ padding: 12, textAlign: 'center' }}>{app.save_count || 0}</td>
+                  <td style={{ padding: 12, textAlign: 'center' }}>{app.share_count || 0}</td>
                   <td style={{ padding: 12, fontSize: 12, color: '#888' }}>
                     {app.creator?.display_name || 'Unknown'}
                   </td>
@@ -241,6 +245,59 @@ export default function AdminDashboard() {
                 <tr>
                   <td colSpan="4" style={{ padding: 20, textAlign: 'center', color: '#888' }}>
                     No followers yet
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Virality / K-Factor Leaderboard */}
+      <div style={{ marginBottom: 40 }}>
+        <h2 style={{ marginBottom: 16 }}>🚀 Virality Leaderboard (K-Factor)</h2>
+        <p className="small" style={{ color: '#888', marginBottom: 12 }}>
+          K-Factor = (Shares + Remixes) / Views. Higher = more viral. Min 10 views to qualify.
+        </p>
+        <div style={{ background: 'var(--bg-dark)', borderRadius: 12, border: '1px solid #333', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#1a1a1a', borderBottom: '1px solid #333' }}>
+                <th style={{ padding: 12, textAlign: 'left', fontSize: 12, color: '#888' }}>#</th>
+                <th style={{ padding: 12, textAlign: 'left', fontSize: 12, color: '#888' }}>App Name</th>
+                <th style={{ padding: 12, textAlign: 'center', fontSize: 12, color: '#888' }}>K-Factor</th>
+                <th style={{ padding: 12, textAlign: 'center', fontSize: 12, color: '#888' }}>Share Rate<br/>(Views)</th>
+                <th style={{ padding: 12, textAlign: 'center', fontSize: 12, color: '#888' }}>Share Rate<br/>(Tries)</th>
+                <th style={{ padding: 12, textAlign: 'center', fontSize: 12, color: '#888' }}>Remix Rate<br/>(Views)</th>
+                <th style={{ padding: 12, textAlign: 'center', fontSize: 12, color: '#888' }}>Remix Rate<br/>(Tries)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {viralityLeaderboard.length > 0 ? viralityLeaderboard.map((app, i) => (
+                <tr key={app.id} style={{ borderBottom: '1px solid #222' }}>
+                  <td style={{ padding: 12, color: '#888' }}>{i + 1}</td>
+                  <td style={{ padding: 12 }}>
+                    <a href={`/app/${app.id}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>
+                      {app.name}
+                    </a>
+                  </td>
+                  <td style={{ padding: 12, textAlign: 'center', fontWeight: 'bold', fontSize: 16 }}>
+                    <span style={{ 
+                      color: parseFloat(app.k_factor) > 0.5 ? '#10b981' : 
+                             parseFloat(app.k_factor) > 0.2 ? '#fbbf24' : '#888'
+                    }}>
+                      {app.k_factor}
+                    </span>
+                  </td>
+                  <td style={{ padding: 12, textAlign: 'center', color: '#888' }}>{app.share_rate_views}%</td>
+                  <td style={{ padding: 12, textAlign: 'center', color: '#888' }}>{app.share_rate_tries}%</td>
+                  <td style={{ padding: 12, textAlign: 'center', color: '#888' }}>{app.remix_rate_views}%</td>
+                  <td style={{ padding: 12, textAlign: 'center', color: '#888' }}>{app.remix_rate_tries}%</td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan="7" style={{ padding: 20, textAlign: 'center', color: '#888' }}>
+                    Not enough data yet (need apps with 10+ views)
                   </td>
                 </tr>
               )}

@@ -94,8 +94,32 @@ export async function GET(req) {
       filteredApps = apps?.filter(a => new Date(a.created_at) >= weekAgo) || [];
     }
     
-    const topApps = [...filteredApps]
+    // Calculate virality metrics for each app
+    const appsWithVirality = filteredApps.map(app => {
+      const views = app.view_count || 0;
+      const tries = app.try_count || 0;
+      const shares = app.share_count || 0;
+      const remixes = apps.filter(a => a.fork_of === app.id).length;
+      
+      return {
+        ...app,
+        remix_count: remixes,
+        share_rate_views: views > 0 ? Math.round((shares / views) * 100) : 0,
+        share_rate_tries: tries > 0 ? Math.round((shares / tries) * 100) : 0,
+        remix_rate_views: views > 0 ? Math.round((remixes / views) * 100) : 0,
+        remix_rate_tries: tries > 0 ? Math.round((remixes / tries) * 100) : 0,
+        k_factor: views > 0 ? ((shares + remixes) / views).toFixed(2) : 0
+      };
+    });
+    
+    const topApps = [...appsWithVirality]
       .sort((a, b) => (b.view_count || 0) - (a.view_count || 0))
+      .slice(0, 10);
+    
+    // Virality leaderboard - apps with highest K-factor
+    const viralityLeaderboard = [...appsWithVirality]
+      .filter(a => a.view_count > 10) // Min 10 views for statistical significance
+      .sort((a, b) => parseFloat(b.k_factor) - parseFloat(a.k_factor))
       .slice(0, 10);
     
     // Follower leaderboard - top creators by followers
@@ -178,6 +202,7 @@ export async function GET(req) {
         conversionRate
       },
       topApps,
+      viralityLeaderboard,
       followerLeaderboard,
       growthByDay,
       growthByWeek,
