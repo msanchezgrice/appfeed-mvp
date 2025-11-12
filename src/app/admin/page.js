@@ -120,18 +120,13 @@ export default function AdminDashboard() {
           )}
           <button 
             onClick={async () => {
-              if (confirm('Refresh all stats? This takes ~10 seconds.')) {
-                const res = await fetch('/api/admin/refresh-stats', { method: 'POST' });
-                if (res.ok) {
-                  alert('Stats refreshed! Reloading...');
-                  window.location.reload();
-                }
-              }
+              alert('⚠️ Manual refresh temporarily disabled.\n\nStats will auto-refresh nightly at midnight.\n\nThis prevents database overload.');
             }}
-            className="btn primary"
-            style={{ fontSize: 13, padding: '8px 16px' }}
+            className="btn ghost"
+            style={{ fontSize: 13, padding: '8px 16px', opacity: 0.5 }}
+            disabled
           >
-            🔄 Refresh Stats
+            🔄 Refresh Stats (Disabled)
           </button>
         </div>
       </div>

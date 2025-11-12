@@ -6,6 +6,13 @@ export const maxDuration = 60;
 
 export async function POST(req) {
   try {
+    // TEMPORARILY DISABLED - causing database overload
+    return NextResponse.json({ 
+      error: 'Refresh temporarily disabled while database is under load. Stats will auto-refresh nightly.',
+      disabled: true
+    }, { status: 503 });
+    
+    /* DISABLED CODE - Re-enable when database is stable
     const { supabase, userId } = await createServerSupabaseClient();
     
     // Allow cron job (no userId) OR admin users
@@ -31,6 +38,7 @@ export async function POST(req) {
     }
 
     console.log('[Admin] Refreshing stats...');
+    */";
 
     // Get all data
     const { data: apps } = await supabase
