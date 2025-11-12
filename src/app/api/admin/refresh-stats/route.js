@@ -134,22 +134,33 @@ export async function POST(req) {
       growthByWeek.push({ week: `Week ${4 - i}`, signups: count });
     }
 
-    // Upsert into admin_stats table
+    // Upsert into cache table
     const { error } = await supabase
-      .from('admin_stats')
+      .from('admin_stats_cache')
       .upsert({
         id: 'current',
         last_updated: new Date().toISOString(),
-        total_apps: apps.length,
-        total_users: users.length,
-        total_views: totalViews,
-        total_tries: totalTries,
-        total_saves: totalSaves,
-        top_apps_all_time: topAppsAll,
-        viral_apps: viralApps,
-        top_creators: topCreators,
-        growth_by_day: growthByDay,
-        growth_by_week: growthByWeek
+        stats_data: {
+          overview: {
+            totalApps: apps.length,
+            appsToday: apps.filter(a => new Date(a.created_at) >= today).length,
+            appsWeek: apps.filter(a => new Date(a.created_at) >= weekAgo).length,
+            totalUsers: users.length,
+            signupsToday: users.filter(u => new Date(u.created_at) >= today).length,
+            signupsWeek: users.filter(u => new Date(u.created_at) >= weekAgo).length,
+            signupsMonth: users.filter(u => new Date(u.created_at) >= new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)).length,
+            totalViews,
+            totalTries,
+            totalSaves,
+            avgViews: apps.length > 0 ? Math.round(totalViews / apps.length) : 0,
+            conversionRate: totalViews > 0 ? Math.round((totalTries / totalViews) * 100) : 0
+          },
+          topApps: topAppsAll,
+          viralApps: viralApps,
+          topCreators: topCreators,
+          growthByDay: growthByDay,
+          growthByWeek: growthByWeek
+        }
       });
 
     if (error) {
