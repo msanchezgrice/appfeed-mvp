@@ -6,13 +6,13 @@ import { useEffect, useState } from 'react';
 export default function AdminDashboard() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState('apps'); // 'apps', 'creators', 'viral', 'growth'
   const [stats, setStats] = useState(null);
   const [topApps, setTopApps] = useState([]);
   const [viralityLeaderboard, setViralityLeaderboard] = useState([]);
   const [followerLeaderboard, setFollowerLeaderboard] = useState([]);
   const [growthByDay, setGrowthByDay] = useState([]);
   const [growthByWeek, setGrowthByWeek] = useState([]);
-  const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [timeFilter, setTimeFilter] = useState('all'); // 'day', 'week', 'all'
   const [growthFilter, setGrowthFilter] = useState('day'); // 'day', 'week', 'month'
@@ -41,16 +41,23 @@ export default function AdminDashboard() {
     
     const fetchData = async () => {
       try {
-        const res = await fetch(`/api/admin/stats?time=${timeFilter}`);
+        // Only fetch data for active tab to speed up loading
+        const res = await fetch(`/api/admin/stats?time=${timeFilter}&tab=${activeTab}`);
         if (res.ok) {
           const data = await res.json();
           setStats(data.overview);
-          setTopApps(data.topApps || []);
-          setViralityLeaderboard(data.viralityLeaderboard || []);
-          setFollowerLeaderboard(data.followerLeaderboard || []);
-          setGrowthByDay(data.growthByDay || []);
-          setGrowthByWeek(data.growthByWeek || []);
-          setRecentActivity(data.recentActivity || []);
+          
+          // Set data based on active tab
+          if (activeTab === 'apps') {
+            setTopApps(data.topApps || []);
+          } else if (activeTab === 'viral') {
+            setViralityLeaderboard(data.viralityLeaderboard || []);
+          } else if (activeTab === 'creators') {
+            setFollowerLeaderboard(data.followerLeaderboard || []);
+          } else if (activeTab === 'growth') {
+            setGrowthByDay(data.growthByDay || []);
+            setGrowthByWeek(data.growthByWeek || []);
+          }
         }
       } catch (err) {
         console.error('Error fetching admin data:', err);
@@ -64,7 +71,7 @@ export default function AdminDashboard() {
     // Auto-refresh every 30 seconds
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, [user, timeFilter]);
+  }, [user, timeFilter, activeTab]);
 
   if (!isLoaded || loading) {
     return (
@@ -79,20 +86,94 @@ export default function AdminDashboard() {
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 16px', paddingBottom: '100px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
-        <div>
-          <h1 style={{ marginBottom: 4 }}>🔐 Clipcade Admin</h1>
-          <p className="small" style={{ color: '#888' }}>
-            Logged in as: {user.emailAddresses?.[0]?.emailAddress}
-          </p>
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <div>
+            <h1 style={{ marginBottom: 4 }}>🔐 Clipcade Admin</h1>
+            <p className="small" style={{ color: '#888' }}>
+              Logged in as: {user.emailAddresses?.[0]?.emailAddress}
+            </p>
+          </div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="btn ghost"
+            style={{ fontSize: 20 }}
+          >
+            ↻
+          </button>
         </div>
-        <button 
-          onClick={() => window.location.reload()}
-          className="btn ghost"
-          style={{ fontSize: 20 }}
-        >
-          ↻
-        </button>
+        
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 8, borderBottom: '2px solid #333', paddingBottom: 0 }}>
+          <button
+            onClick={() => setActiveTab('apps')}
+            style={{
+              padding: '12px 24px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === 'apps' ? '3px solid var(--brand)' : '3px solid transparent',
+              color: activeTab === 'apps' ? 'white' : '#888',
+              cursor: 'pointer',
+              fontSize: 15,
+              fontWeight: 600,
+              transition: 'all 0.2s',
+              marginBottom: '-2px'
+            }}
+          >
+            🔥 Top Apps
+          </button>
+          <button
+            onClick={() => setActiveTab('creators')}
+            style={{
+              padding: '12px 24px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === 'creators' ? '3px solid var(--brand)' : '3px solid transparent',
+              color: activeTab === 'creators' ? 'white' : '#888',
+              cursor: 'pointer',
+              fontSize: 15,
+              fontWeight: 600,
+              transition: 'all 0.2s',
+              marginBottom: '-2px'
+            }}
+          >
+            👥 Top Creators
+          </button>
+          <button
+            onClick={() => setActiveTab('viral')}
+            style={{
+              padding: '12px 24px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === 'viral' ? '3px solid var(--brand)' : '3px solid transparent',
+              color: activeTab === 'viral' ? 'white' : '#888',
+              cursor: 'pointer',
+              fontSize: 15,
+              fontWeight: 600,
+              transition: 'all 0.2s',
+              marginBottom: '-2px'
+            }}
+          >
+            🚀 Viral Apps
+          </button>
+          <button
+            onClick={() => setActiveTab('growth')}
+            style={{
+              padding: '12px 24px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === 'growth' ? '3px solid var(--brand)' : '3px solid transparent',
+              color: activeTab === 'growth' ? 'white' : '#888',
+              cursor: 'pointer',
+              fontSize: 15,
+              fontWeight: 600,
+              transition: 'all 0.2s',
+              marginBottom: '-2px'
+            }}
+          >
+            📈 Growth
+          </button>
+        </div>
       </div>
 
       {/* Overview Stats */}
@@ -137,8 +218,11 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Top Apps */}
-      <div style={{ marginBottom: 40 }}>
+      {/* Tab Content */}
+      {activeTab === 'apps' && (
+        <div>
+          {/* Top Apps */}
+          <div style={{ marginBottom: 40 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 style={{ margin: 0 }}>🔥 Top Apps (by Views)</h2>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -216,8 +300,13 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Follower Leaderboard */}
-      <div style={{ marginBottom: 40 }}>
+        </div>
+      )}
+
+      {activeTab === 'creators' && (
+        <div>
+          {/* Follower Leaderboard */}
+          <div style={{ marginBottom: 40 }}>
         <h2 style={{ marginBottom: 16 }}>👥 Top Creators (by Followers)</h2>
         <div style={{ background: 'var(--bg-dark)', borderRadius: 12, border: '1px solid #333', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -253,8 +342,13 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Virality / K-Factor Leaderboard */}
-      <div style={{ marginBottom: 40 }}>
+        </div>
+      )}
+
+      {activeTab === 'viral' && (
+        <div>
+          {/* Virality / K-Factor Leaderboard */}
+          <div style={{ marginBottom: 40 }}>
         <h2 style={{ marginBottom: 16 }}>🚀 Virality Leaderboard (K-Factor)</h2>
         <p className="small" style={{ color: '#888', marginBottom: 12 }}>
           K-Factor = (Shares + Remixes) / Views. Higher = more viral. Min 10 views to qualify.
@@ -306,8 +400,13 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Growth Chart */}
-      <div style={{ marginBottom: 40 }}>
+        </div>
+      )}
+
+      {activeTab === 'growth' && (
+        <div>
+          {/* Growth Chart */}
+          <div style={{ marginBottom: 40 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 style={{ margin: 0 }}>📈 User Growth</h2>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -383,25 +482,8 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div>
-        <h2 style={{ marginBottom: 16 }}>⚡ Recent Activity</h2>
-        <div style={{ background: 'var(--bg-dark)', padding: 20, borderRadius: 12, border: '1px solid #333' }}>
-          {recentActivity.length > 0 ? recentActivity.map((activity, i) => (
-            <div key={i} style={{ 
-              padding: '12px 0', 
-              borderBottom: i < recentActivity.length - 1 ? '1px solid #222' : 'none',
-              fontSize: 14
-            }}>
-              <span style={{ color: '#888' }}>{activity.time}</span>
-              {' - '}
-              <span>{activity.description}</span>
-            </div>
-          )) : (
-            <p style={{ color: '#888' }}>No recent activity</p>
-          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

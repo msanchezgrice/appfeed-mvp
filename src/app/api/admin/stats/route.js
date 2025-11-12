@@ -8,6 +8,7 @@ export async function GET(req) {
     const { supabase, userId } = await createServerSupabaseClient();
     const { searchParams } = new URL(req.url);
     const timeFilter = searchParams.get('time') || 'all'; // 'day', 'week', 'all'
+    const tab = searchParams.get('tab') || 'apps'; // 'apps', 'creators', 'viral', 'growth'
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -33,23 +34,36 @@ export async function GET(req) {
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    // Get platform stats
-    const { data: apps } = await supabase
+    // Always get overview stats (lightweight)
+    const { count: totalApps } = await supabase
       .from('apps')
-      .select('*, creator:profiles!creator_id(display_name, email, clerk_user_id)')
-      .eq('is_published', true)
-      .order('created_at', { ascending: false });
-
-    const { data: users } = await supabase
+      .select('*', { count: 'exact', head: true })
+      .eq('is_published', true);
+    
+    const { count: totalUsers } = await supabase
       .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    const { data: runs } = await supabase
-      .from('runs')
-      .select('*, app:apps(name), user:profiles!user_id(display_name)')
-      .order('created_at', { ascending: false })
-      .limit(50);
+      .select('*', { count: 'exact', head: true });
+    
+    // Get detailed data based on active tab only
+    let apps = null;
+    let users = null;
+    
+    if (tab === 'apps' || tab === 'viral') {
+      const { data } = await supabase
+        .from('apps')
+        .select('*, creator:profiles!creator_id(display_name, email, clerk_user_id)')
+        .eq('is_published', true)
+        .order('created_at', { ascending: false });
+      apps = data;
+    }
+    
+    if (tab === 'creators' || tab === 'growth') {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      users = data;
+    }
     
     // Get follow counts for leaderboard
     const { data: followCounts } = await supabase
@@ -71,10 +85,8 @@ export async function GET(req) {
       .catch(() => ({ data: [] }));
 
     // Calculate overview stats
-    const totalApps = apps?.length || 0;
     const appsToday = apps?.filter(a => new Date(a.created_at) >= today).length || 0;
     const appsWeek = apps?.filter(a => new Date(a.created_at) >= weekAgo).length || 0;
-    const totalUsers = users?.length || 0;
     const signupsToday = users?.filter(u => new Date(u.created_at) >= today).length || 0;
     const signupsWeek = users?.filter(u => new Date(u.created_at) >= weekAgo).length || 0;
     const signupsMonth = users?.filter(u => new Date(u.created_at) >= monthAgo).length || 0;
@@ -186,12 +198,13 @@ export async function GET(req) {
       };
     });
 
-    return NextResponse.json({
+    // Return only relevant data for the active tab
+    const response = {
       overview: {
-        totalApps,
+        totalApps: totalApps || 0,
         appsToday,
         appsWeek,
-        totalUsers,
+        totalUsers: totalUsers || 0,
         signupsToday,
         signupsWeek,
         signupsMonth,
@@ -201,14 +214,21 @@ export async function GET(req) {
         avgViews,
         conversionRate
       },
-      topApps,
-      viralityLeaderboard,
-      followerLeaderboard,
-      growthByDay,
-      growthByWeek,
-      recentActivity,
       timeFilter
-    });
+    };
+    
+    if (tab === 'apps') {
+      response.topApps = topApps;
+    } else if (tab === 'viral') {
+      response.viralityLeaderboard = viralityLeaderboard;
+    } else if (tab === 'creators') {
+      response.followerLeaderboard = followerLeaderboard;
+    } else if (tab === 'growth') {
+      response.growthByDay = growthByDay;
+      response.growthByWeek = growthByWeek;
+    }
+    
+    return NextResponse.json(response);
 
   } catch (error) {
     console.error('[Admin Stats] Error:', error);
