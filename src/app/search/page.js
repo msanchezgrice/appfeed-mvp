@@ -159,8 +159,6 @@ function SearchContent() {
         }}
       />
 
-      {/* Duplicate tag section removed */}
-
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {filteredApps.length > 0 ? (
           filteredApps.map(app => <TikTokFeedCard key={app.id} app={app} />)
