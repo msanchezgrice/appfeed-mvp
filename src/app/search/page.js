@@ -12,11 +12,13 @@ function SearchContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState(tagParam || '');
   const [showAllTags, setShowAllTags] = useState(false);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [allUniqueTags, setAllUniqueTags] = useState([]);
   
-  // Popular tags from database
+  // Popular tags from database (2 rows worth)
   const popularTags = [
     'productivity', 'remix', 'email', 'ai', 'communication', 
-    'image', 'vision', 'writing', 'art', 'coding'
+    'image', 'vision', 'writing', 'art', 'coding', 'news', 'summary'
   ];
 
   useEffect(() => {
@@ -26,6 +28,10 @@ function SearchContent() {
         const j = await res.json();
         setApps(j.apps || []);
         setTags(j.tags || []);
+        
+        // Extract all unique tags for autocomplete
+        const uniqueTags = [...new Set((j.apps || []).flatMap(app => app.tags || []))];
+        setAllUniqueTags(uniqueTags.sort());
       } catch (error) {
         console.error('Error fetching apps:', error);
         setApps([]);
