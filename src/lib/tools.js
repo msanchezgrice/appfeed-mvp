@@ -132,13 +132,39 @@ Remember: Make the output visually appealing and easy to read!
   });
   
   try {
-    const res = await fetch(`${OPENAI_BASE}/v1/chat/completions`, {
+    // Use Responses API with web search for URLs, otherwise Chat Completions
+    const endpoint = hasUrl 
+      ? `${OPENAI_BASE}/v1/responses`
+      : `${OPENAI_BASE}/v1/chat/completions`;
+    
+    const requestBody = hasUrl ? {
+      // Responses API format
+      model: DEFAULT_MODEL,
+      input: prompt,
+      instructions: enhancedSystem,
+      tools: [{ type: "web_search" }],
+      temperature: 0.7,
+      max_output_tokens: 500
+    } : {
+      // Chat Completions format  
+      model: DEFAULT_MODEL,
+      messages: [
+        { role: 'system', content: enhancedSystem },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 500
+    };
+    
+    console.log('[LLM] Calling:', endpoint);
+    
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json', 
         'Authorization': `Bearer ${apiKey}` 
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(requestBody)
     });
     
     console.log('[LLM] OpenAI response status:', res.status);
