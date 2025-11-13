@@ -475,14 +475,85 @@ export default function TikTokFeedCard({ app }) {
               </div>
             )}
 
-            {/* Advanced Tab Content - Inline */}
+            {/* Advanced Tab Content - JSON Editor */}
             {remixTab === 'advanced' && (
-              <AdvancedRemixEditor
-                app={app}
-                onSave={handleSaveRemix}
-                onCancel={() => setRemixTab('quick')}
-                inline={true}
-              />
+              <div>
+                <p className="small" style={{marginBottom: 16, color: '#888'}}>
+                  Edit the app's JSON directly. This gives you full control over all variables.
+                </p>
+                
+                <div style={{ marginBottom: 12, fontSize: 13 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 8 }}>✅ Editable Variables:</div>
+                  <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12, color: '#888' }}>
+                    <li>design.containerColor (background gradient or #hex)</li>
+                    <li>design.fontColor (text color)</li>
+                    <li>design.fontFamily (font)</li>
+                    <li>name (app name)</li>
+                    <li>description (app description)</li>
+                    <li>tags (array of tags)</li>
+                  </ul>
+                </div>
+
+                <textarea
+                  className="input"
+                  value={JSON.stringify({
+                    name: app.name,
+                    description: app.description,
+                    design: app.design || {},
+                    tags: app.tags || []
+                  }, null, 2)}
+                  onChange={(e) => {
+                    try {
+                      const parsed = JSON.parse(e.target.value);
+                      setEditedName(parsed.name || app.name);
+                      setEditedDescription(parsed.description || app.description);
+                      setEditedTags(parsed.tags || app.tags || []);
+                      setContainerColor(parsed.design?.containerColor || app.design?.containerColor);
+                      setFontColor(parsed.design?.fontColor || app.design?.fontColor);
+                    } catch (err) {
+                      // Invalid JSON, ignore
+                    }
+                  }}
+                  rows={12}
+                  style={{
+                    width: '100%',
+                    padding: 12,
+                    fontSize: 12,
+                    borderRadius: 8,
+                    fontFamily: 'monospace',
+                    marginBottom: 16
+                  }}
+                />
+
+                <div style={{ marginBottom: 12, fontSize: 13 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 8 }}>🔒 Locked (Cannot Change):</div>
+                  <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12, color: '#888' }}>
+                    <li>Container size (padding, border radius)</li>
+                    <li>Runtime logic (steps, tools)</li>
+                    <li>Core functionality</li>
+                  </ul>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const remixedData = {
+                      name: editedName || app.name,
+                      description: editedDescription || app.description,
+                      design: {
+                        containerColor: containerColor || app.design?.containerColor,
+                        fontColor: fontColor || app.design?.fontColor,
+                        fontFamily: fontFamily || app.design?.fontFamily
+                      },
+                      tags: editedTags
+                    };
+                    handleSaveRemix(remixedData);
+                  }}
+                  className="btn primary"
+                  style={{ width: '100%' }}
+                >
+                  💾 Save JSON Remix
+                </button>
+              </div>
             )}
           </div>
         </div>
