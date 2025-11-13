@@ -92,6 +92,7 @@ async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
   if (!apiKey) {
     throw new Error('Missing Anthropic API key. Add it in Profile → Secrets.');
   }
+  console.log('[AI Publish] Anthropic key source:', userKey ? 'user-secret' : (envKey ? 'env' : 'none'));
   
   // Pull light-weight user profile for context (author attribution)
   let userMeta = { id: userId, username: `user_${String(userId || '').slice(-8)}`, display_name: null };
@@ -197,6 +198,7 @@ async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
   
   const modelPrimary = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929';
   const modelFallback = 'claude-3-5-sonnet-latest';
+  console.log('[AI Publish] Model selection:', { primary: modelPrimary, fallback: modelFallback });
   
   function tryParseJsonLoose(text) {
     try {
