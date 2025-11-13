@@ -69,6 +69,14 @@ export default function AdminDashboard() {
           } else if (activeTab === 'growth') {
             setGrowthByDay(data.growthByDay || []);
             setGrowthByWeek(data.growthByWeek || []);
+          } else if (activeTab === 'manage') {
+            // Fetch ALL apps for manage tab
+            const appsRes = await fetch('/api/apps');
+            if (appsRes.ok) {
+              const appsData = await appsRes.json();
+              setTopApps(appsData.apps || []);
+              console.log('[Admin] Loaded', appsData.apps?.length, 'apps for management');
+            }
           }
         } else {
           console.error('[Admin] API returned error:', res.status);
