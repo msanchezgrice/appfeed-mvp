@@ -7,7 +7,8 @@ import TikTokFeedCard from '@/src/components/TikTokFeedCard';
 export default function LibraryPage() {
   const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
-  const [items, setItems] = useState([]);
+  const [savedApps, setSavedApps] = useState([]);
+  const [createdApps, setCreatedApps] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,14 +26,19 @@ export default function LibraryPage() {
         if (res.ok) {
           const data = await res.json();
           console.log('[Library] Data received:', data);
-          setItems(data.items || []);
+          setSavedApps(data.items || []);
         } else {
           console.error('[Library] API error:', res.status);
-          setItems([]);
+          setSavedApps([]);
         }
+        // Fetch created apps (published + unpublished) for this user
+        const appsRes = await fetch(`/api/apps?includeUnpublished=true&userId=${encodeURIComponent(user.id)}`);
+        const appsData = await appsRes.json();
+        const created = (appsData.apps || []).filter(a => a.creator_id === user.id);
+        setCreatedApps(created);
       } catch (err) {
         console.error('[Library] Error fetching library:', err);
-        setItems([]);
+        setSavedApps([]);
       } finally {
         setLoading(false);
       }
@@ -52,23 +58,85 @@ export default function LibraryPage() {
   }
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px 0', paddingBottom: '100px', minHeight: 'calc(100vh - 60px)' }}>
-      <h1 style={{ marginBottom: 8 }}>My Library</h1>
-      <p className="small" style={{ marginBottom: 24, color: '#888' }}>Apps you've saved</p>
-      
-      {items.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#888' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
-          <p>No saved apps yet</p>
-          <p className="small">Save apps from the feed to see them here!</p>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {items.map(app => (
-            <TikTokFeedCard key={app.id} app={app} />
-          ))}
-        </div>
-      )}
+    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '16px 0', paddingBottom: '100px', minHeight: 'calc(100vh - 60px)' }}>
+      <h1 style={{ marginBottom: 8 }}>Home</h1>
+      <p className="small" style={{ marginBottom: 24, color: '#888' }}>Quick launch your apps</p>
+
+      <section style={{ marginBottom: 28 }}>
+        <h3 style={{ margin: '0 0 12px 0' }}>Saved</h3>
+        {savedApps.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 24, color: '#888' }}>No saved apps yet</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+            {savedApps.map(app => (
+              <a
+                key={app.id}
+                href={`/me/app/${app.id}`}
+                style={{
+                  aspectRatio: '1',
+                  background: app.preview_gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  borderRadius: 6,
+                  overflow: 'hidden',
+                  position: 'relative',
+                  textDecoration: 'none'
+                }}
+              >
+                {app.preview_url && (
+                  <img src={app.preview_url} alt={app.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                )}
+                <div style={{
+                  position: 'absolute',
+                  left: 6,
+                  right: 6,
+                  top: 6,
+                  color: 'white',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textShadow: '0 1px 2px rgba(0,0,0,0.5)'
+                }}>{app.name}</div>
+              </a>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h3 style={{ margin: '0 0 12px 0' }}>Created</h3>
+        {createdApps.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 24, color: '#888' }}>No created apps yet</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+            {createdApps.map(app => (
+              <a
+                key={app.id}
+                href={`/me/app/${app.id}`}
+                style={{
+                  aspectRatio: '1',
+                  background: app.preview_gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  borderRadius: 6,
+                  overflow: 'hidden',
+                  position: 'relative',
+                  textDecoration: 'none'
+                }}
+              >
+                {app.preview_url && (
+                  <img src={app.preview_url} alt={app.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                )}
+                <div style={{
+                  position: 'absolute',
+                  left: 6,
+                  right: 6,
+                  top: 6,
+                  color: 'white',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textShadow: '0 1px 2px rgba(0,0,0,0.5)'
+                }}>{app.name}</div>
+              </a>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

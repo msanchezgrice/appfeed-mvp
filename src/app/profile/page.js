@@ -12,8 +12,7 @@ export default function ProfilePage() {
   const [library, setLibrary] = useState([]);
   const [apps, setApps] = useState([]);
   const [following, setFollowing] = useState([]);
-  const [activeTab, setActiveTab] = useState('myapps'); // 'myapps', 'following', 'analytics', 'settings'
-  const [myAppsView, setMyAppsView] = useState('saved'); // 'saved' or 'created' (within My Apps tab)
+  const [activeTab, setActiveTab] = useState('analytics'); // 'following', 'analytics', 'settings'
   const [openaiKey, setOpenaiKey] = useState('');
   const [anthropicKey, setAnthropicKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
@@ -164,30 +163,10 @@ export default function ProfilePage() {
     }
   };
 
-  const savedApps = library.map(item => {
-    // Handle both formats: item might be the app itself or {app_id: ...}
-    const appId = item.app_id || item.id;
-    const app = apps.find(app => app.id === appId) || item;
-    console.log('[Profile] Mapping library item:', appId, '→ app found:', !!app);
-    return app;
-  }).filter(Boolean);
-  
-  // Show both published AND unpublished apps the user created
-  const createdApps = apps.filter(app => {
-    const isCreator = app.creator_id === clerkUser?.id;
-    console.log('[Profile] Checking app:', app.id, 'creator_id:', app.creator_id, 'user:', clerkUser?.id, 'match:', isCreator);
-    return isCreator;
-  });
-
   console.log('[Profile] Display state:', {
     activeTab,
-    savedAppsCount: savedApps.length,
-    createdAppsCount: createdApps.length,
-    libraryItemsCount: library.length,
-    totalAppsCount: apps.length
+    followingCount: following.length
   });
-
-  const displayApps = activeTab === 'saved' ? savedApps : createdApps;
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px 0', paddingBottom: '100px', minHeight: 'calc(100vh - 60px)' }}>
@@ -214,38 +193,6 @@ export default function ProfilePage() {
         borderBottom: '1px solid #333',
         marginBottom: 24
       }}>
-        <button
-          onClick={() => setActiveTab('saved')}
-          style={{
-            flex: 1,
-            padding: '12px',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'saved' ? '2px solid #fe2c55' : '2px solid transparent',
-            color: activeTab === 'saved' ? '#fff' : '#888',
-            fontSize: 16,
-            fontWeight: 'bold',
-            cursor: 'pointer'
-          }}
-        >
-          Saved ({savedApps.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('created')}
-          style={{
-            flex: 1,
-            padding: '12px',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'created' ? '2px solid #fe2c55' : '2px solid transparent',
-            color: activeTab === 'created' ? '#fff' : '#888',
-            fontSize: 16,
-            fontWeight: 'bold',
-            cursor: 'pointer'
-          }}
-        >
-          Created ({createdApps.length})
-        </button>
         <button
           onClick={() => setActiveTab('following')}
           style={{
@@ -346,7 +293,7 @@ export default function ProfilePage() {
 
           <h3 style={{ marginBottom: 16 }}>App Performance</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {createdApps.map(app => (
+            {apps.filter(app => app.creator_id === clerkUser?.id).map(app => (
               <div key={app.id} className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <h4 style={{ margin: 0 }}>{app.name}</h4>
@@ -527,134 +474,7 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
-      ) : (
-        <div>
-          {displayApps.length > 0 ? (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '4px',
-              marginTop: 8
-            }}>
-              {displayApps.map(app => (
-                  <div
-                    key={app.id}
-                    style={{
-                      aspectRatio: '1',
-                      background: app.preview_gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      borderRadius: 4,
-                      overflow: 'hidden',
-                      position: 'relative'
-                    }}
-                  >
-                    <a
-                      href={`/app/${app.id}`}
-                      style={{
-                        display: 'block',
-                        width: '100%',
-                        height: '100%',
-                        textDecoration: 'none'
-                      }}
-                    >
-                  {app.preview_url && (
-                    <img
-                      src={app.preview_url}
-                      alt={app.name}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover'
-                      }}
-                      />
-                    )}
-                    </a>
-                    
-                    {/* App title overlay */}
-                    <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      padding: '8px',
-                      background: 'linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)',
-                      color: 'white',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      lineHeight: 1.2,
-                      maxHeight: 40,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical'
-                    }}>
-                      {app.name}
-                    </div>
-                    
-                    {/* Stats overlay */}
-                    <div style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      padding: '4px 6px',
-                      background: 'rgba(0,0,0,0.7)',
-                      fontSize: 10,
-                      color: 'white',
-                      display: 'flex',
-                      gap: 8,
-                      justifyContent: 'center'
-                    }}>
-                      <span>👁️ {app.view_count || 0}</span>
-                      <span>🎯 {app.try_count || 0}</span>
-                    </div>
-                    
-                    {/* Delete button (only for created apps) */}
-                    {myAppsView === 'created' && app.creator_id === userId && (
-                      <button
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          if (confirm(`Delete "${app.name}"? This cannot be undone.`)) {
-                            try {
-                              await fetch(`/api/apps/${app.id}`, { method: 'DELETE' });
-                              // Refresh apps list
-                              window.location.reload();
-                            } catch (err) {
-                              alert('Error deleting app');
-                            }
-                          }
-                        }}
-                        style={{
-                          position: 'absolute',
-                          top: 4,
-                          right: 4,
-                          background: 'rgba(0,0,0,0.8)',
-                          border: 'none',
-                          borderRadius: '50%',
-                          width: 24,
-                          height: 24,
-                          color: 'white',
-                          cursor: 'pointer',
-                          fontSize: 14,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                        title="Delete app"
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
-              {activeTab === 'saved' ? 'No saved apps yet' : 'No created apps yet'}
-            </div>
-          )}
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }

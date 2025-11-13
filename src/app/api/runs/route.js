@@ -1,5 +1,7 @@
 import { runApp } from '@/src/lib/runner';
 import { createServerSupabaseClient } from '@/src/lib/supabase-server';
+import { uploadImageToStorage } from '@/src/lib/supabase-storage';
+import sharp from 'sharp';
 
 export const dynamic = 'force-dynamic';
 
@@ -98,6 +100,57 @@ export async function POST(req) {
     if (saveError) {
       console.error('Error saving run:', saveError);
     }
+
+    // Upload output asset (image) and input image (first image input) to storage
+    let assetUrl = null;
+    let assetType = null;
+    let inputAssetUrl = null;
+    let inputAssetMime = null;
+    try {
+      // Output image
+      const outImg = run?.outputs?.image;
+      if (typeof outImg === 'string' && outImg.startsWith('data:image/')) {
+        const match = outImg.match(/^data:(image\\/[^;]+);base64,(.+)$/);
+        if (match) {
+          const mime = match[1];
+          const b64 = match[2];
+          // compress to jpeg 70% width <= 1200
+          const buffer = Buffer.from(b64, 'base64');
+          const compressed = await sharp(buffer).resize(1200, null, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 70 }).toBuffer();
+          const compB64 = compressed.toString('base64');
+          const uploaded = await uploadImageToStorage(compB64, `run-assets/${run.id}`, 'image/jpeg');
+          assetUrl = uploaded.url;
+          assetType = 'image/jpeg';
+          await supabase.from('runs').update({ asset_url: assetUrl, asset_type: assetType }).eq('id', run.id);
+        }
+      }
+      // Input image (from app.inputs schema)
+      if (app?.inputs && typeof run?.inputs === 'object') {
+        for (const [key, spec] of Object.entries(app.inputs)) {
+          if (spec?.type === 'image') {
+            const val = run.inputs[key];
+            if (typeof val === 'string' && val.startsWith('data:image/')) {
+              const match = val.match(/^data:(image\\/[^;]+);base64,(.+)$/);
+              if (match) {
+                const mime = match[1];
+                const b64 = match[2];
+                // light resize to 800 for caching
+                const buffer = Buffer.from(b64, 'base64');
+                const compressed = await sharp(buffer).resize(800, null, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 75 }).toBuffer();
+                const compB64 = compressed.toString('base64');
+                const uploaded = await uploadImageToStorage(compB64, `run-inputs/${run.id}-${key}`, 'image/jpeg');
+                inputAssetUrl = uploaded.url;
+                inputAssetMime = 'image/jpeg';
+                await supabase.from('runs').update({ input_asset_url: inputAssetUrl, input_asset_mime: inputAssetMime }).eq('id', run.id);
+                break; // only first image input
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[API /runs] Asset upload error (non-fatal):', err);
+    }
     
     // Increment try/use counters on apps table
     try {
@@ -133,7 +186,7 @@ export async function POST(req) {
     if (fallbackAllowed && !userId && mode === 'try') {
       headers.append('Set-Cookie', 'cc_fallback_try_used=1; Path=/; Max-Age=31536000; SameSite=Lax');
     }
-    return new Response(JSON.stringify(run), { headers });
+    return new Response(JSON.stringify({ ...run, asset_url: assetUrl, asset_type: assetType, input_asset_url: inputAssetUrl }), { headers });
   } catch (e) {
     console.error('Run error:', e);
     return new Response(JSON.stringify({ error: String(e?.message || e) }), { 
@@ -145,30 +198,57 @@ export async function POST(req) {
 
 export async function GET(req) {
   try {
-    // Use service-role client to read limited run fields for preset prefill
-    const { supabase } = await createServerSupabaseClient();
+    // Use service-role client to read limited run fields for preset prefill and lists
+    const { supabase, userId } = await createServerSupabaseClient();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id') || searchParams.get('run');
-    if (!id) {
+    const appId = searchParams.get('appId') || searchParams.get('app_id');
+    if (!id && !appId) {
       return new Response(JSON.stringify({ error: 'id required' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
     }
-    const { data: run, error } = await supabase
-      .from('runs')
-      .select('id, app_id, inputs, created_at')
-      .eq('id', id)
-      .single();
-    if (error || !run) {
-      return new Response(JSON.stringify({ error: 'Run not found' }), {
-        status: 404,
+    if (id) {
+      const { data: run, error } = await supabase
+        .from('runs')
+        .select('id, app_id, inputs, created_at, asset_url, asset_type, input_asset_url')
+        .eq('id', id)
+        .single();
+      if (error || !run) {
+        return new Response(JSON.stringify({ error: 'Run not found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      return new Response(JSON.stringify({ run }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } else {
+      // appId listing for the current user
+      if (!userId) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      const { data: runs, error } = await supabase
+        .from('runs')
+        .select('id, app_id, created_at, asset_url, asset_type, input_asset_url, inputs')
+        .eq('app_id', appId)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) {
+        return new Response(JSON.stringify({ error: 'Failed to fetch runs' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      return new Response(JSON.stringify({ runs: runs || [] }), {
         headers: { 'Content-Type': 'application/json' }
       });
     }
-    return new Response(JSON.stringify({ run }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
   } catch (e) {
     console.error('Run GET error:', e);
     return new Response(JSON.stringify({ error: String(e?.message || e) }), {

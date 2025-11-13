@@ -240,9 +240,24 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
             if (navigator.share) {
               const cleanDescription = app.description?.split('\n\nRemixed with:')[0] || app.description;
               try {
+                // Prefer sharing with image file if available and supported
+                if (run?.asset_url) {
+                  const res = await fetch(run.asset_url);
+                  const blob = await res.blob();
+                  const file = new File([blob], `${app.id}-${run.id}.jpg`, { type: blob.type || 'image/jpeg' });
+                  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                      title: app.name,
+                      text: cleanDescription,
+                      url: appUrl,
+                      files: [file]
+                    });
+                    return;
+                  }
+                }
                 await navigator.share({ 
                   title: app.name, 
-                  text: cleanDescription,
+                  text: cleanDescription + (run?.asset_url ? `\n${run.asset_url}` : ''),
                   url: appUrl 
                 });
               } catch (err) {
@@ -252,7 +267,8 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
               }
             } else {
               // For clipboard (desktop), only copy URL
-              navigator.clipboard.writeText(appUrl);
+              const toCopy = run?.asset_url ? `${appUrl}\n${run.asset_url}` : appUrl;
+              navigator.clipboard.writeText(toCopy);
               alert('App link copied to clipboard!');
             }
           }}
@@ -421,9 +437,23 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                     if (navigator.share) {
                       const cleanDescription = app.description?.split('\n\nRemixed with:')[0] || app.description;
                       try {
+                        if (run?.asset_url) {
+                          const res = await fetch(run.asset_url);
+                          const blob = await res.blob();
+                          const file = new File([blob], `${app.id}-${run.id}.jpg`, { type: blob.type || 'image/jpeg' });
+                          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                              title: app.name,
+                              text: cleanDescription,
+                              url: appUrl,
+                              files: [file]
+                            });
+                            return;
+                          }
+                        }
                         await navigator.share({
                           title: app.name,
-                          text: cleanDescription,
+                          text: cleanDescription + (run?.asset_url ? `\n${run.asset_url}` : ''),
                           url: appUrl
                         });
                       } catch (err) {
@@ -432,7 +462,8 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                         }
                       }
                     } else {
-                      navigator.clipboard.writeText(appUrl);
+                      const toCopy = run?.asset_url ? `${appUrl}\n${run.asset_url}` : appUrl;
+                      navigator.clipboard.writeText(toCopy);
                       alert('Link copied to clipboard!');
                     }
                   }}
@@ -514,9 +545,23 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                     if (navigator.share) {
                       const cleanDescription = app.description?.split('\n\nRemixed with:')[0] || app.description;
                       try {
+                        if (run?.asset_url) {
+                          const res = await fetch(run.asset_url);
+                          const blob = await res.blob();
+                          const file = new File([blob], `${app.id}-${run.id}.jpg`, { type: blob.type || 'image/jpeg' });
+                          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                              title: app.name,
+                              text: cleanDescription,
+                              url: appUrl,
+                              files: [file]
+                            });
+                            return;
+                          }
+                        }
                         await navigator.share({
                           title: app.name,
-                          text: cleanDescription,
+                          text: cleanDescription + (run?.asset_url ? `\n${run.asset_url}` : ''),
                           url: appUrl
                         });
                       } catch (err) {
@@ -525,7 +570,8 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                         }
                       }
                     } else {
-                      navigator.clipboard.writeText(appUrl);
+                      const toCopy = run?.asset_url ? `${appUrl}\n${run.asset_url}` : appUrl;
+                      navigator.clipboard.writeText(toCopy);
                       alert('Link copied to clipboard!');
                     }
                   }}
