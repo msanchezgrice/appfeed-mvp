@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Head from 'next/head';
 import TikTokFeedCard from '@/src/components/TikTokFeedCard';
@@ -8,13 +8,11 @@ import TikTokFeedCard from '@/src/components/TikTokFeedCard';
 export default function AppDetailPage() {
   const params = useParams();
   const appId = params.id;
-  const searchParams = useSearchParams();
   
   const [app, setApp] = useState(null);
   const [remixes, setRemixes] = useState([]);
   const [saves, setSaves] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [presetDefaults, setPresetDefaults] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -44,25 +42,6 @@ export default function AppDetailPage() {
       }
     })();
   }, [appId]);
-
-  // Load preset defaults from shared run (?run=...) if present
-  useEffect(() => {
-    const runId = searchParams?.get('run');
-    if (!runId) return;
-    (async () => {
-      try {
-        const res = await fetch(`/api/runs?id=${encodeURIComponent(runId)}`, { cache: 'no-store' });
-        if (res.ok) {
-          const data = await res.json();
-          const inputs = data?.run?.inputs || {};
-          console.log('[App Detail] Loaded preset from run:', runId, Object.keys(inputs));
-          setPresetDefaults(inputs);
-        }
-      } catch (e) {
-        console.error('[App Detail] Failed to load run preset:', e);
-      }
-    })();
-  }, [searchParams]);
 
   if (loading) {
     return (
@@ -166,7 +145,7 @@ export default function AppDetailPage() {
       {/* App Preview Card */}
       <div style={{ marginBottom: 40 }}>
         <h2 style={{ marginBottom: 16 }}>Try This App</h2>
-        <TikTokFeedCard app={app} presetDefaults={presetDefaults || app?.demo?.sampleInputs || {}} />
+        <TikTokFeedCard app={app} />
       </div>
 
       {/* Remixes Section */}

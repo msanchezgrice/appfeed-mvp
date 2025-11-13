@@ -404,15 +404,46 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                     }}>
                       <div style={{ textAlign: 'center' }}>
                         <div style={{ fontWeight: 700, marginBottom: 8 }}>Create a free account to reveal and save</div>
-                        <button
-                          className="btn primary"
-                          onClick={() => {
-                            setSignInAction('reveal and save your result');
-                            setShowSignInModal(true);
-                          }}
-                        >
-                          Sign in to reveal
-                        </button>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                          <button
+                            className="btn primary"
+                            onClick={() => {
+                              setSignInAction('save this result to your Home');
+                              setShowSignInModal(true);
+                            }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="btn"
+                            onClick={async () => {
+                              const appUrl = `${window.location.origin}/app/${app.id}?run=${run.id}`;
+                              if (navigator.share) {
+                                const cleanDescription = app.description?.split('\\n\\nRemixed with:')[0] || app.description;
+                                try {
+                                  if (run?.asset_url) {
+                                    const res = await fetch(run.asset_url);
+                                    const blob = await res.blob();
+                                    const file = new File([blob], `${app.id}-${run.id}.jpg`, { type: blob.type || 'image/jpeg' });
+                                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                                      await navigator.share({ title: app.name, text: cleanDescription, url: appUrl, files: [file] });
+                                      return;
+                                    }
+                                  }
+                                  await navigator.share({ title: app.name, text: cleanDescription + (run?.asset_url ? `\\n${run.asset_url}` : ''), url: appUrl });
+                                } catch (err) {
+                                  if (err.name !== 'AbortError') console.error('Share failed:', err);
+                                }
+                              } else {
+                                const toCopy = run?.asset_url ? `${appUrl}\\n${run.asset_url}` : appUrl;
+                                navigator.clipboard.writeText(toCopy);
+                                alert('Link copied to clipboard!');
+                              }
+                            }}
+                          >
+                            Share
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -512,15 +543,46 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                     }}>
                       <div style={{ textAlign: 'center' }}>
                         <div style={{ fontWeight: 700, marginBottom: 8 }}>Create a free account to reveal and save</div>
-                        <button
-                          className="btn primary"
-                          onClick={() => {
-                            setSignInAction('reveal and save your result');
-                            setShowSignInModal(true);
-                          }}
-                        >
-                          Sign in to reveal
-                        </button>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                          <button
+                            className="btn primary"
+                            onClick={() => {
+                              setSignInAction('save this result to your Home');
+                              setShowSignInModal(true);
+                            }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="btn"
+                            onClick={async () => {
+                              const appUrl = `${window.location.origin}/app/${app.id}?run=${run.id}`;
+                              if (navigator.share) {
+                                const cleanDescription = app.description?.split('\\n\\nRemixed with:')[0] || app.description;
+                                try {
+                                  if (run?.asset_url) {
+                                    const res = await fetch(run.asset_url);
+                                    const blob = await res.blob();
+                                    const file = new File([blob], `${app.id}-${run.id}.jpg`, { type: blob.type || 'image/jpeg' });
+                                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                                      await navigator.share({ title: app.name, text: cleanDescription, url: appUrl, files: [file] });
+                                      return;
+                                    }
+                                  }
+                                  await navigator.share({ title: app.name, text: cleanDescription + (run?.asset_url ? `\\n${run.asset_url}` : ''), url: appUrl });
+                                } catch (err) {
+                                  if (err.name !== 'AbortError') console.error('Share failed:', err);
+                                }
+                              } else {
+                                const toCopy = run?.asset_url ? `${appUrl}\\n${run.asset_url}` : appUrl;
+                                navigator.clipboard.writeText(toCopy);
+                                alert('Link copied to clipboard!');
+                              }
+                            }}
+                          >
+                            Share
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
