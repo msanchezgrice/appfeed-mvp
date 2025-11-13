@@ -14,34 +14,60 @@ export default function AppCreationGuide() {
         <p>Every app is defined by a JSON manifest with these components:</p>
         
         <div style={{ background: '#1a1a1a', padding: 20, borderRadius: 12, overflow: 'auto' }}>
-          <pre style={{ margin: 0, fontSize: 13, color: '#f0f0f0' }}>{`{
+          <pre style={{ margin: 0, fontSize: 11, color: '#f0f0f0', lineHeight: 1.4 }}>{`{
   "name": "My App Name",
   "description": "What it does in 1-2 sentences",
   "icon": "🎨",
+  "author": "@yourusername",
   "tags": ["category1", "category2"],
+  
+  "card_theme": {
+    "backgroundColor": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    "textColor": "white"
+  },
+  
+  "preview_gradient": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
   
   "design": {
     "containerColor": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
     "fontColor": "white",
-    "fontFamily": "system-ui"
+    "fontFamily": "system-ui",
+    "inputLayout": "vertical"
+  },
+  
+  "modal_theme": {
+    "backgroundColor": "#1a2332",
+    "buttonColor": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    "accentColor": "#667eea"
+  },
+  
+  "input_theme": {
+    "borderColor": "#333",
+    "backgroundColor": "#1a1a1a"
   },
   
   "inputs": {
     "fieldName": {
       "type": "string",
-      "label": "Field Label"
+      "label": "Field Label",
+      "placeholder": "Enter text...",
+      "required": true
     }
   },
   
   "runtime": {
+    "engine": "local",
     "steps": [{
       "tool": "llm.complete",
       "args": {
         "prompt": "Do something with {{fieldName}}"
-      }
+      },
+      "output": "result"
     }]
   }
-}`}</pre>
+}
+
+NOTE: preview_url (Nano Banana image) is AUTO-GENERATED from name + description`}</pre>
         </div>
       </section>
 
@@ -92,6 +118,41 @@ export default function AppCreationGuide() {
               {palette.name}
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Variable Explanations */}
+      <section style={{ marginBottom: 40 }}>
+        <h2>📋 Complete Variable Guide</h2>
+        
+        <div style={{ background: '#1a1a1a', padding: 20, borderRadius: 12, marginBottom: 16 }}>
+          <h3>🎨 Visual Variables</h3>
+          <ul style={{ fontSize: 14, color: '#888' }}>
+            <li><strong>icon</strong> - Emoji shown in cards (e.g., "🎨")</li>
+            <li><strong>card_theme.backgroundColor</strong> - Feed card background gradient</li>
+            <li><strong>preview_gradient</strong> - Used by Nano Banana for image generation</li>
+            <li><strong>preview_url</strong> - AUTO-GENERATED image (don't set manually!)</li>
+          </ul>
+        </div>
+
+        <div style={{ background: '#1a1a1a', padding: 20, borderRadius: 12, marginBottom: 16 }}>
+          <h3>🎨 App Output Design</h3>
+          <ul style={{ fontSize: 14, color: '#888' }}>
+            <li><strong>design.containerColor</strong> - Output container background</li>
+            <li><strong>design.fontColor</strong> - Text color in results</li>
+            <li><strong>design.fontFamily</strong> - Font for output</li>
+            <li><strong>design.inputLayout</strong> - "vertical" or "horizontal"</li>
+          </ul>
+        </div>
+
+        <div style={{ background: '#1a1a1a', padding: 20, borderRadius: 12, marginBottom: 16 }}>
+          <h3>🎨 Modal & Input Styling</h3>
+          <ul style={{ fontSize: 14, color: '#888' }}>
+            <li><strong>modal_theme.backgroundColor</strong> - Try modal background</li>
+            <li><strong>modal_theme.buttonColor</strong> - Run button gradient</li>
+            <li><strong>input_theme.borderColor</strong> - Input field borders</li>
+            <li><strong>author</strong> - Creator attribution (e.g., "@yourname")</li>
+          </ul>
         </div>
       </section>
 

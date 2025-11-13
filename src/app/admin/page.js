@@ -547,6 +547,64 @@ export default function AdminDashboard() {
 
         </div>
       )}
+
+      {/* Manage Apps Tab */}
+      {activeTab === 'manage' && (
+        <div>
+          <h2 style={{ marginBottom: 16 }}>🗑️ Manage Apps</h2>
+          <p className="small" style={{ color: '#888', marginBottom: 20 }}>
+            Delete apps from the platform (careful - this is permanent!)
+          </p>
+          <div style={{ background: 'var(--bg-dark)', borderRadius: 12, border: '1px solid #333' }}>
+            {topApps.length > 0 ? topApps.map(app => (
+              <div key={app.id} style={{
+                padding: 16,
+                borderBottom: '1px solid #222',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{app.icon || '📱'} {app.name}</div>
+                  <div className="small" style={{ color: '#888', marginTop: 4 }}>
+                    ID: {app.id} • {app.view_count || 0} views
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (confirm(`Delete "${app.name}"? This cannot be undone!`)) {
+                      try {
+                        const res = await fetch(`/api/apps/${app.id}`, { method: 'DELETE' });
+                        if (res.ok) {
+                          alert('App deleted!');
+                          window.location.reload();
+                        } else {
+                          alert('Error deleting app');
+                        }
+                      } catch (err) {
+                        alert('Error: ' + err.message);
+                      }
+                    }
+                  }}
+                  className="btn ghost"
+                  style={{
+                    color: '#ef4444',
+                    border: '1px solid #ef4444',
+                    padding: '6px 12px',
+                    fontSize: 13
+                  }}
+                >
+                  🗑️ Delete
+                </button>
+              </div>
+            )) : (
+              <div style={{ padding: 20, textAlign: 'center', color: '#888' }}>
+                No apps to manage
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
