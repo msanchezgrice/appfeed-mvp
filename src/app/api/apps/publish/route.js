@@ -92,6 +92,7 @@ async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
   if (!apiKey) {
     throw new Error('Missing Anthropic API key. Add it in Profile → Secrets.');
   }
+  console.log('[AI Publish] Anthropic key source:', userKey ? 'user-secret' : (envKey ? 'env' : 'none'));
   
   // Pull light-weight user profile for context (author attribution)
   let userMeta = { id: userId, username: `user_${String(userId || '').slice(-8)}`, display_name: null };
@@ -195,8 +196,34 @@ async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
     JSON.stringify(examples)
   ].join('\n');
   
-  const modelPrimary = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
-  const modelFallback = 'claude-3-5-sonnet-20240620';
+  const modelPrimary = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929';
+  const modelFallback = 'claude-3-5-sonnet-latest';
+  console.log('[AI Publish] Model selection:', { primary: modelPrimary, fallback: modelFallback });
+  
+  function tryParseJsonLoose(text) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      // Try to extract first JSON object block
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}');
+      if (start !== -1 && end !== -1 && end > start) {
+        const candidate = text.slice(start, end + 1);
+        try {
+          return JSON.parse(candidate);
+        } catch {
+          // Try removing code fences
+          const cleaned = candidate.replace(/```(?:json)?/g, '');
+          try {
+            return JSON.parse(cleaned);
+          } catch {
+            return {};
+          }
+        }
+      }
+      return {};
+    }
+  }
   
   async function callAnthropic(model) {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -220,7 +247,7 @@ async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
     }
     const data = await res.json();
     const content = data?.content?.[0]?.text || '';
-    return JSON.parse(content || '{}');
+    return tryParseJsonLoose(content || '{}');
   }
   
   try {
