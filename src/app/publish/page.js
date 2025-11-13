@@ -9,6 +9,7 @@ export default function PublishPage() {
   const router = useRouter();
   const [step, setStep] = useState('choose-mode'); // choose-mode, inline-form, remote-form, github-form, analyzing, success
   const [mode, setMode] = useState(null); // 'inline', 'remote', or 'github'
+  // New AI mode states: ai-form, generating
 
   // Form states for inline app
   const [appName, setAppName] = useState('');
@@ -17,6 +18,10 @@ export default function PublishPage() {
   const [demoVideo, setDemoVideo] = useState(null);
   const [tags, setTags] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+
+  // Form states for AI app
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [createdApp, setCreatedApp] = useState(null);
 
   // Form states for remote app
   const [remoteUrl, setRemoteUrl] = useState('');
@@ -41,6 +46,8 @@ export default function PublishPage() {
       setStep('remote-form');
     } else if (selectedMode === 'github') {
       setStep('github-form');
+    } else if (selectedMode === 'ai') {
+      setStep('ai-form');
     }
   };
 
@@ -71,6 +78,7 @@ export default function PublishPage() {
       }
 
       console.log('App published:', result);
+      setCreatedApp(result.app || null);
       setStep('success');
     } catch (error) {
       alert('Error publishing app: ' + error.message);
@@ -102,6 +110,7 @@ export default function PublishPage() {
       }
 
       console.log('App published:', result);
+      setCreatedApp(result.app || null);
       setStep('success');
     } catch (error) {
       alert('Error publishing app: ' + error.message);
@@ -161,9 +170,39 @@ export default function PublishPage() {
       }
 
       console.log('App published:', result);
+      setCreatedApp(result.app || null);
       setStep('success');
     } catch (error) {
       alert('Error publishing app: ' + error.message);
+    }
+  };
+
+  const handleSubmitAI = async (e) => {
+    e.preventDefault();
+    setStep('generating');
+    try {
+      const response = await fetch('/api/apps/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          mode: 'ai',
+          appData: {
+            prompt: aiPrompt,
+            tags,
+            isMobile
+          }
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to generate app');
+      }
+      setCreatedApp(result.app || null);
+      setStep('success');
+    } catch (error) {
+      alert('Error generating app: ' + error.message);
+      setStep('ai-form');
     }
   };
 
@@ -282,6 +321,44 @@ export default function PublishPage() {
                 Integrate Remote App →
               </button>
             </div>
+
+            {/* AI Create Now Option */}
+            <div className="card" style={{ padding: 32, border: '2px solid #fe2c55' }}>
+              <div style={{
+                position: 'absolute',
+                top: -12,
+                right: 20,
+                background: '#fe2c55',
+                color: '#000',
+                padding: '4px 12px',
+                borderRadius: 12,
+                fontSize: 12,
+                fontWeight: 'bold'
+              }}>
+                New
+              </div>
+              <h2 style={{ marginTop: 0, marginBottom: 12 }}>Create App Now (AI)</h2>
+              <p className="small" style={{ marginBottom: 20 }}>
+                Describe your idea and we’ll generate a complete app automatically using Sonnet.
+              </p>
+
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontWeight: 'bold', marginBottom: 8, color: 'var(--brand2)' }}>Best for:</div>
+                <ul className="small" style={{ marginLeft: 20, marginBottom: 0 }}>
+                  <li>Starting from a prompt</li>
+                  <li>Fast concept-to-app</li>
+                  <li>No code needed</li>
+                </ul>
+              </div>
+
+              <button
+                onClick={() => handleChooseMode('ai')}
+                className="btn primary"
+                style={{ width: '100%' }}
+              >
+                Create App Now →
+              </button>
+            </div>
           </div>
 
           <div style={{ marginTop: 24, textAlign: 'center' }}>
@@ -292,6 +369,81 @@ export default function PublishPage() {
               View Adapter Docs →
             </Link>
           </div>
+        </div>
+      )}
+
+      {/* AI Form Step */}
+      {step === 'ai-form' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <h1 style={{ margin: 0 }}>Create App with AI</h1>
+            <button onClick={() => setStep('choose-mode')} className="btn ghost">
+              ← Back
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmitAI}>
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginTop: 0 }}>Describe Your App</h3>
+              <textarea
+                className="input"
+                placeholder="Example: A habit tracker that lets me add daily goals, tracks streaks, and gives motivational quotes. Use a fun, colorful style."
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                rows={6}
+                required
+              />
+              <p className="small" style={{ marginTop: 8, color: '#888' }}>
+                We’ll generate inputs, runtime steps, and design based on your prompt. You can remix later.
+              </p>
+            </div>
+
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginTop: 0 }}>Discovery & Device</h3>
+              <div style={{ marginBottom: 16 }}>
+                <label className="label">Tags</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="productivity, ai, automation (comma-separated)"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={isMobile}
+                    onChange={(e) => setIsMobile(e.target.checked)}
+                    style={{ marginRight: 8 }}
+                  />
+                  <span>Mobile-ready (renders well on mobile devices)</span>
+                </label>
+              </div>
+            </div>
+
+            <button type="submit" className="btn primary" style={{ width: '100%', padding: '14px', fontSize: 16 }}>
+              Generate App →
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Generating Step (AI) */}
+      {step === 'generating' && (
+        <div style={{ textAlign: 'center', padding: '80px 20px' }}>
+          <div style={{ fontSize: 64, marginBottom: 24, animation: 'spin 2s linear infinite' }}>⚙️</div>
+          <h1 style={{ marginBottom: 16 }}>Generating Your App...</h1>
+          <p className="small" style={{ marginBottom: 32, maxWidth: 500, margin: '0 auto 32px' }}>
+            We’re creating your manifest, wiring runtime steps, and generating a preview image. This takes ~20–60s.
+          </p>
+          <style jsx>{`
+            @keyframes spin {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
         </div>
       )}
 
@@ -704,6 +856,33 @@ POST /run
             Your app is now live in the feed. People can watch, try, use, and remix it.
           </p>
 
+          {createdApp && (
+            <div className="card" style={{ margin: '0 auto 24px', maxWidth: 600, textAlign: 'left' }}>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                <div
+                  style={{
+                    width: 96,
+                    height: 96,
+                    borderRadius: 12,
+                    background: createdApp.preview_type === 'image'
+                      ? `url(${createdApp.preview_url}) center/cover no-repeat`
+                      : (createdApp.preview_gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'),
+                    border: '1px solid #333',
+                    flexShrink: 0
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 6 }}>{createdApp.name}</div>
+                  <div className="small" style={{ color: '#888', marginBottom: 12 }}>{createdApp.description}</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <Link href={`/app/${createdApp.id}`} className="btn primary">Try Now →</Link>
+                    <Link href={`/app/${createdApp.id}`} className="btn">Remix</Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/feed" className="btn primary">
               View in Feed →
@@ -720,6 +899,8 @@ POST /run
               setTags('');
               setIsMobile(false);
               setRemoteUrl('');
+              setAiPrompt('');
+              setCreatedApp(null);
             }} className="btn ghost">
               Publish Another
             </button>
