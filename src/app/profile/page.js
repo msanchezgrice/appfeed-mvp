@@ -569,6 +569,28 @@ export default function ProfilePage() {
                     )}
                     </a>
                     
+                    {/* App title overlay */}
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      padding: '8px',
+                      background: 'linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)',
+                      color: 'white',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      lineHeight: 1.2,
+                      maxHeight: 40,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical'
+                    }}>
+                      {app.name}
+                    </div>
+                    
                     {/* Stats overlay */}
                     <div style={{
                       position: 'absolute',

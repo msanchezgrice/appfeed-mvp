@@ -136,6 +136,18 @@ Color mapping:
       });
     }
     
+    // Generate Nano Banana image for the new remix (async, don't wait)
+    try {
+      console.log('[Remix] Triggering image generation for:', remixedAppId);
+      fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.clipcade.com'}/api/generate-app-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appId: remixedAppId })
+      }).catch(err => console.error('[Remix] Image gen error:', err));
+    } catch (err) {
+      console.error('[Remix] Failed to trigger image generation:', err);
+    }
+    
     // Increment remix count on original app
     try {
       await supabase.rpc('update_app_remix_count', {
