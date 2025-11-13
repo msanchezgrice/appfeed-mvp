@@ -57,23 +57,28 @@ export default function AdminDashboard() {
         
         if (res.ok) {
           const data = await res.json();
-          console.log('[Admin] Data received:', Object.keys(data));
-          setStats(data.overview);
+          console.log('[Admin] Data received for tab:', activeTab, 'keys:', Object.keys(data));
           
-          // Set data based on active tab
-          if (activeTab === 'apps') {
-            setTopApps(data.topApps || []);
-          } else if (activeTab === 'viral') {
-            setViralityLeaderboard(data.viralityLeaderboard || []);
-          } else if (activeTab === 'creators') {
-            setFollowerLeaderboard(data.followerLeaderboard || []);
+          // Always update stats if available
+          if (data.overview) {
+            setStats(data.overview);
+          }
+          
+          // Set data based on active tab - DON'T clear other tabs!
+          if (activeTab === 'apps' && data.topApps) {
+            console.log('[Admin] Setting topApps:', data.topApps.length);
+            setTopApps(data.topApps);
+          } else if (activeTab === 'viral' && data.viralityLeaderboard) {
+            setViralityLeaderboard(data.viralityLeaderboard);
+          } else if (activeTab === 'creators' && data.followerLeaderboard) {
+            setFollowerLeaderboard(data.followerLeaderboard);
           } else if (activeTab === 'growth') {
-            setGrowthByDay(data.growthByDay || []);
-            setGrowthByWeek(data.growthByWeek || []);
+            if (data.growthByDay) setGrowthByDay(data.growthByDay);
+            if (data.growthByWeek) setGrowthByWeek(data.growthByWeek);
           } else if (activeTab === 'manage') {
             // Fetch ALL apps (including unpublished) for manage tab
             const appsRes = await fetch('/api/apps?includeUnpublished=true', {
-              credentials: 'include' // Important! Send auth
+              credentials: 'include'
             });
             if (appsRes.ok) {
               const appsData = await appsRes.json();
