@@ -13,10 +13,10 @@ export async function POST(req) {
       });
     }
     
-    const { appId, remixPrompt } = await req.json();
+    const { appId, remixPrompt, remixData } = await req.json();
     
-    if (!appId || !remixPrompt) {
-      return new Response(JSON.stringify({ error: 'appId and remixPrompt required' }), {
+    if (!appId || (!remixPrompt && !remixData)) {
+      return new Response(JSON.stringify({ error: 'appId and (remixPrompt or remixData) required' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
