@@ -21,7 +21,9 @@ export default function AppDetailPage() {
         const appRes = await fetch(`/api/apps/${appId}`);
         if (appRes.ok) {
           const appData = await appRes.json();
-          setApp(appData);
+          console.log('[App Detail] Fetched data:', appData);
+          // API returns { app, creator } - extract the app
+          setApp(appData.app || appData);
         }
 
         // Fetch all apps to find remixes
