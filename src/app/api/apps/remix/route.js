@@ -136,16 +136,52 @@ Color mapping:
       });
     }
     
-    // Generate Nano Banana image for the new remix (async, don't wait)
+    // Generate Nano Banana image for the new remix
     try {
-      console.log('[Remix] Triggering image generation for:', remixedAppId);
-      fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.clipcade.com'}/api/generate-app-image`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appId: remixedAppId })
-      }).catch(err => console.error('[Remix] Image gen error:', err));
+      console.log('[Remix] Generating Nano Banana image for:', remixedAppId);
+      
+      // Generate image using Gemini API
+      const geminiKey = process.env.GEMINI_API_KEY;
+      if (geminiKey) {
+        const imagePrompt = `Generate an elevated, minimalist, Apple-like image for: ${remixedApp.name}. Description: ${remixedApp.description}`;
+        
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: imagePrompt }] }],
+              generationConfig: {
+                responseModalities: ["Image"],
+                imageConfig: { aspectRatio: "9:16" }
+              }
+            })
+          }
+        );
+
+        if (geminiRes.ok) {
+          const geminiData = await geminiRes.json();
+          const imagePart = geminiData.candidates?.[0]?.content?.parts?.find(p => p.inline_data);
+          
+          if (imagePart) {
+            const imageBase64 = imagePart.inline_data.data;
+            const imageMime = imagePart.inline_data.mime_type || 'image/png';
+            const dataUrl = `data:${imageMime};base64,${imageBase64}`;
+            
+            // Update app with generated image
+            await supabase
+              .from('apps')
+              .update({ preview_url: dataUrl, preview_type: 'image' })
+              .eq('id', remixedAppId);
+            
+            console.log('[Remix] Nano Banana image generated! ✅');
+          }
+        }
+      }
     } catch (err) {
-      console.error('[Remix] Failed to trigger image generation:', err);
+      console.error('[Remix] Image generation error:', err);
+      // Don't fail the remix if image generation fails
     }
     
     // Increment remix count on original app
