@@ -94,8 +94,9 @@ Color mapping:
         changes = JSON.parse(llmData.choices[0].message.content || '{}');
         console.log('[Remix] LLM parsed changes:', changes);
       }
-    } catch (err) {
-      console.error('[Remix] LLM parse error:', err);
+      } catch (err) {
+        console.error('[Remix] LLM parse error:', err);
+      }
     }
     
     const remixedApp = {
