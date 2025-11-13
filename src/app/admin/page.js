@@ -16,6 +16,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [timeFilter, setTimeFilter] = useState('day'); // 'day', 'week', 'all' - default to today
   const [growthFilter, setGrowthFilter] = useState('day'); // 'day', 'week', 'month'
+  const [selectedApp, setSelectedApp] = useState(null); // For modal preview
 
   // Check admin access
   useEffect(() => {
@@ -70,8 +71,8 @@ export default function AdminDashboard() {
             setGrowthByDay(data.growthByDay || []);
             setGrowthByWeek(data.growthByWeek || []);
           } else if (activeTab === 'manage') {
-            // Fetch ALL apps for manage tab
-            const appsRes = await fetch('/api/apps');
+            // Fetch ALL apps (including unpublished) for manage tab
+            const appsRes = await fetch('/api/apps?includeUnpublished=true');
             if (appsRes.ok) {
               const appsData = await appsRes.json();
               setTopApps(appsData.apps || []);
@@ -583,17 +584,50 @@ export default function AdminDashboard() {
           </p>
           <div style={{ background: 'var(--bg-dark)', borderRadius: 12, border: '1px solid #333' }}>
             {topApps.length > 0 ? topApps.map(app => (
-              <div key={app.id} style={{
-                padding: 16,
-                borderBottom: '1px solid #222',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{app.icon || '📱'} {app.name}</div>
-                  <div className="small" style={{ color: '#888', marginTop: 4 }}>
-                    ID: {app.id} • {app.view_count || 0} views
+              <div 
+                key={app.id} 
+                onClick={() => setSelectedApp(app)}
+                style={{
+                  padding: 16,
+                  borderBottom: '1px solid #222',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#222'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                <div style={{ flex: 1, marginRight: 16 }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 8,
+                    marginBottom: 8
+                  }}>
+                    <span style={{ fontSize: 20 }}>{app.icon || '📱'}</span>
+                    <span style={{ fontWeight: 600 }}>{app.name}</span>
+                    {!app.is_published && (
+                      <span style={{ 
+                        fontSize: 11, 
+                        padding: '2px 8px', 
+                        borderRadius: 12,
+                        background: '#fbbf24',
+                        color: '#000'
+                      }}>
+                        UNPUBLISHED
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#888', marginBottom: 8, lineHeight: 1.4 }}>
+                    {app.description?.substring(0, 120)}{app.description?.length > 120 ? '...' : ''}
+                  </div>
+                  <div className="small" style={{ color: '#666', display: 'flex', gap: 12 }}>
+                    <span>👁️ {app.view_count || 0}</span>
+                    <span>🎯 {app.try_count || 0}</span>
+                    <span>🔖 {app.save_count || 0}</span>
+                    <span>ID: {app.id}</span>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -661,6 +695,116 @@ export default function AdminDashboard() {
                 No apps to manage
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* App Preview Modal */}
+      {selectedApp && (
+        <div 
+          onClick={() => setSelectedApp(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 3000,
+            padding: 16
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#1a1a1a',
+              borderRadius: 16,
+              maxWidth: 600,
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              border: '1px solid #333'
+            }}
+          >
+            <div style={{ 
+              padding: 24, 
+              borderBottom: '1px solid #333',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h2 style={{ margin: 0 }}>{selectedApp.icon} {selectedApp.name}</h2>
+              <button 
+                onClick={() => setSelectedApp(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: 24,
+                  cursor: 'pointer',
+                  color: '#888'
+                }}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div style={{ padding: 24 }}>
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>Description</div>
+                <div style={{ fontSize: 14 }}>{selectedApp.description}</div>
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>Stats</div>
+                <div style={{ display: 'flex', gap: 16 }}>
+                  <div>👁️ {selectedApp.view_count || 0} views</div>
+                  <div>🎯 {selectedApp.try_count || 0} tries</div>
+                  <div>🔖 {selectedApp.save_count || 0} saves</div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>Tags</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {selectedApp.tags?.map(tag => (
+                    <span key={tag} style={{
+                      background: '#333',
+                      padding: '4px 10px',
+                      borderRadius: 12,
+                      fontSize: 12
+                    }}>
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>Design</div>
+                <pre style={{ 
+                  fontSize: 11, 
+                  background: '#0a0a0a', 
+                  padding: 12, 
+                  borderRadius: 8,
+                  overflow: 'auto',
+                  color: '#888'
+                }}>
+                  {JSON.stringify(selectedApp.design, null, 2)}
+                </pre>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <a href={`/app/${selectedApp.id}`} target="_blank" className="btn primary" style={{ flex: 1 }}>
+                  🔗 Open App
+                </a>
+                <button onClick={() => setSelectedApp(null)} className="btn ghost">
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
