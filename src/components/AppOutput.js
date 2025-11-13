@@ -4,24 +4,20 @@ function AffirmationsOutput({ output, app }) {
   const text = typeof output === 'string' ? output : output?.markdown || '';
   const affirmations = text.split('\n').filter(line => line.trim().match(/^[\d•\-*]|^[IWY]/));
 
-  // Design variables - configurable via remix
+  // Apply design variables from app (remix can change these!)
   const design = app?.design || {};
   const containerColor = design.containerColor || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
   const fontColor = design.fontColor || 'white';
   const fontFamily = design.fontFamily || 'inherit';
-  
-  // Fixed variables - NOT configurable
-  const containerSize = { padding: '24px', borderRadius: 12, minHeight: 200 }; // FIXED
-  const maxWidth = '100%'; // FIXED
-  const layoutStructure = 'vertical'; // FIXED
 
   return (
     <div style={{
-      ...containerSize, // FIXED layout
-      background: containerColor, // CONFIGURABLE
-      color: fontColor, // CONFIGURABLE  
-      fontFamily: fontFamily, // CONFIGURABLE
-      maxWidth: maxWidth // FIXED
+      padding: 24,
+      borderRadius: 12,
+      minHeight: 200,
+      background: containerColor, // ← APPLIES remix design!
+      color: fontColor,
+      fontFamily: fontFamily
     }}>
       <h3 style={{ margin: '0 0 20px 0', fontSize: 20, opacity: 0.9 }}>Your Daily Affirmations ✨</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -286,11 +282,16 @@ export default function AppOutput({ run, app }) {
     return <TodoOutput output={output} />;
   }
 
-  // Fallback: generic output for real AI responses
-  // Check if output contains a generated image
+  // Fallback: generic output - APPLY DESIGN VARIABLES!
   const hasImage = output?.image;
   
-  // Extract text content from various output formats
+  // Apply design variables from app
+  const design = app?.design || {};
+  const containerColor = design.containerColor || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+  const fontColor = design.fontColor || 'white';
+  const fontFamily = design.fontFamily || 'inherit';
+  
+  // Extract text content
   let textContent;
   if (typeof output === 'string') {
     textContent = output;
@@ -300,15 +301,15 @@ export default function AppOutput({ run, app }) {
     textContent = JSON.stringify(output, null, 2);
   }
 
-  // Clean up escaped newlines and render nicely
   const cleanText = textContent.replace(/\\n\\n/g, '\n\n').replace(/\\n/g, '\n');
 
   return (
     <div style={{ 
       padding: 24, 
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: containerColor, // ← APPLIES remix design!
       borderRadius: 12,
-      color: 'white',
+      color: fontColor,
+      fontFamily: fontFamily,
       minHeight: 100
     }}>
       {hasImage && (
