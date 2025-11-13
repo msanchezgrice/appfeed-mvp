@@ -1,21 +1,21 @@
 import { createServerSupabaseClient } from '@/src/lib/supabase-server';
+import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+// GET single app
 export async function GET(req, { params }) {
   try {
     const { supabase } = await createServerSupabaseClient({ allowAnonymous: true });
     const { id } = params;
-    
-    console.log('[API /apps/[id]] GET request for app:', id);
-    
-    // Get app with creator info
+
     const { data: app, error } = await supabase
       .from('apps')
       .select(`
         *,
         creator:profiles!apps_creator_id_fkey (
           id,
+          clerk_user_id,
           username,
           display_name,
           avatar_url,
@@ -24,35 +24,53 @@ export async function GET(req, { params }) {
       `)
       .eq('id', id)
       .single();
-    
-    if (error || !app) {
-      console.error('[API /apps/[id]] App not found:', id, error);
-      return new Response(JSON.stringify({ error: 'App not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' }
-      });
+
+    if (error) {
+      return NextResponse.json({ error: 'App not found' }, { status: 404 });
     }
-    
-    // Increment view count
-    try {
-      await supabase
-        .from('apps')
-        .update({ view_count: (app.view_count || 0) + 1 })
-        .eq('id', id);
-    } catch (err) {
-      console.error('[API /apps/[id]] Error incrementing view count:', err);
+
+    return NextResponse.json({ app, creator: app.creator });
+  } catch (error) {
+    console.error('[API /apps/:id] Error:', error);
+    return NextResponse.json({ error: 'Failed to fetch app' }, { status: 500 });
+  }
+}
+
+// DELETE app
+export async function DELETE(req, { params }) {
+  try {
+    const { supabase, userId } = await createServerSupabaseClient();
+    const { id } = params;
+
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    console.log('[API /apps/[id]] App loaded:', app.name);
-    
-    return new Response(JSON.stringify(app), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (e) {
-    console.error('[API /apps/[id]] Error:', e);
-    return new Response(JSON.stringify({ error: String(e?.message || e) }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+
+    // Check if user owns this app
+    const { data: app } = await supabase
+      .from('apps')
+      .select('creator_id')
+      .eq('id', id)
+      .single();
+
+    if (!app || app.creator_id !== userId) {
+      return NextResponse.json({ error: 'Unauthorized - you can only delete your own apps' }, { status: 403 });
+    }
+
+    // Delete the app
+    const { error } = await supabase
+      .from('apps')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('[API /apps/:id] Delete error:', error);
+      return NextResponse.json({ error: 'Failed to delete app' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, message: 'App deleted' });
+  } catch (error) {
+    console.error('[API /apps/:id] Error:', error);
+    return NextResponse.json({ error: 'Failed to delete app' }, { status: 500 });
   }
 }

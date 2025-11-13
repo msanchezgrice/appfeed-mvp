@@ -12,7 +12,8 @@ export default function ProfilePage() {
   const [library, setLibrary] = useState([]);
   const [apps, setApps] = useState([]);
   const [following, setFollowing] = useState([]);
-  const [activeTab, setActiveTab] = useState('saved');
+  const [activeTab, setActiveTab] = useState('myapps'); // 'myapps', 'following', 'analytics', 'settings'
+  const [myAppsView, setMyAppsView] = useState('saved'); // 'saved' or 'created' (within My Apps tab)
   const [openaiKey, setOpenaiKey] = useState('');
   const [anthropicKey, setAnthropicKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
@@ -536,19 +537,25 @@ export default function ProfilePage() {
               marginTop: 8
             }}>
               {displayApps.map(app => (
-                <a
-                  key={app.id}
-                  href={`/app/${app.id}`}
-                  style={{
-                    aspectRatio: '1',
-                    background: app.preview_gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    borderRadius: 4,
-                    overflow: 'hidden',
-                    position: 'relative',
-                    display: 'block',
-                    textDecoration: 'none'
-                  }}
-                >
+                  <div
+                    key={app.id}
+                    style={{
+                      aspectRatio: '1',
+                      background: app.preview_gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      borderRadius: 4,
+                      overflow: 'hidden',
+                      position: 'relative'
+                    }}
+                  >
+                    <a
+                      href={`/app/${app.id}`}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        height: '100%',
+                        textDecoration: 'none'
+                      }}
+                    >
                   {app.preview_url && (
                     <img
                       src={app.preview_url}
@@ -558,26 +565,65 @@ export default function ProfilePage() {
                         height: '100%',
                         objectFit: 'cover'
                       }}
-                    />
-                  )}
-                  {/* Stats overlay on hover */}
-                  <div style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    padding: '4px 6px',
-                    background: 'rgba(0,0,0,0.7)',
-                    fontSize: 10,
-                    color: 'white',
-                    display: 'flex',
-                    gap: 8,
-                    justifyContent: 'center'
-                  }}>
-                    <span>👁️ {app.view_count || 0}</span>
-                    <span>🎯 {app.try_count || 0}</span>
+                      />
+                    )}
+                    </a>
+                    
+                    {/* Stats overlay */}
+                    <div style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      padding: '4px 6px',
+                      background: 'rgba(0,0,0,0.7)',
+                      fontSize: 10,
+                      color: 'white',
+                      display: 'flex',
+                      gap: 8,
+                      justifyContent: 'center'
+                    }}>
+                      <span>👁️ {app.view_count || 0}</span>
+                      <span>🎯 {app.try_count || 0}</span>
+                    </div>
+                    
+                    {/* Delete button (only for created apps) */}
+                    {myAppsView === 'created' && app.creator_id === userId && (
+                      <button
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          if (confirm(`Delete "${app.name}"? This cannot be undone.`)) {
+                            try {
+                              await fetch(`/api/apps/${app.id}`, { method: 'DELETE' });
+                              // Refresh apps list
+                              window.location.reload();
+                            } catch (err) {
+                              alert('Error deleting app');
+                            }
+                          }
+                        }}
+                        style={{
+                          position: 'absolute',
+                          top: 4,
+                          right: 4,
+                          background: 'rgba(0,0,0,0.8)',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: 24,
+                          height: 24,
+                          color: 'white',
+                          cursor: 'pointer',
+                          fontSize: 14,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        title="Delete app"
+                      >
+                        ×
+                      </button>
+                    )}
                   </div>
-                </a>
               ))}
             </div>
           ) : (
