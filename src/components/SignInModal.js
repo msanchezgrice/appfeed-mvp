@@ -6,9 +6,12 @@ export default function SignInModal({ show, onClose, message, action }) {
 
   const router = useRouter();
 
+  const currentUrl = () => window.location.pathname + window.location.search;
   const handleSignIn = () => {
-    const currentPath = window.location.pathname;
-    router.push(`/sign-in?redirect_url=${encodeURIComponent(currentPath)}`);
+    router.push(`/sign-in?redirect_url=${encodeURIComponent(currentUrl())}`);
+  };
+  const handleSignUp = () => {
+    router.push(`/sign-up?redirect_url=${encodeURIComponent(currentUrl())}`);
   };
 
   return (
@@ -45,27 +48,46 @@ export default function SignInModal({ show, onClose, message, action }) {
           <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
           <h2 style={{ margin: '0 0 12px 0', fontSize: 24 }}>Sign In Required</h2>
           <p style={{ margin: 0, color: '#888', fontSize: 16 }}>
-            {message || `Sign in to ${action || 'continue'}`}
+            {message 
+              || (action?.toLowerCase().includes('save') 
+                ? `Sign up to ${action}` 
+                : `Sign in to ${action || 'continue'}`)}
           </p>
         </div>
 
-        <button
-          onClick={handleSignIn}
-          style={{
-            width: '100%',
-            padding: '14px',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            border: 'none',
-            borderRadius: 12,
-            color: 'white',
-            fontSize: 16,
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            marginBottom: 12
-          }}
-        >
-          Sign In to Continue
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <button
+            onClick={handleSignUp}
+            style={{
+              width: '100%',
+              padding: '14px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              border: 'none',
+              borderRadius: 12,
+              color: 'white',
+              fontSize: 16,
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          >
+            Create Free Account
+          </button>
+          <button
+            onClick={handleSignIn}
+            style={{
+              width: '100%',
+              padding: '14px',
+              background: 'transparent',
+              border: '1px solid #333',
+              borderRadius: 12,
+              color: '#fff',
+              fontSize: 16,
+              cursor: 'pointer'
+            }}
+          >
+            Or Sign In
+          </button>
+        </div>
 
         <button
           onClick={onClose}
