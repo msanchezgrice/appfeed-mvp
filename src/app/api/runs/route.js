@@ -145,7 +145,8 @@ export async function POST(req) {
 
 export async function GET(req) {
   try {
-    const { supabase } = await createServerSupabaseClient({ allowAnonymous: true });
+    // Use service-role client to read limited run fields for preset prefill
+    const { supabase } = await createServerSupabaseClient();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id') || searchParams.get('run');
     if (!id) {
@@ -156,7 +157,7 @@ export async function GET(req) {
     }
     const { data: run, error } = await supabase
       .from('runs')
-      .select('*')
+      .select('id, app_id, inputs, created_at')
       .eq('id', id)
       .single();
     if (error || !run) {
