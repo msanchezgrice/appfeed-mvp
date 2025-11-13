@@ -5,18 +5,27 @@ export const dynamic = 'force-dynamic';
 export async function GET(req) {
   console.log('[API /apps] Request received');
   try {
-    const { supabase, userId } = await createServerSupabaseClient({ allowAnonymous: true });
-    console.log('[API /apps] Supabase client created, userId:', userId);
+    // For includeUnpublished, need authenticated client
     const { searchParams } = new URL(req.url);
+    const includeUnpublished = searchParams.get('includeUnpublished') === 'true';
+    
+    const { supabase, userId } = await createServerSupabaseClient({ 
+      allowAnonymous: !includeUnpublished // Require auth if including unpublished
+    });
+    
+    console.log('[API /apps] userId:', userId, 'includeUnpublished:', includeUnpublished);
+    
+    if (includeUnpublished && !userId) {
+      console.log('[API /apps] includeUnpublished requires auth but no userId - returning published only');
+    }
     
     // Get query parameters for filtering
     const tag = searchParams.get('tag');
     const creatorId = searchParams.get('creator');
     const search = searchParams.get('q');
-    const deviceType = searchParams.get('device'); // 'mobile' or 'desktop'
-    const limit = parseInt(searchParams.get('limit') || '100'); // Increased default limit
+    const deviceType = searchParams.get('device');
+    const limit = parseInt(searchParams.get('limit') || '100');
     const offset = parseInt(searchParams.get('offset') || '0');
-    const includeUnpublished = searchParams.get('includeUnpublished') === 'true';
     const requestUserId = searchParams.get('userId');
     
     console.log('[API /apps] GET request:', { tag, creatorId, search, deviceType, includeUnpublished, requestUserId, authUserId: userId });
