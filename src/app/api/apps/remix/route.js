@@ -54,14 +54,33 @@ export async function POST(req) {
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [{
+            role: 'system',
+            content: 'Return ONLY valid JSON with changed fields. Use proper CSS gradients for colors.'
+          }, {
             role: 'user',
-            content: `Parse remix request into JSON. User wants: "${remixPrompt}"
-            
-Return ONLY JSON:
-{"name":"new name if mentioned","design":{"containerColor":"gradient/hex if color","fontColor":"color if mentioned"}}`
+            content: `Parse: "${remixPrompt}"
+
+Current app:
+- Name: ${originalApp.name}
+- Background: ${originalApp.design?.containerColor || 'default gradient'}
+
+Return JSON with ONLY fields to change:
+{
+  "name": "new name (only if user wants to rename)",
+  "design": {
+    "containerColor": "linear-gradient(135deg, #color1 0%, #color2 100%)" // or "#hex"
+  }
+}
+
+Color mapping:
+- pink → linear-gradient(135deg, #ff69b4 0%, #ff1493 100%)
+- blue → linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)
+- green → linear-gradient(135deg, #10b981 0%, #059669 100%)
+- orange → linear-gradient(135deg, #f093fb 0%, #f5576c 100%)
+- dark → #1a1a1a`
           }],
           response_format: { type: 'json_object' },
-          temperature: 0.3
+          temperature: 0.2
         })
       });
       
