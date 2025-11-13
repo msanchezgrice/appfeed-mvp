@@ -48,9 +48,9 @@ export default function AdminDashboard() {
         console.log('[Admin] Fetching data for tab:', activeTab);
         const startTime = Date.now();
         
-        // Only fetch data for active tab to speed up loading
-        const res = await fetch(`/api/admin/stats?time=${timeFilter}&tab=${activeTab}`, {
-          signal: AbortSignal.timeout(10000) // 10 second timeout
+        // Use simple-stats for lightweight queries (no cache table needed!)
+        const res = await fetch('/api/admin/simple-stats', {
+          signal: AbortSignal.timeout(10000)
         });
         
         console.log('[Admin] Fetch completed in:', Date.now() - startTime, 'ms');
