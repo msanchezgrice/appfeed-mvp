@@ -93,12 +93,60 @@ async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
     throw new Error('Missing Anthropic API key. Add it in Profile → Secrets.');
   }
   
+  // Pull light-weight user profile for context (author attribution)
+  let userMeta = { id: userId, username: `user_${String(userId || '').slice(-8)}`, display_name: null };
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('username, display_name')
+      .eq('id', userId)
+      .single();
+    if (profile) {
+      userMeta.username = profile.username || userMeta.username;
+      userMeta.display_name = profile.display_name || null;
+    }
+  } catch (e) {
+    console.warn('[AI Publish] Failed to fetch profile for prompt context:', e?.message || e);
+  }
+  
+  // Pull a few existing apps to bias the shape and fields
+  let examples = [];
+  try {
+    const { data: sampleApps } = await supabase
+      .from('apps')
+      .select('name, description, tags, design, preview_gradient, inputs, outputs, runtime')
+      .eq('is_published', true)
+      .limit(3);
+    if (Array.isArray(sampleApps)) {
+      examples = sampleApps.map(a => ({
+        name: a.name,
+        description: a.description,
+        tags: a.tags,
+        design: a.design,
+        preview_gradient: a.preview_gradient,
+        inputs: a.inputs,
+        outputs: a.outputs,
+        runtime: a.runtime
+      }));
+    }
+  } catch (e) {
+    console.warn('[AI Publish] Could not load example apps:', e?.message || e);
+  }
+  
   const system = [
     'You are Clipcade’s app manifest generator.',
     'Return ONLY a valid JSON object matching the required schema.',
     'Use concise, production-ready values.',
     'Supported runtime tools: "llm.complete" and "image.process". Prefer engine "local".',
-    'If unsure for outputs, default to { "markdown": { "type": "string" } }.'
+    'If unsure for outputs, default to { "markdown": { "type": "string" } }.{',
+    'SCHEMA RULES:',
+    '- Editable: name, description, tags, preview_url, preview_gradient, design.containerColor, design.fontColor, design.fontFamily, design.inputLayout, modal_theme.*, input_theme.*',
+    '- Locked (do not mark as editable): container size, layout structure, and core logic in runtime steps',
+    '- Inputs: Use supported types only: string | number | boolean | enum | file(image/video) when needed',
+    '- Runtime: Prefer local engine; steps use only llm.complete or image.process as per needs; define deterministic, minimal steps',
+    '- Outputs: If not specified by the prompt, include markdown output',
+    '- Demo: Provide sampleInputs that satisfy inputs',
+    '}', 
   ].join(' ');
   
   const example = {
@@ -134,11 +182,17 @@ async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
     'Prompt:',
     JSON.stringify(prompt),
     '',
+    'User context:',
+    JSON.stringify({ username: userMeta.username, display_name: userMeta.display_name }),
+    '',
     'Return ONLY JSON with fields:',
     'name, description, tags, design, preview_gradient, modal_theme, input_theme, demo, inputs, outputs, runtime',
     '',
     'Example JSON (shape only, adapt to the prompt):',
-    JSON.stringify(example)
+    JSON.stringify(example),
+    '',
+    'Here are a few existing apps for reference (use only as loose guidance for shape and field naming, not content):',
+    JSON.stringify(examples)
   ].join('\n');
   
   const modelPrimary = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
@@ -157,8 +211,7 @@ async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
         max_tokens: 2000,
         temperature: 0.2,
         system,
-        messages: [{ role: 'user', content: userMsg }],
-        response_format: { type: 'json_object' }
+        messages: [{ role: 'user', content: userMsg }]
       })
     });
     if (!res.ok) {
