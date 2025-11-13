@@ -14,7 +14,7 @@ export default function AdminDashboard() {
   const [growthByDay, setGrowthByDay] = useState([]);
   const [growthByWeek, setGrowthByWeek] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [timeFilter, setTimeFilter] = useState('all'); // 'day', 'week', 'all'
+  const [timeFilter, setTimeFilter] = useState('day'); // 'day', 'week', 'all' - default to today
   const [growthFilter, setGrowthFilter] = useState('day'); // 'day', 'week', 'month'
 
   // Check admin access
@@ -596,32 +596,65 @@ export default function AdminDashboard() {
                     ID: {app.id} • {app.view_count || 0} views
                   </div>
                 </div>
-                <button
-                  onClick={async () => {
-                    if (confirm(`Delete "${app.name}"? This cannot be undone!`)) {
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={async () => {
                       try {
-                        const res = await fetch(`/api/apps/${app.id}`, { method: 'DELETE' });
+                        const newStatus = !app.is_published;
+                        const res = await fetch('/api/apps/' + app.id, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ is_published: newStatus })
+                        });
                         if (res.ok) {
-                          alert('App deleted!');
+                          alert(newStatus ? 'App published!' : 'App unpublished!');
                           window.location.reload();
                         } else {
-                          alert('Error deleting app');
+                          alert('Error updating app');
                         }
                       } catch (err) {
                         alert('Error: ' + err.message);
                       }
-                    }
-                  }}
-                  className="btn ghost"
-                  style={{
-                    color: '#ef4444',
-                    border: '1px solid #ef4444',
-                    padding: '6px 12px',
-                    fontSize: 13
-                  }}
-                >
-                  🗑️ Delete
-                </button>
+                    }}
+                    className="btn ghost"
+                    style={{
+                      color: app.is_published ? '#fbbf24' : '#10b981',
+                      border: `1px solid ${app.is_published ? '#fbbf24' : '#10b981'}`,
+                      padding: '6px 12px',
+                      fontSize: 13
+                    }}
+                  >
+                    {app.is_published ? '👁️ Unpublish' : '✅ Publish'}
+                  </button>
+                  
+                  <button
+                    onClick={async () => {
+                      if (confirm(`Permanently delete "${app.name}"? This CANNOT be undone!`)) {
+                        try {
+                          const res = await fetch('/api/apps/' + app.id, { method: 'DELETE' });
+                          if (res.ok) {
+                            alert('App permanently deleted!');
+                            window.location.reload();
+                          } else {
+                            const error = await res.json();
+                            alert('Error: ' + (error.error || 'Failed to delete'));
+                          }
+                        } catch (err) {
+                          alert('Error: ' + err.message);
+                        }
+                      }
+                    }}
+                    className="btn ghost"
+                    style={{
+                      color: '#ef4444',
+                      border: '1px solid #ef4444',
+                      padding: '6px 12px',
+                      fontSize: 13
+                    }}
+                  >
+                    🗑️ Delete
+                  </button>
+                </div>
               </div>
             )) : (
               <div style={{ padding: 20, textAlign: 'center', color: '#888' }}>

@@ -1,0 +1,49 @@
+// Add PATCH method to apps/[id]/route.js
+
+export async function PATCH(req, { params }) {
+  try {
+    const { supabase, userId } = await createServerSupabaseClient();
+    const { id } = params;
+    const { is_published } = await req.json();
+
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check if user owns this app or is admin
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('clerk_user_id', userId)
+      .single();
+    
+    const isAdmin = profile?.email === 'msanchezgrice@gmail.com';
+    
+    const { data: app } = await supabase
+      .from('apps')
+      .select('creator_id')
+      .eq('id', id)
+      .single();
+
+    if (!app || (app.creator_id !== userId && !isAdmin)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
+    // Update the app
+    const { error } = await supabase
+      .from('apps')
+      .update({ is_published })
+      .eq('id', id);
+
+    if (error) {
+      console.error('[API /apps/:id] Update error:', error);
+      return NextResponse.json({ error: 'Failed to update app' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, is_published });
+  } catch (error) {
+    console.error('[API /apps/:id] Error:', error);
+    return NextResponse.json({ error: 'Failed to update app' }, { status: 500 });
+  }
+}
+
