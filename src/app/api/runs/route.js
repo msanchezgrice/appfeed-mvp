@@ -110,7 +110,8 @@ export async function POST(req) {
       // Output image
       const outImg = run?.outputs?.image;
       if (typeof outImg === 'string' && outImg.startsWith('data:image/')) {
-        const match = outImg.match(/^data:(image\\/[^;]+);base64,(.+)$/);
+        const re = new RegExp('^data:(image/[^;]+);base64,(.+)$');
+        const match = outImg.match(re);
         if (match) {
           const mime = match[1];
           const b64 = match[2];
@@ -130,7 +131,8 @@ export async function POST(req) {
           if (spec?.type === 'image') {
             const val = run.inputs[key];
             if (typeof val === 'string' && val.startsWith('data:image/')) {
-              const match = val.match(/^data:(image\\/[^;]+);base64,(.+)$/);
+              const reIn = new RegExp('^data:(image/[^;]+);base64,(.+)$');
+              const match = val.match(reIn);
               if (match) {
                 const mime = match[1];
                 const b64 = match[2];
