@@ -140,8 +140,19 @@ Color mapping:
     try {
       console.log('[Remix] Generating Nano Banana image for:', remixedAppId);
       
-      // Generate image using Gemini API
-      const geminiKey = process.env.GEMINI_API_KEY;
+      // Try user key first, then fall back to platform key
+      const envKey = process.env.GEMINI_API_KEY;
+      let userKey = null;
+      try {
+        const { getDecryptedSecret } = await import('@/src/lib/secrets.js');
+        userKey = await getDecryptedSecret(userId, 'gemini', supabase);
+      } catch (err) {
+        console.warn('[Remix] Error retrieving user Gemini key:', err);
+      }
+      
+      const geminiKey = userKey || envKey;
+      console.log('[Remix] Gemini key source:', userKey ? 'user-secret' : (envKey ? 'platform-env' : 'none'));
+      
       if (geminiKey) {
         const imagePrompt = `Generate an elevated, minimalist, Apple-like image for: ${remixedApp.name}. Description: ${remixedApp.description}`;
         

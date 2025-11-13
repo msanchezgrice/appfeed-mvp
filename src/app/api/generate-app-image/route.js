@@ -29,8 +29,19 @@ export async function POST(req) {
       return NextResponse.json({ error: 'App not found' }, { status: 404 });
     }
     
-    // Generate image with Gemini
-    const geminiApiKey = process.env.GEMINI_API_KEY;
+    // Generate image with Gemini - try user key first, then fall back to platform key
+    const envKey = process.env.GEMINI_API_KEY;
+    let userKey = null;
+    
+    try {
+      const { getDecryptedSecret } = await import('@/src/lib/secrets.js');
+      userKey = await getDecryptedSecret(userId, 'gemini', supabase);
+    } catch (err) {
+      console.warn('[Generate Image] Error retrieving user Gemini key:', err);
+    }
+    
+    const geminiApiKey = userKey || envKey;
+    console.log('[Generate Image] Gemini key source:', userKey ? 'user-secret' : (envKey ? 'platform-env' : 'none'));
     
     if (!geminiApiKey) {
       return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 });

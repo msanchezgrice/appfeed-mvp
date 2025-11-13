@@ -322,13 +322,26 @@ export async function tool_image_process({ userId, args, mode, supabase }) {
     };
   }
   
-  // Get Gemini API key from environment
-  const geminiKey = process.env.GEMINI_API_KEY;
+  // Get Gemini API key - try user key first, then fall back to platform key
+  const envKey = process.env.GEMINI_API_KEY;
+  let userKey = null;
+  
+  if (userId && supabase) {
+    try {
+      userKey = await getDecryptedSecret(userId, 'gemini', supabase);
+      console.log('[Image Process] User Gemini key:', userKey ? 'FOUND' : 'NOT_FOUND');
+    } catch (err) {
+      console.warn('[Image Process] Error retrieving user Gemini key:', err);
+    }
+  }
+  
+  const geminiKey = userKey || envKey;
+  console.log('[Image Process] Gemini key source:', userKey ? 'user-secret' : (envKey ? 'platform-env' : 'none'));
   
   if (!geminiKey) {
-    console.error('[Image Process] No Gemini API key');
+    console.error('[Image Process] No Gemini API key available');
     return {
-      output: { markdown: 'Gemini API key not configured' },
+      output: { markdown: '🔑 No Gemini API key configured. Add it in Profile → Settings or configure platform key.' },
       error: 'NO_GEMINI_KEY'
     };
   }

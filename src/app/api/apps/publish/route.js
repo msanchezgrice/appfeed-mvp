@@ -435,7 +435,18 @@ export async function POST(request) {
     try {
       console.log('[Publish] Generating Nano Banana image for:', newApp.name);
       
-      const geminiKey = process.env.GEMINI_API_KEY;
+      // Try user key first, then fall back to platform key
+      const envKey = process.env.GEMINI_API_KEY;
+      let userKey = null;
+      try {
+        userKey = await getDecryptedSecret(userId, 'gemini', supabase);
+      } catch (err) {
+        console.warn('[Publish] Error retrieving user Gemini key:', err);
+      }
+      
+      const geminiKey = userKey || envKey;
+      console.log('[Publish] Gemini key source:', userKey ? 'user-secret' : (envKey ? 'platform-env' : 'none'));
+      
       if (geminiKey) {
         const imagePrompt = `Generate an elevated apple store type image for this mobile app based on: ${newApp.name}. Description: ${newApp.description}`;
         
