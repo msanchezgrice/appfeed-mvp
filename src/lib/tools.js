@@ -48,7 +48,8 @@ export async function tool_llm_complete({ userId, args, mode, supabase, fallback
   let apiKey = null;
   
   // Fallback path for first Try without BYOK
-  const FALLBACK_OPENAI_KEY = process.env.OPENAI_FALLBACK_API_KEY;
+  // Prefer explicit fallback key, otherwise use OPENAI_API_KEY from env
+  const FALLBACK_OPENAI_KEY = process.env.OPENAI_FALLBACK_API_KEY || process.env.OPENAI_API_KEY;
   const canUseFallback = mode === 'try' && fallbackAllowed && !!FALLBACK_OPENAI_KEY;
   
   if (!userId && canUseFallback) {
