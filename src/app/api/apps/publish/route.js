@@ -195,8 +195,8 @@ async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
     JSON.stringify(examples)
   ].join('\n');
   
-  const modelPrimary = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-latest';
-  const modelFallback = 'claude-3-5-sonnet-20241022';
+  const modelPrimary = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929';
+  const modelFallback = 'claude-3-5-sonnet-latest';
   
   function tryParseJsonLoose(text) {
     try {
