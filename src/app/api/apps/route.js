@@ -35,9 +35,9 @@ export async function GET(req) {
         )
       `);
     
-    // If includeUnpublished is true, check if admin or owner
-    if (includeUnpublished) {
-      // Check if user is admin
+    // If includeUnpublished is true, check if admin
+    if (includeUnpublished && userId) {
+      // Check if current user is admin
       const { data: profile } = await supabase
         .from('profiles')
         .select('email')
@@ -46,14 +46,16 @@ export async function GET(req) {
       
       const isAdmin = profile?.email === 'msanchezgrice@gmail.com';
       
+      console.log('[API /apps] includeUnpublished=true, userId:', userId, 'isAdmin:', isAdmin);
+      
       if (isAdmin) {
-        // Admin sees ALL apps (published and unpublished)
-        console.log('[API /apps] Admin mode - showing all apps');
-        // Don't filter by is_published!
+        // Admin sees ALL apps - don't add is_published filter at all!
+        console.log('[API /apps] Admin mode - NO is_published filter');
       } else if (requestUserId) {
-        // Regular user sees published apps OR their own unpublished
+        // Regular user sees published OR their own unpublished
         query = query.or(`is_published.eq.true,and(is_published.eq.false,creator_id.eq.${requestUserId})`);
       } else {
+        // Not admin, not requesting specific user - published only
         query = query.eq('is_published', true);
       }
     } else {

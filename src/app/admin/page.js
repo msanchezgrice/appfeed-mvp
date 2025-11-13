@@ -72,11 +72,15 @@ export default function AdminDashboard() {
             setGrowthByWeek(data.growthByWeek || []);
           } else if (activeTab === 'manage') {
             // Fetch ALL apps (including unpublished) for manage tab
-            const appsRes = await fetch('/api/apps?includeUnpublished=true');
+            const appsRes = await fetch('/api/apps?includeUnpublished=true', {
+              credentials: 'include' // Important! Send auth
+            });
             if (appsRes.ok) {
               const appsData = await appsRes.json();
+              console.log('[Admin] Manage tab received:', appsData.apps?.length, 'apps');
               setTopApps(appsData.apps || []);
-              console.log('[Admin] Loaded', appsData.apps?.length, 'apps for management');
+            } else {
+              console.error('[Admin] Manage fetch failed:', appsRes.status);
             }
           }
         } else {
@@ -585,8 +589,7 @@ export default function AdminDashboard() {
           <div style={{ background: 'var(--bg-dark)', borderRadius: 12, border: '1px solid #333' }}>
             {topApps.length > 0 ? topApps.map(app => (
               <div 
-                key={app.id} 
-                onClick={() => setSelectedApp(app)}
+                key={app.id}
                 style={{
                   padding: 16,
                   borderBottom: '1px solid #222',
@@ -599,7 +602,10 @@ export default function AdminDashboard() {
                 onMouseEnter={(e) => e.currentTarget.style.background = '#222'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
               >
-                <div style={{ flex: 1, marginRight: 16 }} onClick={(e) => e.stopPropagation()}>
+                <div 
+                  style={{ flex: 1, marginRight: 16 }}
+                  onClick={() => setSelectedApp(app)}
+                >
                   <div style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
