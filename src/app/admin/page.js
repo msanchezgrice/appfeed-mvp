@@ -219,6 +219,24 @@ export default function AdminDashboard() {
           >
             📈 Growth
           </button>
+          <button
+            onClick={() => setActiveTab('manage')}
+            style={{
+              padding: '12px 24px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === 'manage' ? '3px solid var(--brand)' : '3px solid transparent',
+              color: activeTab === 'manage' ? 'white' : '#888',
+              cursor: 'pointer',
+              fontSize: 15,
+              fontWeight: 600,
+              transition: 'all 0.2s',
+              marginBottom: '-2px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            🗑️ Manage
+          </button>
         </div>
       </div>
 
