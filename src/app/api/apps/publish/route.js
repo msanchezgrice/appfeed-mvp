@@ -198,7 +198,8 @@ async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
   
   const modelPrimary = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929';
   const modelFallback = 'claude-3-5-sonnet-latest';
-  console.log('[AI Publish] Model selection:', { primary: modelPrimary, fallback: modelFallback });
+  const modelSecondFallback = 'claude-sonnet-4-5';
+  console.log('[AI Publish] Model selection:', { primary: modelPrimary, fallback: modelFallback, second_fallback: modelSecondFallback });
   
   function tryParseJsonLoose(text) {
     try {
@@ -254,7 +255,12 @@ async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
     return await callAnthropic(modelPrimary);
   } catch (e) {
     console.error('[AI Publish] Anthropic primary model failed, falling back:', e?.message || e);
-    return await callAnthropic(modelFallback);
+    try {
+      return await callAnthropic(modelFallback);
+    } catch (e2) {
+      console.error('[AI Publish] Anthropic first fallback failed, second fallback:', e2?.message || e2);
+      return await callAnthropic(modelSecondFallback);
+    }
   }
 }
 
