@@ -41,13 +41,20 @@ async function fetchArticleContent(url) {
   }
 }
 
-export async function tool_llm_complete({ userId, args, mode, supabase }) {
+export async function tool_llm_complete({ userId, args, mode, supabase, fallbackAllowed }) {
   // Try to use BYOK OpenAI key from encrypted Supabase secrets
   console.log('[LLM] Starting - userId:', userId, 'mode:', mode);
   
   let apiKey = null;
   
-  if (!userId) {
+  // Fallback path for first Try without BYOK
+  const FALLBACK_OPENAI_KEY = process.env.OPENAI_FALLBACK_API_KEY;
+  const canUseFallback = mode === 'try' && fallbackAllowed && !!FALLBACK_OPENAI_KEY;
+  
+  if (!userId && canUseFallback) {
+    console.log('[LLM] Using platform fallback (OpenAI) for anonymous Try');
+    apiKey = FALLBACK_OPENAI_KEY;
+  } else if (!userId) {
     console.log('[LLM] No userId - user not signed in, using stub');
     return {
       output: `🔒 Sign in to use real AI - Currently showing stub data.\n\nTo enable real AI responses:\n1. Sign in at /profile\n2. Add your OpenAI API key in Settings\n3. Try this app again!`,
@@ -67,25 +74,38 @@ export async function tool_llm_complete({ userId, args, mode, supabase }) {
   
   console.log('[LLM] Attempting to retrieve API key for user:', userId);
   
-  try {
-    apiKey = await getDecryptedSecret(userId, 'openai', supabase);
-    console.log('[LLM] API key retrieval result:', apiKey ? 'KEY_FOUND' : 'NO_KEY');
-  } catch (err) {
-    console.error('[LLM] Error retrieving API key:', err);
-    return {
-      output: `⚠️ Error retrieving API key: ${err.message}\n\nPlease check:\n1. You're signed in\n2. API key is saved in Settings\n3. Database connection is working`,
-      usedStub: true,
-      error: `KEY_RETRIEVAL_ERROR: ${err.message}`
-    };
+  if (!apiKey) {
+    try {
+      apiKey = await getDecryptedSecret(userId, 'openai', supabase);
+      console.log('[LLM] API key retrieval result:', apiKey ? 'KEY_FOUND' : 'NO_KEY');
+    } catch (err) {
+      console.error('[LLM] Error retrieving API key:', err);
+      // If BYOK retrieval fails, attempt fallback for Try
+      if (canUseFallback) {
+        console.log('[LLM] Falling back to platform key due to retrieval error');
+        apiKey = FALLBACK_OPENAI_KEY;
+      } else {
+        return {
+          output: `⚠️ Error retrieving API key: ${err.message}\n\nPlease check:\n1. You're signed in\n2. API key is saved in Settings\n3. Database connection is working`,
+          usedStub: true,
+          error: `KEY_RETRIEVAL_ERROR: ${err.message}`
+        };
+      }
+    }
   }
   
   if (!apiKey) {
-    console.log('[LLM] No API key found for user - need to add in settings');
-    return {
-      output: `🔑 No API key found.\n\nTo use real AI:\n1. Go to /profile → Settings\n2. Enter your OpenAI API key (sk-...)\n3. Click "Save API Keys"\n4. Try this app again!`,
-      usedStub: true,
-      error: 'NO_API_KEY_CONFIGURED'
-    };
+    if (canUseFallback) {
+      console.log('[LLM] No BYOK found - using platform fallback key for Try');
+      apiKey = FALLBACK_OPENAI_KEY;
+    } else {
+      console.log('[LLM] No API key found for user - need to add in settings');
+      return {
+        output: `🔑 No API key found.\n\nTo use real AI:\n1. Go to /profile → Settings\n2. Enter your OpenAI API key (sk-...)\n3. Click "Save API Keys"\n4. Try this app again!`,
+        usedStub: true,
+        error: 'NO_API_KEY_CONFIGURED'
+      };
+    }
   }
   
   console.log('[LLM] API key found, making OpenAI API call...');
@@ -155,7 +175,7 @@ Remember: Make the output visually appealing and easy to read!
         { role: 'user', content: prompt }
       ],
       temperature: 0.7,
-      max_tokens: 500
+      max_tokens: canUseFallback ? 300 : 500
     };
     
     console.log('[LLM] Calling:', endpoint, needsWebSearch ? '(with web_search tool)' : '(standard)');

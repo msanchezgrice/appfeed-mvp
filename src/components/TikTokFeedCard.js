@@ -22,7 +22,7 @@ async function api(path, method='GET', body) {
   return await res.json();
 }
 
-export default function TikTokFeedCard({ app }) {
+export default function TikTokFeedCard({ app, presetDefaults }) {
   const { user, isLoaded } = useUser();
   const [showTry, setShowTry] = useState(false);
   const [showUse, setShowUse] = useState(false);
@@ -234,7 +234,7 @@ export default function TikTokFeedCard({ app }) {
         {/* Share Button */}
         <button
           onClick={async () => {
-            const appUrl = `${window.location.origin}/app/${app.id}`;
+            const appUrl = `${window.location.origin}/app/${app.id}${run?.id ? `?run=${run.id}` : ''}`;
             
             // For native share (mobile), include title and description
             if (navigator.share) {
@@ -273,7 +273,7 @@ export default function TikTokFeedCard({ app }) {
             🔗
           </div>
           <div style={{ fontSize: 12, color: 'white', fontWeight: 'bold', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
-            Share
+            {run?.id ? 'Share' : 'Share app'}
           </div>
         </button>
       </div>
@@ -368,8 +368,79 @@ export default function TikTokFeedCard({ app }) {
               <button className="btn ghost" onClick={() => setShowTry(false)}>Close</button>
             </div>
             <p className="small">Runs in a read-only sandbox with sample inputs.</p>
-            <AppForm app={app} onSubmit={(vals) => onRun(vals, 'try')} defaults={app.demo?.sampleInputs||{}} />
-            {run && <><hr /><AppOutput run={run} app={app} /></>}
+            <AppForm app={app} onSubmit={(vals) => onRun(vals, 'try')} defaults={presetDefaults || app.demo?.sampleInputs||{}} />
+            {run && (
+              <>
+                <hr />
+                <div style={{ position: 'relative' }}>
+                  <div style={{ filter: (!user && (run?.trace?.[run.trace.length-1]?.output?.image)) ? 'blur(8px)' : 'none', transition: 'filter 0.2s' }}>
+                    <AppOutput run={run} app={app} />
+                  </div>
+                  {!user && (run?.trace?.[run.trace.length-1]?.output?.image) && (
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'rgba(0,0,0,0.45)',
+                      borderRadius: 12
+                    }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontWeight: 700, marginBottom: 8 }}>Create a free account to reveal and save</div>
+                        <button
+                          className="btn primary"
+                          onClick={() => {
+                            setSignInAction('reveal and save your result');
+                            setShowSignInModal(true);
+                          }}
+                        >
+                          Sign in to reveal
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+            {run && (
+              <div className="row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+                <button
+                  className="btn"
+                  onClick={() => {
+                    if (!saved) save(true);
+                  }}
+                  disabled={saved}
+                >
+                  {saved ? 'Saved' : 'Save'}
+                </button>
+                <button
+                  className="btn"
+                  onClick={async () => {
+                    const appUrl = `${window.location.origin}/app/${app.id}?run=${run.id}`;
+                    if (navigator.share) {
+                      const cleanDescription = app.description?.split('\n\nRemixed with:')[0] || app.description;
+                      try {
+                        await navigator.share({
+                          title: app.name,
+                          text: cleanDescription,
+                          url: appUrl
+                        });
+                      } catch (err) {
+                        if (err.name !== 'AbortError') {
+                          console.error('Share failed:', err);
+                        }
+                      }
+                    } else {
+                      navigator.clipboard.writeText(appUrl);
+                      alert('Link copied to clipboard!');
+                    }
+                  }}
+                >
+                  Share
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -390,8 +461,79 @@ export default function TikTokFeedCard({ app }) {
                 </div>
               </div>
             ) : null}
-            <AppForm app={app} onSubmit={(vals) => onRun(vals, 'use')} defaults={app.demo?.sampleInputs||{}} />
-            {run && <><hr /><AppOutput run={run} app={app} /></>}
+            <AppForm app={app} onSubmit={(vals) => onRun(vals, 'use')} defaults={presetDefaults || app.demo?.sampleInputs||{}} />
+            {run && (
+              <>
+                <hr />
+                <div style={{ position: 'relative' }}>
+                  <div style={{ filter: (!user && (run?.trace?.[run.trace.length-1]?.output?.image)) ? 'blur(8px)' : 'none', transition: 'filter 0.2s' }}>
+                    <AppOutput run={run} app={app} />
+                  </div>
+                  {!user && (run?.trace?.[run.trace.length-1]?.output?.image) && (
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'rgba(0,0,0,0.45)',
+                      borderRadius: 12
+                    }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontWeight: 700, marginBottom: 8 }}>Create a free account to reveal and save</div>
+                        <button
+                          className="btn primary"
+                          onClick={() => {
+                            setSignInAction('reveal and save your result');
+                            setShowSignInModal(true);
+                          }}
+                        >
+                          Sign in to reveal
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+            {run && (
+              <div className="row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+                <button
+                  className="btn"
+                  onClick={() => {
+                    if (!saved) save(true);
+                  }}
+                  disabled={saved}
+                >
+                  {saved ? 'Saved' : 'Save'}
+                </button>
+                <button
+                  className="btn"
+                  onClick={async () => {
+                    const appUrl = `${window.location.origin}/app/${app.id}?run=${run.id}`;
+                    if (navigator.share) {
+                      const cleanDescription = app.description?.split('\n\nRemixed with:')[0] || app.description;
+                      try {
+                        await navigator.share({
+                          title: app.name,
+                          text: cleanDescription,
+                          url: appUrl
+                        });
+                      } catch (err) {
+                        if (err.name !== 'AbortError') {
+                          console.error('Share failed:', err);
+                        }
+                      }
+                    } else {
+                      navigator.clipboard.writeText(appUrl);
+                      alert('Link copied to clipboard!');
+                    }
+                  }}
+                >
+                  Share
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

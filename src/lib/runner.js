@@ -1,7 +1,7 @@
 import { ToolRegistry, interpolateArgs } from './tools.js';
 import { nowIso } from './utils.js';
 
-export async function runApp({ app, inputs, userId, mode='try', supabase }) {
+export async function runApp({ app, inputs, userId, mode='try', supabase, fallbackAllowed=false }) {
   console.log('[Runner] Starting app execution:', {
     appId: app.id,
     appName: app.name,
@@ -40,7 +40,7 @@ export async function runApp({ app, inputs, userId, mode='try', supabase }) {
   console.log('[Runner] Runtime valid, starting execution of', app.runtime.steps.length, 'steps');
   
   // Pass supabase and userId to tools for accessing secrets
-  const toolContext = { userId, mode, supabase };
+  const toolContext = { userId, mode, supabase, fallbackAllowed };
   
   // Store step outputs for interpolation
   const stepOutputs = {};
