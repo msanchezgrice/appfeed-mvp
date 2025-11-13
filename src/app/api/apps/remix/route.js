@@ -37,14 +37,19 @@ export async function POST(req) {
     }
     
     // Create remixed app with AI-modified manifest
-    // Use LLM to parse remix into structured changes
     const remixedAppId = `${appId}-remix-${Date.now().toString(36)}`;
     
-    console.log('[Remix] Using LLM to parse:', remixPrompt);
-    
-    // Call OpenAI to get structured changes
     let changes = {};
-    try {
+    
+    // If remixData provided (from JSON editor), use it directly!
+    if (remixData) {
+      console.log('[Remix] Using direct JSON data:', remixData);
+      changes = remixData;
+    } else {
+      // Otherwise, use LLM to parse natural language prompt
+      console.log('[Remix] Using LLM to parse:', remixPrompt);
+      
+      try {
       const llmRes = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {

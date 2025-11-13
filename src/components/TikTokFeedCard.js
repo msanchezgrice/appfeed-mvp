@@ -31,13 +31,8 @@ export default function TikTokFeedCard({ app }) {
   const [remixPrompt, setRemixPrompt] = useState('');
   const [remixing, setRemixing] = useState(false);
   
-  // Advanced editor state
-  const [editedName, setEditedName] = useState('');
-  const [editedDescription, setEditedDescription] = useState('');
-  const [editedTags, setEditedTags] = useState([]);
-  const [containerColor, setContainerColor] = useState('');
-  const [fontColor, setFontColor] = useState('');
-  const [fontFamily, setFontFamily] = useState('');
+  // Advanced editor state (JSON)
+  const [advancedJSON, setAdvancedJSON] = useState('');
   const [run, setRun] = useState(null);
   const [saved, setSaved] = useState(false);
   const [liked, setLiked] = useState(false);
@@ -120,30 +115,46 @@ export default function TikTokFeedCard({ app }) {
     }
   };
   
-  // Handle save from Advanced Remix Editor
-  const handleSaveRemix = (remixedApp) => {
-    console.log('[Remix] Saving advanced remix:', remixedApp);
-    
+  // Handle save from Advanced JSON Editor
+  const handleSaveRemix = async () => {
     if (!user) {
       alert('Please sign in to create a remix');
       return;
     }
     
-    // For now, use the quick remix API with a generated prompt
-    const generatedPrompt = `
-      Change name to: ${remixedApp.name}
-      Change description to: ${remixedApp.description}
-      Update design: background=${remixedApp.design?.containerColor}, font=${remixedApp.design?.fontColor}
-      Tags: ${remixedApp.tags?.join(', ')}
-    `.trim();
-    
-    setRemixPrompt(generatedPrompt);
-    setRemixTab('quick');
-    
-    // Trigger the remix
-    setTimeout(() => {
-      handleRemix();
-    }, 100);
+    try {
+      // Parse the JSON
+      const remixData = JSON.parse(advancedJSON);
+      console.log('[Remix] Saving JSON remix:', remixData);
+      
+      // Send directly to remix API with the parsed JSON
+      setRemixing(true);
+      
+      const response = await fetch('/api/apps/remix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          appId: app.id,
+          remixData: remixData, // Send parsed JSON directly!
+          remixPrompt: `Advanced edit: ${remixData.name || 'Updated'}`
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to remix app');
+      }
+
+      setShowRemix(false);
+      setSuccessMessage('Your remixed app is ready! Check your profile to see it.');
+      setShowSuccessModal(true);
+    } catch (error) {
+      alert('Error with JSON: ' + error.message);
+    } finally {
+      setRemixing(false);
+    }
   };
 
   return (
@@ -496,33 +507,29 @@ export default function TikTokFeedCard({ app }) {
 
                 <textarea
                   className="input"
-                  value={JSON.stringify({
+                  value={advancedJSON || JSON.stringify({
                     name: app.name,
                     description: app.description,
-                    design: app.design || {},
+                    design: app.design || {
+                      containerColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      fontColor: 'white',
+                      fontFamily: 'inherit'
+                    },
                     tags: app.tags || []
                   }, null, 2)}
-                  onChange={(e) => {
-                    try {
-                      const parsed = JSON.parse(e.target.value);
-                      setEditedName(parsed.name || app.name);
-                      setEditedDescription(parsed.description || app.description);
-                      setEditedTags(parsed.tags || app.tags || []);
-                      setContainerColor(parsed.design?.containerColor || app.design?.containerColor);
-                      setFontColor(parsed.design?.fontColor || app.design?.fontColor);
-                    } catch (err) {
-                      // Invalid JSON, ignore
-                    }
-                  }}
-                  rows={12}
+                  onChange={(e) => setAdvancedJSON(e.target.value)}
+                  rows={14}
                   style={{
                     width: '100%',
                     padding: 12,
                     fontSize: 12,
                     borderRadius: 8,
                     fontFamily: 'monospace',
-                    marginBottom: 16
+                    marginBottom: 16,
+                    background: '#1a1a1a',
+                    color: '#f0f0f0'
                   }}
+                  placeholder="Edit JSON..."
                 />
 
                 <div style={{ marginBottom: 12, fontSize: 13 }}>
@@ -535,24 +542,16 @@ export default function TikTokFeedCard({ app }) {
                 </div>
 
                 <button
-                  onClick={() => {
-                    const remixedData = {
-                      name: editedName || app.name,
-                      description: editedDescription || app.description,
-                      design: {
-                        containerColor: containerColor || app.design?.containerColor,
-                        fontColor: fontColor || app.design?.fontColor,
-                        fontFamily: fontFamily || app.design?.fontFamily
-                      },
-                      tags: editedTags
-                    };
-                    handleSaveRemix(remixedData);
-                  }}
+                  onClick={handleSaveRemix}
                   className="btn primary"
+                  disabled={remixing}
                   style={{ width: '100%' }}
                 >
-                  💾 Save JSON Remix
+                  {remixing ? 'Saving...' : '💾 Save JSON Remix'}
                 </button>
+                <p className="small" style={{ marginTop: 8, color: '#888', textAlign: 'center' }}>
+                  JSON will be used directly (no AI parsing)
+                </p>
               </div>
             )}
           </div>
