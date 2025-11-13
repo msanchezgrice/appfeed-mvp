@@ -6,6 +6,7 @@ import VideoPreview from './VideoPreview';
 import AppForm from './AppForm';
 import AppOutput from './AppOutput';
 import SignInModal from './SignInModal';
+import SuccessModal from './SuccessModal';
 import dynamic from 'next/dynamic';
 
 // Dynamically import to avoid SSR issues
@@ -44,6 +45,8 @@ export default function TikTokFeedCard({ app }) {
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [signInAction, setSignInAction] = useState('');
   const [showAdvancedEditor, setShowAdvancedEditor] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -106,9 +109,10 @@ export default function TikTokFeedCard({ app }) {
         throw new Error(result.error || 'Failed to remix app');
       }
 
-      alert('App remixed successfully! Check your profile to see it.');
       setShowRemix(false);
       setRemixPrompt('');
+      setSuccessMessage('Your remixed app is ready! Check your profile to see it.');
+      setShowSuccessModal(true);
     } catch (error) {
       alert('Error remixing app: ' + error.message);
     } finally {
@@ -499,6 +503,15 @@ export default function TikTokFeedCard({ app }) {
           onCancel={() => setShowAdvancedEditor(false)}
         />
       )}
+      
+      <SuccessModal
+        show={showSuccessModal}
+        title="🎉 Remix Created!"
+        message={successMessage}
+        actionText="View on Profile"
+        onAction={() => window.location.href = '/profile'}
+        onClose={() => setShowSuccessModal(false)}
+      />
     </div>
   );
 }
