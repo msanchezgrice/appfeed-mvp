@@ -115,6 +115,32 @@ export default function TikTokFeedCard({ app }) {
       setRemixing(false);
     }
   };
+  
+  // Handle save from Advanced Remix Editor
+  const handleSaveRemix = (remixedApp) => {
+    console.log('[Remix] Saving advanced remix:', remixedApp);
+    
+    if (!user) {
+      alert('Please sign in to create a remix');
+      return;
+    }
+    
+    // For now, use the quick remix API with a generated prompt
+    const generatedPrompt = `
+      Change name to: ${remixedApp.name}
+      Change description to: ${remixedApp.description}
+      Update design: background=${remixedApp.design?.containerColor}, font=${remixedApp.design?.fontColor}
+      Tags: ${remixedApp.tags?.join(', ')}
+    `.trim();
+    
+    setRemixPrompt(generatedPrompt);
+    setRemixTab('quick');
+    
+    // Trigger the remix
+    setTimeout(() => {
+      handleRemix();
+    }, 100);
+  };
 
   return (
     <div style={{
