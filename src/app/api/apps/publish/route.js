@@ -352,8 +352,6 @@ export async function POST(request) {
         modal_theme: manifest.modal_theme || {},
         input_theme: manifest.input_theme || {},
         fork_of: null,
-        source: 'ai',
-        ai_prompt: prompt,
         is_published: true
       };
     } else if (mode === 'remote') {
