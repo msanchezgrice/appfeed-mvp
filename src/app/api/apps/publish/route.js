@@ -195,8 +195,33 @@ async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
     JSON.stringify(examples)
   ].join('\n');
   
-  const modelPrimary = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
-  const modelFallback = 'claude-3-5-sonnet-20240620';
+  const modelPrimary = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-latest';
+  const modelFallback = 'claude-3-5-sonnet-20241022';
+  
+  function tryParseJsonLoose(text) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      // Try to extract first JSON object block
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}');
+      if (start !== -1 && end !== -1 && end > start) {
+        const candidate = text.slice(start, end + 1);
+        try {
+          return JSON.parse(candidate);
+        } catch {
+          // Try removing code fences
+          const cleaned = candidate.replace(/```(?:json)?/g, '');
+          try {
+            return JSON.parse(cleaned);
+          } catch {
+            return {};
+          }
+        }
+      }
+      return {};
+    }
+  }
   
   async function callAnthropic(model) {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -220,7 +245,7 @@ async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
     }
     const data = await res.json();
     const content = data?.content?.[0]?.text || '';
-    return JSON.parse(content || '{}');
+    return tryParseJsonLoose(content || '{}');
   }
   
   try {
