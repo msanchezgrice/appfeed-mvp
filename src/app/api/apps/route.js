@@ -35,10 +35,27 @@ export async function GET(req) {
         )
       `);
     
-    // If includeUnpublished is true and userId matches, include unpublished apps
-    if (includeUnpublished && requestUserId) {
-      // Get published apps OR unpublished apps owned by the user
-      query = query.or(`is_published.eq.true,and(is_published.eq.false,creator_id.eq.${requestUserId})`);
+    // If includeUnpublished is true, check if admin or owner
+    if (includeUnpublished) {
+      // Check if user is admin
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('clerk_user_id', userId)
+        .single();
+      
+      const isAdmin = profile?.email === 'msanchezgrice@gmail.com';
+      
+      if (isAdmin) {
+        // Admin sees ALL apps (published and unpublished)
+        console.log('[API /apps] Admin mode - showing all apps');
+        // Don't filter by is_published!
+      } else if (requestUserId) {
+        // Regular user sees published apps OR their own unpublished
+        query = query.or(`is_published.eq.true,and(is_published.eq.false,creator_id.eq.${requestUserId})`);
+      } else {
+        query = query.eq('is_published', true);
+      }
     } else {
       // Default: only published apps
       query = query.eq('is_published', true);
