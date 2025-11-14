@@ -38,12 +38,15 @@ export default function LibraryPage() {
         const created = (appsData.apps || []).filter(a => a.creator_id === user.id);
         setCreatedApps(created);
         // Fetch user's latest assets (runs)
-        const assetsRes = await fetch('/api/runs?mine=1', { cache: 'no-store' });
+        const assetsRes = await fetch('/api/assets?mine=1', { cache: 'no-store' });
         if (assetsRes.ok) {
           const assetsData = await assetsRes.json();
-          setAssets(assetsData.runs || []);
+          setAssets(assetsData.assets || []);
         } else {
-          setAssets([]);
+          // fallback to recent runs if saved-assets table is not available
+          const runsRes = await fetch('/api/runs?mine=1', { cache: 'no-store' });
+          const runsData = await runsRes.json();
+          setAssets(runsData.runs || []);
         }
       } catch (err) {
         console.error('[Library] Error fetching library:', err);

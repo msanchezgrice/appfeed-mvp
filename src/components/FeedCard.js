@@ -22,6 +22,7 @@ export default function FeedCard({ app, mode='feed' }) {
   const [showUse, setShowUse] = useState(false);
   const [run, setRun] = useState(null);
   const [saved, setSaved] = useState(false);
+  const [resultSaved, setResultSaved] = useState(false);
   const [providers, setProviders] = useState({ openai: 'unknown' });
 
   useEffect(() => { 
@@ -35,6 +36,7 @@ export default function FeedCard({ app, mode='feed' }) {
   const onRun = async (inputs, mode='try') => {
     const r = await api('/api/runs', 'POST', { appId: app.id, inputs, mode });
     setRun(r);
+    setResultSaved(false);
   };
 
   const save = async (add=true) => {
@@ -97,12 +99,20 @@ export default function FeedCard({ app, mode='feed' }) {
                 <div className="row result-actions" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
                   <button
                     className="btn"
-                    onClick={() => {
-                      if (!saved) save(true);
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/assets', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({ action: 'save', runId: run?.id })
+                        });
+                        if (res.ok) setResultSaved(true);
+                      } catch {}
                     }}
-                    disabled={saved}
+                    disabled={resultSaved}
                   >
-                    {saved ? 'Saved' : 'Save App'}
+                    {resultSaved ? 'Saved' : 'Save Result'}
                   </button>
                   <button
                     className="btn"
@@ -160,12 +170,20 @@ export default function FeedCard({ app, mode='feed' }) {
                 <div className="row result-actions" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
                   <button
                     className="btn"
-                    onClick={() => {
-                      if (!saved) save(true);
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/assets', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({ action: 'save', runId: run?.id })
+                        });
+                        if (res.ok) setResultSaved(true);
+                      } catch {}
                     }}
-                    disabled={saved}
+                    disabled={resultSaved}
                   >
-                    {saved ? 'Saved' : 'Save App'}
+                    {resultSaved ? 'Saved' : 'Save Result'}
                   </button>
                   <button
                     className="btn"

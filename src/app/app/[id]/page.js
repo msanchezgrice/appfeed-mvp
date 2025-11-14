@@ -17,6 +17,7 @@ export default function AppDetailPage() {
   const [saves, setSaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savedApp, setSavedApp] = useState(false);
+  const [resultSaved, setResultSaved] = useState(false);
   const [overlayRun, setOverlayRun] = useState(null);
   const [overlayOpen, setOverlayOpen] = useState(false);
 
@@ -88,18 +89,18 @@ export default function AppDetailPage() {
     })();
   }, [searchParams]);
 
-  const saveApp = async () => {
+  const saveResult = async () => {
     try {
-      const res = await fetch('/api/library', {
+      const res = await fetch('/api/assets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'add', appId })
+        body: JSON.stringify({ action: 'save', runId: overlayRun?.id })
       });
       if (res.status === 401) {
         router.push(`/sign-in?redirect_url=${encodeURIComponent(`/app/${appId}?run=${overlayRun?.id || ''}`)}`);
         return;
       }
-      if (res.ok) setSavedApp(true);
+      if (res.ok) setResultSaved(true);
     } catch {
       // ignore
     }
@@ -117,7 +118,7 @@ export default function AppDetailPage() {
       const key = `viewed_app_detail:${appId}`;
       if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(key) === '1') return;
       // Fire and forget; keepalive to avoid blocking navigation
-      fetch(`/api/apps/${appId}/view`, { method: 'POST', keepalive: true }).catch(() => {});
+      fetch(`/api/apps/${appId}/view?src=detail`, { method: 'POST', keepalive: true }).catch(() => {});
       if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(key, '1');
     } catch {
       // ignore
@@ -332,8 +333,8 @@ export default function AppDetailPage() {
             </div>
             <div className="row result-actions" style={{ justifyContent:'flex-end', gap: 8, marginTop: 12 }}>
               <Link href={`/app/${appId}`} className="btn">Run Again</Link>
-              <button className="btn" disabled={savedApp} onClick={saveApp}>
-                {savedApp ? 'Saved' : 'Save App'}
+              <button className="btn" disabled={resultSaved} onClick={saveResult}>
+                {resultSaved ? 'Saved' : 'Save Result'}
               </button>
               <button
                 className="btn"

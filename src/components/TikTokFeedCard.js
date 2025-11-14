@@ -43,6 +43,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
   const [showAdvancedEditor, setShowAdvancedEditor] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [resultSaved, setResultSaved] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -72,7 +73,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
       const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
           if (entry.isIntersecting && entry.intersectionRatio >= 0.5 && !hasLoggedImpression) {
-            fetch(`/api/apps/${app.id}/view`, { method: 'POST', keepalive: true }).catch(() => {});
+            fetch(`/api/apps/${app.id}/view?src=feed`, { method: 'POST', keepalive: true }).catch(() => {});
             if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(key, '1');
             setHasLoggedImpression(true);
             observer.disconnect();
@@ -89,6 +90,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
   const onRun = async (inputs, mode='try') => {
     const r = await api('/api/runs', 'POST', { appId: app.id, inputs, mode });
     setRun(r);
+    setResultSaved(false);
   };
 
   const save = async (add=true) => {
@@ -482,12 +484,25 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
               <div className="row result-actions" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
                 <button
                   className="btn"
-                  onClick={() => {
-                    if (!saved) save(true);
+                  onClick={async () => {
+                    if (!user) {
+                      setSignInAction('save this result to your Library');
+                      setShowSignInModal(true);
+                      return;
+                    }
+                    try {
+                      const res = await fetch('/api/assets', {
+                        method: 'POST',
+                        headers: { 'Content-Type':'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ action: 'save', runId: run.id })
+                      });
+                      if (res.ok) setResultSaved(true);
+                    } catch {}
                   }}
-                  disabled={saved}
+                  disabled={resultSaved}
                 >
-                  {saved ? 'Saved' : 'Save App'}
+                  {resultSaved ? 'Saved' : 'Save Result'}
                 </button>
                 <button
                   className="btn"
@@ -621,12 +636,25 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
               <div className="row result-actions" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
                 <button
                   className="btn"
-                  onClick={() => {
-                    if (!saved) save(true);
+                  onClick={async () => {
+                    if (!user) {
+                      setSignInAction('save this result to your Library');
+                      setShowSignInModal(true);
+                      return;
+                    }
+                    try {
+                      const res = await fetch('/api/assets', {
+                        method: 'POST',
+                        headers: { 'Content-Type':'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ action: 'save', runId: run.id })
+                      });
+                      if (res.ok) setResultSaved(true);
+                    } catch {}
                   }}
-                  disabled={saved}
+                  disabled={resultSaved}
                 >
-                  {saved ? 'Saved' : 'Save App'}
+                  {resultSaved ? 'Saved' : 'Save Result'}
                 </button>
                 <button
                   className="btn"
