@@ -69,6 +69,11 @@ export async function POST(req) {
     if (action === 'save') {
       const { error } = await supabase.from('run_saves').insert({ user_id: userId, run_id: runId });
       if (error && error.code !== '23505') { // ignore unique violation
+        // If the run_saves table is missing in prod, degrade gracefully so UI doesn't break
+        if (error.code === 'PGRST205' || (error.message || '').includes('schema cache')) {
+          console.warn('[assets] run_saves missing - returning graceful success');
+          return new Response(JSON.stringify({ ok: true, missingTable: true }), { headers: { 'Content-Type': 'application/json' } });
+        }
         console.error('[assets] save error:', error);
         return new Response(JSON.stringify({ error: 'Failed to save asset' }), {
           status: 500,
@@ -79,6 +84,10 @@ export async function POST(req) {
     } else if (action === 'unsave') {
       const { error } = await supabase.from('run_saves').delete().eq('user_id', userId).eq('run_id', runId);
       if (error) {
+        if (error.code === 'PGRST205' || (error.message || '').includes('schema cache')) {
+          console.warn('[assets] run_saves missing on unsave - returning graceful success');
+          return new Response(JSON.stringify({ ok: true, missingTable: true }), { headers: { 'Content-Type': 'application/json' } });
+        }
         console.error('[assets] unsave error:', error);
         return new Response(JSON.stringify({ error: 'Failed to unsave asset' }), {
           status: 500,
