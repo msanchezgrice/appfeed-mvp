@@ -1,6 +1,23 @@
 import { createServerSupabaseClient } from '@/src/lib/supabase-server';
+import sharp from 'sharp';
 
 export const dynamic = 'force-dynamic';
+
+// Helper to compress generated images (keeps previews small and fast)
+async function compressImage(base64Data, mimeType) {
+  try {
+    const buffer = Buffer.from(base64Data, 'base64');
+    const compressed = await sharp(buffer)
+      .resize(800, null, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 70 })
+      .toBuffer();
+    const compressedBase64 = compressed.toString('base64');
+    return `data:image/jpeg;base64,${compressedBase64}`;
+  } catch (err) {
+    console.error('[Remix/Compress] Error:', err);
+    return `data:${mimeType};base64,${base64Data}`;
+  }
+}
 
 export async function POST(req) {
   try {
@@ -154,17 +171,19 @@ Color mapping:
       console.log('[Remix] Gemini key source:', userKey ? 'user-secret' : (envKey ? 'platform-env' : 'none'));
       
       if (geminiKey) {
-        const imagePrompt = `Generate an elevated, minimalist, Apple-like image for: ${remixedApp.name}. Description: ${remixedApp.description}`;
+        const imagePrompt = `Generate an elevated apple store type image for this mobile app based on: ${remixedApp.name}. Description: ${remixedApp.description}`;
         
         const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent`,
           {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'x-goog-api-key': geminiKey,
+              'Content-Type': 'application/json' 
+            },
             body: JSON.stringify({
               contents: [{ parts: [{ text: imagePrompt }] }],
               generationConfig: {
-                responseModalities: ["Image"],
                 imageConfig: { aspectRatio: "9:16" }
               }
             })
@@ -173,17 +192,17 @@ Color mapping:
 
         if (geminiRes.ok) {
           const geminiData = await geminiRes.json();
-          const imagePart = geminiData.candidates?.[0]?.content?.parts?.find(p => p.inline_data);
+          const imagePart = geminiData.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
           
           if (imagePart) {
-            const imageBase64 = imagePart.inline_data.data;
-            const imageMime = imagePart.inline_data.mime_type || 'image/png';
-            const dataUrl = `data:${imageMime};base64,${imageBase64}`;
+            const imageBase64 = imagePart.inlineData.data;
+            const imageMime = imagePart.inlineData.mimeType || 'image/png';
+            const compressedDataUrl = await compressImage(imageBase64, imageMime);
             
             // Update app with generated image
             await supabase
               .from('apps')
-              .update({ preview_url: dataUrl, preview_type: 'image' })
+              .update({ preview_url: compressedDataUrl, preview_type: 'image' })
               .eq('id', remixedAppId);
             
             console.log('[Remix] Nano Banana image generated! ✅');

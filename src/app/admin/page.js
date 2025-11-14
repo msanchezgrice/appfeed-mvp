@@ -17,6 +17,7 @@ export default function AdminDashboard() {
   const [timeFilter, setTimeFilter] = useState('day'); // 'day', 'week', 'all' - default to today
   const [growthFilter, setGrowthFilter] = useState('day'); // 'day', 'week', 'month'
   const [selectedApp, setSelectedApp] = useState(null); // For modal preview
+  const [fetchedKey, setFetchedKey] = useState(null); // cache last fetch key
 
   // Check admin access
   useEffect(() => {
@@ -36,76 +37,57 @@ export default function AdminDashboard() {
     }
   }, [user, isLoaded, router]);
 
-  // Fetch admin data
+  // Fetch lightweight overview once (kept separate to avoid heavy queries)
   useEffect(() => {
     if (!user) return;
-    
-    // Stop loading immediately - show UI first
     setLoading(false);
-    
-    const fetchData = async () => {
+    const loadOverview = async () => {
       try {
-        console.log('[Admin] Fetching data for tab:', activeTab);
-        const startTime = Date.now();
-        
-        // Use simple-stats for lightweight queries (no cache table needed!)
-        const res = await fetch('/api/admin/simple-stats', {
-          signal: AbortSignal.timeout(10000)
-        });
-        
-        console.log('[Admin] Fetch completed in:', Date.now() - startTime, 'ms');
-        
+        const res = await fetch('/api/admin/simple-stats', { signal: AbortSignal.timeout(10000) });
         if (res.ok) {
           const data = await res.json();
-          console.log('[Admin] Data received for tab:', activeTab, 'keys:', Object.keys(data));
-          
-          // Always update stats if available
-          if (data.overview) {
-            setStats(data.overview);
-          }
-          
-          // Set data based on active tab - DON'T clear other tabs!
-          if (activeTab === 'apps' && data.topApps) {
-            console.log('[Admin] Setting topApps:', data.topApps.length);
-            setTopApps(data.topApps);
-          } else if (activeTab === 'viral' && data.viralityLeaderboard) {
-            setViralityLeaderboard(data.viralityLeaderboard);
-          } else if (activeTab === 'creators' && data.followerLeaderboard) {
-            setFollowerLeaderboard(data.followerLeaderboard);
-          } else if (activeTab === 'growth') {
-            if (data.growthByDay) setGrowthByDay(data.growthByDay);
-            if (data.growthByWeek) setGrowthByWeek(data.growthByWeek);
-          } else if (activeTab === 'manage') {
-            // Fetch ALL apps (including unpublished) for manage tab
-            const appsRes = await fetch('/api/apps?includeUnpublished=true', {
-              credentials: 'include'
-            });
-            if (appsRes.ok) {
-              const appsData = await appsRes.json();
-              console.log('[Admin] Manage tab received:', appsData.apps?.length, 'apps');
-              setTopApps(appsData.apps || []);
-            } else {
-              console.error('[Admin] Manage fetch failed:', appsRes.status);
-            }
-          }
-        } else {
-          console.error('[Admin] API returned error:', res.status);
+          if (data.overview) setStats(data.overview);
         }
       } catch (err) {
-        console.error('[Admin] Error fetching admin data:', err);
-        // Show error but don't freeze
-        setStats({
-          totalApps: 0,
-          totalUsers: 0,
-          totalViews: 0,
-          totalTries: 0
-        });
+        console.error('[Admin] Overview fetch error:', err);
       }
     };
+    loadOverview();
+  }, [user]);
 
-    // Fetch after a short delay to let UI render
-    setTimeout(fetchData, 100);
-  }, [user, timeFilter, activeTab]);
+  // Lazily fetch tab-specific data only when that tab is active
+  useEffect(() => {
+    if (!user) return;
+    if (activeTab === 'overview') return;
+
+    const key = `${activeTab}:${activeTab === 'growth' ? growthFilter : timeFilter}`;
+    if (fetchedKey === key) return; // simple memo to avoid repeat fetches
+
+    const fetchTab = async () => {
+      try {
+        const time = activeTab === 'growth' ? growthFilter : timeFilter;
+        const url = `/api/admin/stats?tab=${activeTab}&time=${time}`;
+        const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+        if (!res.ok) {
+          console.error('[Admin] Stats fetch failed:', res.status);
+          return;
+        }
+        const data = await res.json();
+        if (data.overview) setStats(data.overview);
+        if (activeTab === 'apps' && data.topApps) setTopApps(data.topApps);
+        if (activeTab === 'viral' && data.viralityLeaderboard) setViralityLeaderboard(data.viralityLeaderboard);
+        if (activeTab === 'creators' && data.followerLeaderboard) setFollowerLeaderboard(data.followerLeaderboard);
+        if (activeTab === 'growth') {
+          if (data.growthByDay) setGrowthByDay(data.growthByDay);
+          if (data.growthByWeek) setGrowthByWeek(data.growthByWeek);
+        }
+        setFetchedKey(key);
+      } catch (err) {
+        console.error('[Admin] Tab fetch error:', err);
+      }
+    };
+    fetchTab();
+  }, [user, activeTab, timeFilter, growthFilter, fetchedKey]);
 
   if (!isLoaded) {
     return (

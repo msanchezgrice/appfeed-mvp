@@ -191,37 +191,63 @@ async function handleCreate() {
     const created = [];
 
     for (const manifest of manifests) {
-      const appId = `${manifest.name.toLowerCase().replace(/\\s+/g, '-')}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`;
-
-      const newApp = {
-        id: appId,
-        name: manifest.name,
-        creator_id: userId,
-        description: manifest.description,
-        tags: manifest.tags || [],
-        device_types: ['mobile'],
-        preview_type: 'image',
-        preview_url: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=800&auto=format&fit=crop',
-        preview_gradient: manifest.preview_gradient,
-        demo: manifest.demo || { sampleInputs: {} },
-        inputs: manifest.inputs || {},
-        outputs: manifest.outputs || { markdown: { type: 'string' } },
-        runtime: manifest.runtime || { engine: 'local', steps: [] },
-        design: manifest.design || {},
-        modal_theme: manifest.modal_theme || {},
-        input_theme: manifest.input_theme || {},
-        fork_of: null,
-        is_published: true
-      };
-
-      const { data: insertedApp, error } = await supabase
-        .from('apps')
-        .insert(newApp)
-        .select()
-        .single();
-      if (error) {
-        console.error('[Viral] Insert error:', error);
-        created.push({ name: manifest.name, error: 'insert_failed' });
+      // Upsert strategy: if an app with same name exists for this user, update it; otherwise insert new
+      let insertedApp = null;
+      let op = 'inserted';
+      let targetAppId = null;
+      try {
+        const { data: existingList } = await supabase
+          .from('apps')
+          .select('id, created_at')
+          .eq('creator_id', userId)
+          .eq('name', manifest.name)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        const existing = Array.isArray(existingList) && existingList.length ? existingList[0] : null;
+        const baseFields = {
+          name: manifest.name,
+          creator_id: userId,
+          description: manifest.description,
+          tags: manifest.tags || [],
+          device_types: ['mobile'],
+          preview_type: 'image',
+          preview_url: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=800&auto=format&fit=crop',
+          preview_gradient: manifest.preview_gradient,
+          demo: manifest.demo || { sampleInputs: {} },
+          inputs: manifest.inputs || {},
+          outputs: manifest.outputs || { markdown: { type: 'string' } },
+          runtime: manifest.runtime || { engine: 'local', steps: [] },
+          design: manifest.design || {},
+          modal_theme: manifest.modal_theme || {},
+          input_theme: manifest.input_theme || {},
+          fork_of: null,
+          is_published: true
+        };
+        if (existing) {
+          targetAppId = existing.id;
+          op = 'updated';
+          const { data, error: upErr } = await supabase
+            .from('apps')
+            .update(baseFields)
+            .eq('id', targetAppId)
+            .select()
+            .single();
+          if (upErr) throw upErr;
+          insertedApp = data;
+        } else {
+          targetAppId = `${manifest.name.toLowerCase().replace(/\\s+/g, '-')}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`;
+          const newApp = { id: targetAppId, ...baseFields };
+          const { data, error: insErr } = await supabase
+            .from('apps')
+            .insert(newApp)
+            .select()
+            .single();
+          if (insErr) throw insErr;
+          insertedApp = data;
+        }
+      } catch (err) {
+        console.error('[Viral] Upsert error:', err);
+        created.push({ name: manifest.name, error: 'upsert_failed' });
         continue;
       }
 
@@ -273,7 +299,7 @@ async function handleCreate() {
         console.error('[Viral] Image generation error:', err);
       }
 
-      created.push({ id: insertedApp.id, name: insertedApp.name, preview_url: insertedApp.preview_url });
+      created.push({ id: insertedApp.id, name: insertedApp.name, preview_url: insertedApp.preview_url, op });
     }
 
     return NextResponse.json({ success: true, created });
