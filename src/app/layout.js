@@ -1,6 +1,7 @@
 import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
 import BottomNav from '@/src/components/BottomNav';
+import { Analytics } from '@vercel/analytics/react';
 
 export const metadata = {
   title: 'Clipcade - Discover, Run & Remix Mini-Apps',
@@ -47,6 +48,7 @@ export default function RootLayout({ children }) {
         <body>
           {children}
           <BottomNav />
+          <Analytics />
         </body>
       </html>
     </ClerkProvider>

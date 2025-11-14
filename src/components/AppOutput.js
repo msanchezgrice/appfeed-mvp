@@ -1,5 +1,70 @@
 'use client';
 
+function escapeHtml(unsafe) {
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+// Very small, safe markdown renderer for headings, bold/italic, and code blocks.
+// This intentionally supports only a subset we commonly output.
+function renderSimpleMarkdown(text) {
+  if (!text) return '';
+  const escaped = escapeHtml(text);
+  const lines = escaped.split('\n');
+  const htmlLines = [];
+  let inCode = false;
+  for (let raw of lines) {
+    let line = raw;
+    if (line.trim().startsWith('```')) {
+      inCode = !inCode;
+      if (inCode) {
+        htmlLines.push('<pre><code>');
+      } else {
+        htmlLines.push('</code></pre>');
+      }
+      continue;
+    }
+    if (inCode) {
+      htmlLines.push(line);
+      continue;
+    }
+    // Headings
+    if (/^###\s+/.test(line)) {
+      htmlLines.push(`<h3 style="margin: 0 0 12px 0; font-size: 20px;">${line.replace(/^###\s+/, '')}</h3>`);
+      continue;
+    }
+    if (/^##\s+/.test(line)) {
+      htmlLines.push(`<h2 style="margin: 0 0 12px 0; font-size: 22px;">${line.replace(/^##\s+/, '')}</h2>`);
+      continue;
+    }
+    if (/^#\s+/.test(line)) {
+      htmlLines.push(`<h1 style="margin: 0 0 12px 0; font-size: 24px;">${line.replace(/^#\s+/, '')}</h1>`);
+      continue;
+    }
+    // Bold / italic
+    line = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    line = line.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    // Simple lists: keep as paragraphs with bullets/numbers preserved
+    if (/^\s*[-*]\s+/.test(line)) {
+      htmlLines.push(`<div style="margin: 6px 0;">• ${line.replace(/^\s*[-*]\s+/, '')}</div>`);
+      continue;
+    }
+    if (/^\s*\d+\.\s+/.test(line)) {
+      htmlLines.push(`<div style="margin: 6px 0;">${line}</div>`);
+      continue;
+    }
+    // Paragraph
+    if (line.trim().length === 0) {
+      htmlLines.push('<div style="height:10px"></div>');
+    } else {
+      htmlLines.push(`<div>${line}</div>`);
+    }
+  }
+  return htmlLines.join('\n');
+}
+
 function AffirmationsOutput({ output, app }) {
   const text = typeof output === 'string' ? output : output?.markdown || '';
   const affirmations = text.split('\n').filter(line => line.trim().match(/^[\d•\-*]|^[IWY]/));
@@ -325,14 +390,15 @@ export default function AppOutput({ run, app }) {
           />
         </div>
       )}
-      <div style={{ 
-        whiteSpace: 'pre-wrap', 
-        fontFamily: 'inherit',
-        fontSize: 16,
-        lineHeight: 1.6
-      }}>
-        {cleanText}
-      </div>
+      <div 
+        style={{ 
+          whiteSpace: 'normal', 
+          fontFamily: 'inherit',
+          fontSize: 16,
+          lineHeight: 1.6
+        }}
+        dangerouslySetInnerHTML={{ __html: renderSimpleMarkdown(cleanText) }}
+      />
     </div>
   );
 }

@@ -416,7 +416,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
             {run && (
               <>
                 <hr />
-                <div style={{ position: 'relative' }}>
+                <div style={{ position: 'relative', maxWidth: 520, margin: '0 auto' }}>
                   <div style={{ filter: (!user && (run?.trace?.[run.trace.length-1]?.output?.image)) ? 'blur(8px)' : 'none', transition: 'filter 0.2s' }}>
                     <AppOutput run={run} app={app} />
                   </div>
@@ -479,7 +479,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
               </>
             )}
             {run && (
-              <div className="row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+              <div className="row result-actions" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
                 <button
                   className="btn"
                   onClick={() => {
@@ -555,7 +555,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
             {run && (
               <>
                 <hr />
-                <div style={{ position: 'relative' }}>
+                <div style={{ position: 'relative', maxWidth: 520, margin: '0 auto' }}>
                   <div style={{ filter: (!user && (run?.trace?.[run.trace.length-1]?.output?.image)) ? 'blur(8px)' : 'none', transition: 'filter 0.2s' }}>
                     <AppOutput run={run} app={app} />
                   </div>
@@ -618,7 +618,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
               </>
             )}
             {run && (
-              <div className="row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+              <div className="row result-actions" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
                 <button
                   className="btn"
                   onClick={() => {
