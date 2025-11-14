@@ -24,6 +24,7 @@ async function api(path, method='GET', body) {
 
 export default function TikTokFeedCard({ app, presetDefaults }) {
   const { user, isLoaded } = useUser();
+  const [hasLoggedImpression, setHasLoggedImpression] = useState(false);
   const [showTry, setShowTry] = useState(false);
   const [showUse, setShowUse] = useState(false);
   const [showRemix, setShowRemix] = useState(false);
@@ -57,6 +58,33 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
       }
     })();
   }, [app.id]);
+
+  // Log a feed impression once per session when at least 50% visible
+  useEffect(() => {
+    try {
+      const key = `viewed_feed_card:${app.id}`;
+      if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(key) === '1') {
+        setHasLoggedImpression(true);
+        return;
+      }
+      const rootEl = document.getElementById(`card-${app.id}`) || null;
+      if (!rootEl) return;
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5 && !hasLoggedImpression) {
+            fetch(`/api/apps/${app.id}/view`, { method: 'POST', keepalive: true }).catch(() => {});
+            if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(key, '1');
+            setHasLoggedImpression(true);
+            observer.disconnect();
+          }
+        });
+      }, { threshold: [0.5] });
+      observer.observe(rootEl);
+      return () => observer.disconnect();
+    } catch {
+      // ignore
+    }
+  }, [app.id, hasLoggedImpression]);
 
   const onRun = async (inputs, mode='try') => {
     const r = await api('/api/runs', 'POST', { appId: app.id, inputs, mode });
@@ -158,7 +186,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
   };
 
   return (
-    <div style={{
+    <div id={`card-${app.id}`} style={{
       position: 'relative',
       width: '100%',
       height: 'calc(100vh - 140px)',

@@ -43,6 +43,20 @@ export default function AppDetailPage() {
     })();
   }, [appId]);
 
+  // Log a view once per session when the detail page is opened
+  useEffect(() => {
+    if (!appId) return;
+    try {
+      const key = `viewed_app_detail:${appId}`;
+      if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(key) === '1') return;
+      // Fire and forget; keepalive to avoid blocking navigation
+      fetch(`/api/apps/${appId}/view`, { method: 'POST', keepalive: true }).catch(() => {});
+      if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(key, '1');
+    } catch {
+      // ignore
+    }
+  }, [appId]);
+
   if (loading) {
     return (
       <div style={{ maxWidth: '600px', margin: '0 auto', padding: '40px 16px', textAlign: 'center' }}>
