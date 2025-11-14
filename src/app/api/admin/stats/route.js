@@ -203,10 +203,20 @@ export async function GET(req) {
         .slice(0, 10);
     } else if (tab === 'growth') {
       // 7-day daily bars via RPC; 4-week bars derived from last 28 days
-      const [{ data: last7 }, { data: last28 }] = await Promise.all([
-        supabase.rpc('get_daily_signups', { days: 7 }).catch(() => ({ data: [] })),
-        supabase.rpc('get_daily_signups', { days: 28 }).catch(() => ({ data: [] }))
-      ]);
+      let last7 = [];
+      let last28 = [];
+      try {
+        const res7 = await supabase.rpc('get_daily_signups', { days: 7 });
+        last7 = res7?.data || [];
+      } catch (e) {
+        last7 = [];
+      }
+      try {
+        const res28 = await supabase.rpc('get_daily_signups', { days: 28 });
+        last28 = res28?.data || [];
+      } catch (e) {
+        last28 = [];
+      }
       response.growthByDay = (last7 || []).map(r => ({ date: r.date, signups: r.signups }));
       // Aggregate weekly from the last 28 days (4 buckets of 7 days)
       const daily28 = (last28 || []).map(r => ({ date: new Date(r.date), signups: r.signups }));
