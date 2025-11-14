@@ -102,7 +102,7 @@ export default function FeedCard({ app, mode='feed' }) {
                     }}
                     disabled={saved}
                   >
-                    {saved ? 'Saved' : 'Save'}
+                    {saved ? 'Saved' : 'Save App'}
                   </button>
                   <button
                     className="btn"
@@ -165,7 +165,7 @@ export default function FeedCard({ app, mode='feed' }) {
                     }}
                     disabled={saved}
                   >
-                    {saved ? 'Saved' : 'Save'}
+                    {saved ? 'Saved' : 'Save App'}
                   </button>
                   <button
                     className="btn"

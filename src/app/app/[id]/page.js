@@ -1,18 +1,24 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Head from 'next/head';
 import TikTokFeedCard from '@/src/components/TikTokFeedCard';
+import AppOutput from '@/src/components/AppOutput';
 
 export default function AppDetailPage() {
   const params = useParams();
   const appId = params.id;
+  const searchParams = useSearchParams();
+  const router = useRouter();
   
   const [app, setApp] = useState(null);
   const [remixes, setRemixes] = useState([]);
   const [saves, setSaves] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [savedApp, setSavedApp] = useState(false);
+  const [overlayRun, setOverlayRun] = useState(null);
+  const [overlayOpen, setOverlayOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -42,6 +48,67 @@ export default function AppDetailPage() {
       }
     })();
   }, [appId]);
+
+  // Check if app is saved
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/library', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          setSavedApp(!!(data?.items || []).find(x => x.id === appId));
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, [appId]);
+
+  // Load overlay run when ?run= is present
+  useEffect(() => {
+    const runId = searchParams.get('run');
+    if (!runId) {
+      setOverlayOpen(false);
+      setOverlayRun(null);
+      return;
+    }
+    (async () => {
+      try {
+        const res = await fetch(`/api/runs?id=${encodeURIComponent(runId)}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (res.ok && data?.run) {
+          setOverlayRun(data.run);
+          setOverlayOpen(true);
+        } else {
+          setOverlayOpen(false);
+        }
+      } catch (e) {
+        setOverlayOpen(false);
+      }
+    })();
+  }, [searchParams]);
+
+  const saveApp = async () => {
+    try {
+      const res = await fetch('/api/library', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add', appId })
+      });
+      if (res.status === 401) {
+        router.push(`/sign-in?redirect_url=${encodeURIComponent(`/app/${appId}?run=${overlayRun?.id || ''}`)}`);
+        return;
+      }
+      if (res.ok) setSavedApp(true);
+    } catch {
+      // ignore
+    }
+  };
+
+  const closeOverlay = () => {
+    setOverlayOpen(false);
+    router.replace(`/app/${appId}`);
+  };
 
   // Log a view once per session when the detail page is opened
   useEffect(() => {
@@ -158,7 +225,7 @@ export default function AppDetailPage() {
 
       {/* App Preview Card */}
       <div style={{ marginBottom: 40 }}>
-        <h2 style={{ marginBottom: 16 }}>Try This App</h2>
+        <h2 id="try" style={{ marginBottom: 16 }}>Try This App</h2>
         <TikTokFeedCard app={app} />
       </div>
 
@@ -250,6 +317,46 @@ export default function AppDetailPage() {
           </button>
         </div>
       </div>
+      
+      {/* Result Overlay */}
+      {overlayOpen && overlayRun && (
+        <div className="modal" onClick={closeOverlay}>
+          <div className="dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <div className="row" style={{ justifyContent:'space-between', alignItems:'center' }}>
+              <b>Result: {app.name}</b>
+              <button className="btn ghost" onClick={closeOverlay}>Close</button>
+            </div>
+            <p className="small">From your Library • <Link href={`/app/${appId}`}>Open App</Link></p>
+            <div style={{ maxWidth: 520, margin: '0 auto' }}>
+              <AppOutput run={overlayRun} app={app} />
+            </div>
+            <div className="row result-actions" style={{ justifyContent:'flex-end', gap: 8, marginTop: 12 }}>
+              <Link href={`/app/${appId}`} className="btn">Run Again</Link>
+              <button className="btn" disabled={savedApp} onClick={saveApp}>
+                {savedApp ? 'Saved' : 'Save App'}
+              </button>
+              <button
+                className="btn"
+                onClick={async () => {
+                  const appUrl = `${window.location.origin}/app/${appId}?run=${overlayRun.id}`;
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({ title: app.name, text: app.description, url: appUrl });
+                    } catch (err) {
+                      if (err.name !== 'AbortError') console.error('Share failed:', err);
+                    }
+                  } else {
+                    navigator.clipboard.writeText(appUrl);
+                    alert('Link copied to clipboard!');
+                  }
+                }}
+              >
+                Share
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

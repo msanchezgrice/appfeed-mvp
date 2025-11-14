@@ -239,7 +239,7 @@ export async function GET(req) {
     if (id) {
       const { data: run, error } = await supabase
         .from('runs')
-        .select('id, app_id, inputs, created_at, asset_url, asset_type, input_asset_url')
+        .select('id, app_id, inputs, created_at, asset_url, asset_type, input_asset_url, outputs, trace, status')
         .eq('id', id)
         .single();
       if (error || !run) {

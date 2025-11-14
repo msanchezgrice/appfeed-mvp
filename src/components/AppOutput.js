@@ -239,16 +239,17 @@ function TodoOutput({ output }) {
 }
 
 export default function AppOutput({ run, app }) {
-  if (!run || !run.trace || run.trace.length === 0) {
+  // Support both full trace runs and lightweight runs (outputs only)
+  const hasTrace = Array.isArray(run?.trace) && run.trace.length > 0;
+  const lastStep = hasTrace ? run.trace[run.trace.length - 1] : null;
+  const output = hasTrace ? lastStep?.output : (run?.outputs || null);
+  const usedStub = hasTrace ? lastStep?.usedStub : false;
+  if (!output) {
     return <div className="small" style={{ padding: 16, textAlign: 'center', opacity: 0.6 }}>Running...</div>;
   }
 
-  const lastStep = run.trace[run.trace.length - 1];
-  const output = lastStep?.output;
-  const usedStub = lastStep?.usedStub;
-
   // Show execution diagnostics if stub was used or error occurred
-  if (usedStub || run.error || lastStep?.status === 'error') {
+  if (usedStub || run?.error || (hasTrace && lastStep?.status === 'error')) {
     return (
       <div style={{
         padding: 24,

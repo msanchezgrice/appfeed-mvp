@@ -487,7 +487,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                   }}
                   disabled={saved}
                 >
-                  {saved ? 'Saved' : 'Save'}
+                  {saved ? 'Saved' : 'Save App'}
                 </button>
                 <button
                   className="btn"
@@ -626,7 +626,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                   }}
                   disabled={saved}
                 >
-                  {saved ? 'Saved' : 'Save'}
+                  {saved ? 'Saved' : 'Save App'}
                 </button>
                 <button
                   className="btn"
