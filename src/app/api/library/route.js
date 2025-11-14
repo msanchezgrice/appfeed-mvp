@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@/src/lib/supabase-server';
+import { logEventServer } from '@/src/lib/metrics';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,6 +96,7 @@ export async function POST(req) {
         p_user_id: userId,
         p_event_type: 'save'
       });
+      logEventServer('app_save', { appId });
     } else if (action === 'remove') {
       // Delete save
       const { error } = await supabase
@@ -117,6 +119,7 @@ export async function POST(req) {
         p_user_id: userId,
         p_event_type: 'unsave'
       });
+      logEventServer('app_unsave', { appId });
     } else {
       return new Response(JSON.stringify({ error: 'Invalid action' }), {
         status: 400,

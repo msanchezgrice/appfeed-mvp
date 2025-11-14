@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@/src/lib/supabase-server';
+import { logEventServer } from '@/src/lib/metrics';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +50,8 @@ export async function POST(req) {
       } catch (err) {
         console.error('Analytics error:', err);
       }
+      // Vercel WA custom event
+      logEventServer('app_like', { appId });
     } else if (action === 'unlike') {
       // Delete like
       const { error } = await supabase
@@ -75,6 +78,8 @@ export async function POST(req) {
       } catch (err) {
         console.error('Analytics error:', err);
       }
+      // Vercel WA custom event
+      logEventServer('app_unlike', { appId });
     } else {
       return new Response(JSON.stringify({ error: 'Invalid action' }), {
         status: 400,

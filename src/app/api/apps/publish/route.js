@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/src/lib/supabase-server';
 import sharp from 'sharp';
 import { getDecryptedSecret } from '@/src/lib/secrets';
+import { logEventServer } from '@/src/lib/metrics';
 
 export const maxDuration = 60; // Allow up to 60 seconds for image generation
 
@@ -417,6 +418,9 @@ export async function POST(request) {
       console.error('Error inserting app:', error);
       return NextResponse.json({ error: 'Failed to publish app' }, { status: 500 });
     }
+
+    // Vercel WA custom event for app creation
+    logEventServer('app_create', { appId: insertedApp.id, mode });
 
     // Track analytics event when AI mode
     if (mode === 'ai') {

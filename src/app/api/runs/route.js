@@ -2,6 +2,7 @@ import { runApp } from '@/src/lib/runner';
 import { createServerSupabaseClient } from '@/src/lib/supabase-server';
 import { uploadImageToStorage } from '@/src/lib/supabase-storage';
 import sharp from 'sharp';
+import { logEventServer } from '@/src/lib/metrics';
 
 export const dynamic = 'force-dynamic';
 
@@ -183,6 +184,10 @@ export async function POST(req) {
         console.error('Analytics error:', err);
       }
     }
+    // Vercel WA custom event (server-side)
+    logEventServer(mode === 'try' ? 'app_run_try' : 'app_run_use', {
+      appId: app.id
+    });
     
     const headers = new Headers({ 'Content-Type': 'application/json' });
     if (fallbackAllowed && !userId && mode === 'try') {

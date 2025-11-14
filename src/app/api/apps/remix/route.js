@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/src/lib/supabase-server';
 import sharp from 'sharp';
+import { logEventServer } from '@/src/lib/metrics';
 
 export const dynamic = 'force-dynamic';
 
@@ -233,6 +234,8 @@ Color mapping:
     } catch (err) {
       console.error('Analytics error:', err);
     }
+    // Vercel WA custom event
+    logEventServer('app_remix_create', { appId: remixedAppId, parentId: originalApp.id });
     
     return new Response(JSON.stringify({
       ok: true,
