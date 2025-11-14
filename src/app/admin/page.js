@@ -18,6 +18,7 @@ export default function AdminDashboard() {
   const [growthFilter, setGrowthFilter] = useState('day'); // 'day', 'week', 'month'
   const [selectedApp, setSelectedApp] = useState(null); // For modal preview
   const [fetchedKey, setFetchedKey] = useState(null); // cache last fetch key
+  const [userStats, setUserStats] = useState({ newUsers: 0, returningUsers: 0 }); // Users tab
 
   // Check admin access
   useEffect(() => {
@@ -80,6 +81,12 @@ export default function AdminDashboard() {
         if (activeTab === 'growth') {
           if (data.growthByDay) setGrowthByDay(data.growthByDay);
           if (data.growthByWeek) setGrowthByWeek(data.growthByWeek);
+        }
+        if (activeTab === 'users' && data.users) {
+          setUserStats({
+            newUsers: data.users.newUsers || 0,
+            returningUsers: data.users.returningUsers || 0
+          });
         }
         setFetchedKey(key);
       } catch (err) {
@@ -218,6 +225,23 @@ export default function AdminDashboard() {
             }}
           >
             📈 Growth
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            style={{
+              padding: '12px 24px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === 'users' ? '3px solid var(--brand)' : '3px solid transparent',
+              color: activeTab === 'users' ? 'white' : '#888',
+              cursor: 'pointer',
+              fontSize: 15,
+              fontWeight: 600,
+              transition: 'all 0.2s',
+              marginBottom: '-2px'
+            }}
+          >
+            👤 Users
           </button>
           <button
             onClick={() => setActiveTab('manage')}
@@ -563,6 +587,25 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+        </div>
+      )}
+
+      {activeTab === 'users' && (
+        <div>
+          <h2 style={{ marginBottom: 16 }}>👤 Users (Today)</h2>
+          <p className="small" style={{ color: '#888', marginBottom: 20 }}>
+            New = profiles created today. Returning = existing users who interacted today.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+            <div style={{ background: 'var(--bg-dark)', padding: 20, borderRadius: 12, border: '1px solid #333' }}>
+              <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>New Users Today</div>
+              <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--brand)' }}>{userStats.newUsers || 0}</div>
+            </div>
+            <div style={{ background: 'var(--bg-dark)', padding: 20, borderRadius: 12, border: '1px solid #333' }}>
+              <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>Returning Users Today</div>
+              <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--brand)' }}>{userStats.returningUsers || 0}</div>
+            </div>
+          </div>
         </div>
       )}
 

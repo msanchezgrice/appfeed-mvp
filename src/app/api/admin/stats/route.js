@@ -100,17 +100,13 @@ export async function GET(req) {
 
     // Tab-specific data (computed on-demand, default 1-day)
     if (tab === 'apps') {
-      // For lack of per-day event logs, show top apps by total views; allow simple recency filter for discovery views
-      let query = supabase
+      // For now, show all-time top apps by views (no per-day event logs yet)
+      const { data: topApps } = await supabase
         .from('apps')
         .select('id, name, view_count, try_count, save_count, share_count, creator:profiles!creator_id(display_name)')
         .eq('is_published', true)
         .order('view_count', { ascending: false })
         .limit(10);
-      if (sinceIso) {
-        query = query.gte('created_at', sinceIso);
-      }
-      const { data: topApps } = await query;
       response.topApps = topApps || [];
     } else if (tab === 'viral') {
       // Build virality metrics with minimal reads: take top 100 by views then compute remix counts for that set
@@ -229,6 +225,54 @@ export async function GET(req) {
         return { week: `Week ${4 - i}`, signups };
       }).reverse();
       response.growthByWeek = weeks;
+    } else if (tab === 'users') {
+      // New users vs returning users in the selected window (default: day)
+      const windowDays = timeFilter === 'week' ? 7 : 1;
+      let newUsers = 0;
+      let returningUsers = 0;
+      // Try RPCs first (fast on DB)
+      try {
+        const resNew = await supabase.rpc('count_new_users', { days: windowDays });
+        newUsers = (resNew && typeof resNew.data === 'number') ? resNew.data : 0;
+      } catch {
+        // Fallback: count directly
+        const since = timeFilter === 'week' ? weekAgo.toISOString() : today.toISOString();
+        const { count } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', since);
+        newUsers = count || 0;
+      }
+      try {
+        const resReturning = await supabase.rpc('count_returning_users', { days: windowDays });
+        returningUsers = (resReturning && typeof resReturning.data === 'number') ? resReturning.data : 0;
+      } catch {
+        // Fallback: approximate with distinct runs
+        const since = timeFilter === 'week' ? weekAgo : today;
+        // Load minimal columns; dedupe in JS
+        const { data: runs } = await supabase
+          .from('runs')
+          .select('user_id, created_at')
+          .gte('created_at', since.toISOString());
+        const set = new Set();
+        (runs || []).forEach(r => {
+          if (!r.user_id) return;
+          const createdBefore = new Date(r.created_at) >= since ? true : true; // placeholder for type
+          set.add(r.user_id);
+        });
+        // Filter by user profiles created before the window
+        const ids = Array.from(set);
+        if (ids.length > 0) {
+          const { data: profs } = await supabase
+            .from('profiles')
+            .select('id, created_at')
+            .in('id', ids);
+          returningUsers = (profs || []).filter(p => new Date(p.created_at) < since).length;
+        } else {
+          returningUsers = 0;
+        }
+      }
+      response.users = { newUsers, returningUsers, windowDays };
     }
 
     // Return only relevant data for the active tab
