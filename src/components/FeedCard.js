@@ -88,7 +88,50 @@ export default function FeedCard({ app, mode='feed' }) {
             </div>
             <p className="small">Runs in a read-only sandbox with sample inputs.</p>
             <AppForm app={app} onSubmit={(vals) => onRun(vals, 'try')} defaults={app.demo?.sampleInputs||{}} />
-            {run && <><hr /><AppOutput run={run} app={app} /></>}
+            {run && (
+              <>
+                <hr />
+                <div style={{ position: 'relative', maxWidth: 520, margin: '0 auto' }}>
+                  <AppOutput run={run} app={app} />
+                </div>
+                <div className="row result-actions" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      if (!saved) save(true);
+                    }}
+                    disabled={saved}
+                  >
+                    {saved ? 'Saved' : 'Save'}
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={async () => {
+                      const appUrl = `${window.location.origin}/app/${app.id}${run?.id ? `?run=${run.id}` : ''}`;
+                      if (navigator.share) {
+                        const cleanDescription = app.description?.split('\\n\\nRemixed with:')[0] || app.description;
+                        try {
+                          await navigator.share({
+                            title: app.name,
+                            text: cleanDescription,
+                            url: appUrl
+                          });
+                        } catch (err) {
+                          if (err.name !== 'AbortError') {
+                            console.error('Share failed:', err);
+                          }
+                        }
+                      } else {
+                        navigator.clipboard.writeText(appUrl);
+                        alert('Link copied to clipboard!');
+                      }
+                    }}
+                  >
+                    Share
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -108,7 +151,50 @@ export default function FeedCard({ app, mode='feed' }) {
               </div>
             ) : null}
             <AppForm app={app} onSubmit={(vals) => onRun(vals, 'use')} defaults={app.demo?.sampleInputs||{}} />
-            {run && <><hr /><AppOutput run={run} app={app} /></>}
+            {run && (
+              <>
+                <hr />
+                <div style={{ position: 'relative', maxWidth: 520, margin: '0 auto' }}>
+                  <AppOutput run={run} app={app} />
+                </div>
+                <div className="row result-actions" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      if (!saved) save(true);
+                    }}
+                    disabled={saved}
+                  >
+                    {saved ? 'Saved' : 'Save'}
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={async () => {
+                      const appUrl = `${window.location.origin}/app/${app.id}${run?.id ? `?run=${run.id}` : ''}`;
+                      if (navigator.share) {
+                        const cleanDescription = app.description?.split('\\n\\nRemixed with:')[0] || app.description;
+                        try {
+                          await navigator.share({
+                            title: app.name,
+                            text: cleanDescription,
+                            url: appUrl
+                          });
+                        } catch (err) {
+                          if (err.name !== 'AbortError') {
+                            console.error('Share failed:', err);
+                          }
+                        }
+                      } else {
+                        navigator.clipboard.writeText(appUrl);
+                        alert('Link copied to clipboard!');
+                      }
+                    }}
+                  >
+                    Share
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

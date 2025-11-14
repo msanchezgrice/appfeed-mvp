@@ -9,6 +9,7 @@ export default function LibraryPage() {
   const router = useRouter();
   const [savedApps, setSavedApps] = useState([]);
   const [createdApps, setCreatedApps] = useState([]);
+  const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,9 +37,18 @@ export default function LibraryPage() {
         const appsData = await appsRes.json();
         const created = (appsData.apps || []).filter(a => a.creator_id === user.id);
         setCreatedApps(created);
+        // Fetch user's latest assets (runs)
+        const assetsRes = await fetch('/api/runs?mine=1', { cache: 'no-store' });
+        if (assetsRes.ok) {
+          const assetsData = await assetsRes.json();
+          setAssets(assetsData.runs || []);
+        } else {
+          setAssets([]);
+        }
       } catch (err) {
         console.error('[Library] Error fetching library:', err);
         setSavedApps([]);
+        setAssets([]);
       } finally {
         setLoading(false);
       }
@@ -134,6 +144,59 @@ export default function LibraryPage() {
                 }}>{app.name}</div>
               </a>
             ))}
+          </div>
+        )}
+      </section>
+
+      <section style={{ marginTop: 28 }}>
+        <h3 style={{ margin: '0 0 12px 0' }}>Library</h3>
+        {assets.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 24, color: '#888' }}>No assets yet</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+            {assets.map(r => {
+              const href = `/app/${r.app_id}?run=${r.id}`;
+              const isImage = !!r.asset_url;
+              let preview = null;
+              if (isImage) {
+                preview = <img src={r.asset_url} alt={r.id} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
+              } else {
+                // Try to pull short text from outputs
+                const text = typeof r.outputs === 'string'
+                  ? r.outputs
+                  : (r.outputs?.markdown || r.outputs?.text || JSON.stringify(r.outputs || {}).slice(0, 80));
+                preview = (
+                  <div style={{
+                    padding: 8,
+                    fontSize: 11,
+                    color: '#fff',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    textShadow: '0 1px 2px rgba(0,0,0,0.3)'
+                  }}>
+                    {String(text || '').slice(0, 120)}
+                  </div>
+                );
+              }
+              return (
+                <a
+                  key={r.id}
+                  href={href}
+                  style={{
+                    aspectRatio: '1',
+                    background: '#111',
+                    borderRadius: 6,
+                    overflow: 'hidden',
+                    position: 'relative',
+                    textDecoration: 'none'
+                  }}
+                >
+                  {preview}
+                </a>
+              );
+            })}
           </div>
         )}
       </section>

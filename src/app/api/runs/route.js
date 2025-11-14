@@ -205,7 +205,32 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id') || searchParams.get('run');
     const appId = searchParams.get('appId') || searchParams.get('app_id');
+    const mine = searchParams.get('mine');
     if (!id && !appId) {
+      // If requesting user's assets
+      if (mine === '1' || mine === 'true') {
+        if (!userId) {
+          return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        const { data: runs, error } = await supabase
+          .from('runs')
+          .select('id, app_id, created_at, asset_url, asset_type, input_asset_url, outputs')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(60);
+        if (error) {
+          return new Response(JSON.stringify({ error: 'Failed to fetch runs' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        return new Response(JSON.stringify({ runs: runs || [] }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
       return new Response(JSON.stringify({ error: 'id required' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
