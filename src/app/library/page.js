@@ -60,8 +60,34 @@ export default function LibraryPage() {
 
   if (!isLoaded || loading) {
     return (
-      <div style={{ maxWidth: '600px', margin: '0 auto', padding: '40px 16px', textAlign: 'center' }}>
-        <p>Loading...</p>
+      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '16px 0', paddingBottom: '100px', minHeight: 'calc(100vh - 60px)' }}>
+        {/* Header skeleton */}
+        <div className="skeleton" style={{ width: 140, height: 20, borderRadius: 8, marginBottom: 8 }} />
+        <div className="skeleton" style={{ width: 220, height: 14, borderRadius: 8, marginBottom: 24 }} />
+
+        {/* Saved section */}
+        <div className="skeleton" style={{ width: 100, height: 16, borderRadius: 8, marginBottom: 12 }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 28 }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={`sk-saved-${i}`} className="skeleton" style={{ aspectRatio: '1', borderRadius: 6 }} />
+          ))}
+        </div>
+
+        {/* Created section */}
+        <div className="skeleton" style={{ width: 120, height: 16, borderRadius: 8, marginBottom: 12 }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 28 }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={`sk-created-${i}`} className="skeleton" style={{ aspectRatio: '1', borderRadius: 6 }} />
+          ))}
+        </div>
+
+        {/* Library section */}
+        <div className="skeleton" style={{ width: 110, height: 16, borderRadius: 8, marginBottom: 12 }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={`sk-assets-${i}`} className="skeleton" style={{ aspectRatio: '1', borderRadius: 6 }} />
+          ))}
+        </div>
       </div>
     );
   }
