@@ -100,7 +100,7 @@ export default function FeedPage() {
           {/* Initial skeletons */}
           {isLoading && apps.length === 0 ? (
             Array.from({ length: 3 }).map((_, i) => (
-              <div key={`sk-${i}`} style={{ height: '60vh', borderRadius: 12, background: '#0f0f0f', animation: 'pulse 1.5s ease-in-out infinite' }} />
+              <div key={`sk-${i}`} className="skeleton" style={{ height: '60vh' }} />
             ))
           ) : (
             apps.map(app => <TikTokFeedCard key={app.id} app={app} />)

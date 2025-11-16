@@ -27,6 +27,19 @@ h1, h2, h3 { margin: 0 0 10px; }
 .icon { width:16px; height:16px; display:inline-block; }
 .trace { background:#0b1220; border:1px solid #1f2937; border-radius:12px; padding:12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas; font-size: 12px; color:#cbd5e1; }
 
+/* Global skeleton shimmer for loading states */
+.skeleton { position: relative; background:#1f2937; border-radius:12px; overflow:hidden; }
+.skeleton::after {
+  content:'';
+  position:absolute; inset:0;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.10) 50%, rgba(255,255,255,0) 100%);
+  transform: translateX(-100%);
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
 /* Mobile modal improvements: full-screen sheet + better touch targets on small screens */
 @media (max-width: 480px) {
   .modal { align-items: stretch; }

@@ -19,20 +19,13 @@ export default function Home() {
         justifyContent: 'center',
         gap: 12,
         minHeight: '100vh',
-        background: '#000',
+        background: 'var(--bg)',
         padding: 16
       }}>
-        <div style={{ width: '90%', maxWidth: 480, height: 12, borderRadius: 999, background: '#0f0f0f', animation: 'pulse 1.5s ease-in-out infinite' }} />
-        <div style={{ width: '70%', maxWidth: 360, height: 12, borderRadius: 999, background: '#0f0f0f', animation: 'pulse 1.5s ease-in-out infinite' }} />
+        <div className="skeleton" style={{ width: '90%', maxWidth: 480, height: 12, borderRadius: 999 }} />
+        <div className="skeleton" style={{ width: '70%', maxWidth: 360, height: 12, borderRadius: 999 }} />
         <p style={{ color: '#888', marginTop: 8 }}>Redirecting to feed…</p>
       </div>
-      <style jsx global>{`
-        @keyframes pulse {
-          0% { opacity: 0.6; }
-          50% { opacity: 1; }
-          100% { opacity: 0.6; }
-        }
-      `}</style>
     </>
   );
 }

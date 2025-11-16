@@ -134,23 +134,16 @@ export default function ProfilePage() {
       <>
         <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px 0', paddingBottom: '100px', minHeight: 'calc(100vh - 60px)' }}>
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#0f0f0f', margin: '0 auto 12px auto', animation: 'pulse 1.5s ease-in-out infinite' }} />
-            <div style={{ width: 180, height: 14, borderRadius: 999, background: '#0f0f0f', margin: '0 auto 6px auto', animation: 'pulse 1.5s ease-in-out infinite' }} />
-            <div style={{ width: 140, height: 12, borderRadius: 999, background: '#0f0f0f', margin: '0 auto', animation: 'pulse 1.5s ease-in-out infinite' }} />
+            <div className="skeleton" style={{ width: 80, height: 80, borderRadius: '50%', margin: '0 auto 12px auto' }} />
+            <div className="skeleton" style={{ width: 180, height: 14, borderRadius: 999, margin: '0 auto 6px auto' }} />
+            <div className="skeleton" style={{ width: 140, height: 12, borderRadius: 999, margin: '0 auto' }} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={`sk-${i}`} style={{ height: 120, borderRadius: 12, background: '#0f0f0f', animation: 'pulse 1.5s ease-in-out infinite' }} />
+              <div key={`sk-${i}`} className="skeleton" style={{ height: 120 }} />
             ))}
           </div>
         </div>
-        <style jsx global>{`
-          @keyframes pulse {
-            0% { opacity: 0.6; }
-            50% { opacity: 1; }
-            100% { opacity: 0.6; }
-          }
-        `}</style>
       </>
     );
   }
