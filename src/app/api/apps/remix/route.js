@@ -197,16 +197,15 @@ Color mapping:
           
           if (imagePart) {
             const imageBase64 = imagePart.inlineData.data;
-            const imageMime = imagePart.inlineData.mimeType || 'image/png';
-            const compressedDataUrl = await compressImage(imageBase64, imageMime);
-            
-            // Update app with generated image
+            const buffer = Buffer.from(imageBase64, 'base64');
+            const { uploadImageVariants } = await import('@/src/lib/supabase-storage');
+            const baseKey = `app-previews/${remixedAppId}`;
+            const { defaultUrl, urls } = await uploadImageVariants(buffer, baseKey);
             await supabase
               .from('apps')
-              .update({ preview_url: compressedDataUrl, preview_type: 'image' })
+              .update({ preview_url: defaultUrl, preview_type: 'image' })
               .eq('id', remixedAppId);
-            
-            console.log('[Remix] Nano Banana image generated! ✅');
+            console.log('[Remix] Nano Banana image uploaded! ✅', urls);
           }
         }
       }

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import TikTokFeedCard from '@/src/components/TikTokFeedCard';
+import Image from 'next/image';
 
 export default function LibraryPage() {
   const { user, isLoaded, isSignedIn } = useUser();
@@ -121,7 +122,7 @@ export default function LibraryPage() {
                 }}
               >
                 {app.preview_url && (
-                  <img src={app.preview_url} alt={app.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <Image src={app.preview_url} alt={app.name} fill sizes="33vw" style={{ objectFit: 'cover' }} />
                 )}
                 <div style={{
                   position: 'absolute',
@@ -159,7 +160,7 @@ export default function LibraryPage() {
                 }}
               >
                 {app.preview_url && (
-                  <img src={app.preview_url} alt={app.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <Image src={app.preview_url} alt={app.name} fill sizes="33vw" style={{ objectFit: 'cover' }} />
                 )}
                 <div style={{
                   position: 'absolute',
@@ -188,7 +189,9 @@ export default function LibraryPage() {
               const isImage = !!r.asset_url;
               let preview = null;
               if (isImage) {
-                preview = <img src={r.asset_url} alt={r.id} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
+                preview = (
+                  <Image src={r.asset_url} alt={r.id} fill sizes="33vw" style={{ objectFit: 'cover' }} />
+                );
               } else {
                 // Try to pull short text from outputs
                 const text = typeof r.outputs === 'string'

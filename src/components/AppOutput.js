@@ -238,12 +238,261 @@ function TodoOutput({ output }) {
   );
 }
 
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+function ChatOutput({ app, run }) {
+  const initialAssistant = typeof run?.outputs === 'string'
+    ? run.outputs
+    : (run?.outputs?.markdown || (Array.isArray(run?.trace) ? (run.trace[run.trace.length-1]?.output?.markdown || '') : ''));
+  const inputs = run?.inputs || {};
+  const [messages, setMessages] = useState([
+    ...(initialAssistant ? [{ role: 'assistant', content: initialAssistant }] : [])
+  ]);
+  const [pending, setPending] = useState(false);
+  const [text, setText] = useState('');
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const send = async () => {
+    const msg = text.trim();
+    if (!msg || pending) return;
+    setText('');
+    setMessages(m => [...m, { role: 'user', content: msg }]);
+    setPending(true);
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appId: app.id,
+          mood: inputs.mood || 'encouraging',
+          topic: inputs.topic || 'general',
+          tone_strength: inputs.tone_strength || 'medium',
+          history: [...messages, { role: 'user', content: msg }]
+        })
+      });
+      const data = await res.json();
+      const reply = data?.message || data?.output?.markdown || '...';
+      setMessages(m => [...m, { role: 'assistant', content: reply }]);
+    } catch (e) {
+      setMessages(m => [...m, { role: 'assistant', content: '⚠️ Network error. Try again.' }]);
+    } finally {
+      setPending(false);
+    }
+  };
+
+  // Full-height card UX (within modal constraints)
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '70vh',
+      maxHeight: 700,
+      background: app?.design?.containerColor || '#0b1220',
+      color: app?.design?.fontColor || 'white',
+      borderRadius: 12,
+      overflow: 'hidden'
+    }}>
+      <div style={{ padding: 12, fontWeight: 700, borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
+        {app.name} • {inputs.mood || 'encouraging'}
+      </div>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {messages.map((m, i) => (
+          <div key={i} style={{
+            alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
+            maxWidth: '80%',
+            background: m.role === 'user' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.3)',
+            padding: 10,
+            borderRadius: 10,
+            whiteSpace: 'pre-wrap'
+          }}>
+            {m.content}
+          </div>
+        ))}
+        {pending && (
+          <div style={{ opacity: 0.8, fontSize: 12 }}>Agent is typing…</div>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 8, padding: 12, borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+        <input
+          className="input"
+          placeholder="Type a message…"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
+          style={{ flex: 1, background: '#0f172a', color: 'white', border: '1px solid #223' }}
+        />
+        <button className="btn primary" onClick={send} disabled={pending || !text.trim()}>
+          Send
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FlappyOutput({ app, run }) {
+  const birdColor = (run?.inputs?.bird_color || 'yellow').toLowerCase();
+  const theme = (run?.inputs?.background_theme || 'day').toLowerCase();
+  const bg = theme === 'night' ? '#001018' : theme === 'forest' ? '#0b3d0b' : theme === 'ocean' ? '#02223a' : '#87ceeb';
+  const html = `
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+html,body{margin:0;padding:0;background:${bg};height:100%}#c{display:block;width:100vw;height:100vh;}
+.hud{position:fixed;top:8px;left:8px;color:white;font-family:system-ui;font-weight:700;text-shadow:0 1px 2px #000}
+.btn{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.4);color:#fff;padding:10px 16px;border-radius:999px;font-family:system-ui}
+</style></head><body>
+<canvas id="c"></canvas><div class="hud">Score: <span id="s">0</span></div><div class="btn">Tap or press space to flap</div>
+<script>
+const canvas = document.getElementById('c'); const ctx = canvas.getContext('2d');
+function resize(){ canvas.width=window.innerWidth; canvas.height=window.innerHeight; } window.addEventListener('resize', resize); resize();
+let y=canvas.height/2, x=canvas.width*0.25, vy=0, g=0.45, flap=-7, r=14;
+let pipes=[], gap=140, speed=2.5, frame=0, score=0, alive=true;
+function pipe(){ const top=Math.random()*(canvas.height- gap - 120)+40; pipes.push({x:canvas.width, top, bottom: top+gap}); }
+for(let i=0;i<3;i++){ pipes.push({x:canvas.width+i*200, top:100, bottom:240}); }
+function color(){ return '${birdColor}'==='red'?'#ff5757':'${birdColor}'==='blue'?'#3aa0ff':'${birdColor}'==='green'?'#28d17c':'#ffd93b'; }
+function tick(){
+  ctx.fillStyle='${bg}'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  if(alive){
+    frame++; vy+=g; y+=vy; if(y>canvas.height-r){ y=canvas.height-r; vy=0; }
+    if(y<r){ y=r; vy=0; }
+    if(frame%90===0) pipe();
+    for(const p of pipes){
+      p.x-=speed;
+      ctx.fillStyle='#2ecc71'; ctx.fillRect(p.x,0,40,p.top);
+      ctx.fillRect(p.x,p.bottom,40,canvas.height-p.bottom);
+      // collision
+      if(x+r>p.x && x-r<p.x+40 && (y-r<p.top || y+r>p.bottom)){ alive=false; }
+      // score
+      if(!p.passed && p.x+40<x){ p.passed=true; score++; document.getElementById('s').textContent=score; }
+    }
+    pipes = pipes.filter(p=>p.x>-60);
+  } else {
+    ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#fff'; ctx.font='bold 24px system-ui'; ctx.fillText('Game Over - tap to restart', 20, 50);
+  }
+  // bird
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle=color(); ctx.fill(); ctx.closePath();
+  requestAnimationFrame(tick);
+}
+function restart(){ y=canvas.height/2; vy=0; pipes=[]; score=0; document.getElementById('s').textContent=score; alive=true; }
+window.addEventListener('mousedown',()=>{ if(!alive){ restart(); } else { vy=flap; }});
+window.addEventListener('touchstart', (e)=>{ e.preventDefault(); if(!alive){ restart(); } else { vy=flap; }}, {passive:false});
+window.addEventListener('keydown',(e)=>{ if(e.code==='Space'){ if(!alive){ restart(); } else { vy=flap; }}});
+tick();
+</script></body></html>`;
+  const src = 'data:text/html;base64,' + (typeof window==='undefined' ? '' : btoa(unescape(encodeURIComponent(html))));
+  return (
+    <div style={{ borderRadius: 12, overflow: 'hidden', height: '70vh', maxHeight: 700, background: bg }}>
+      <iframe src={src} title="Flappy" style={{ width: '100%', height: '100%', border: 'none' }} />
+    </div>
+  );
+}
+
+function WordleOutput({ app, run }) {
+  const theme = (run?.inputs?.theme || 'animals').toLowerCase();
+  const WORDS = useMemo(() => ({
+    animals: ['tiger','zebra','otter','eagle','whale','panda','camel','rhino','koala','sloth'],
+    foods: ['pasta','curry','bagel','pizza','chili','apple','olive','sushi','tacos','bread'],
+    cities: ['paris','tokyo','miami','milan','delhi','osaka','sofia','cairo','seoul','perth'],
+    verbs: ['build','write','teach','learn','speak','judge','drawn','laugh','dance','throw'],
+    brands: ['apple','tesla','nokia','sony','ikea','adobe','gucci','prada','visa','nvidia']
+  }), []);
+  const list = WORDS[theme] || WORDS.animals;
+  const dayIndex = Math.floor(Date.now() / (24*60*60*1000)) % list.length;
+  const target = list[dayIndex];
+  const [guesses, setGuesses] = useState([]);
+  const [input, setInput] = useState('');
+  const [status, setStatus] = useState('');
+  const length = target.length;
+
+  const evaluate = (guess) => {
+    guess = guess.toLowerCase();
+    const res = [];
+    const used = {};
+    for (let i=0;i<length;i++){
+      if (guess[i] === target[i]) { res.push('g'); used[i]=true; } else res.push(null);
+    }
+    for (let i=0;i<length;i++){
+      if (res[i]) continue;
+      const c = guess[i];
+      let found = -1;
+      for (let j=0;j<length;j++){
+        if (!used[j] && target[j] === c) { found = j; break; }
+      }
+      res[i] = found !== -1 ? 'y' : 'b';
+      if (found !== -1) used[found] = true;
+    }
+    return res;
+  };
+
+  const onSubmit = (e) => {
+    e.preventDefault();
+    const g = input.trim().toLowerCase();
+    if (g.length !== length) { setStatus(`Enter ${length} letters`); return; }
+    setStatus('');
+    const pattern = evaluate(g);
+    const entry = { word: g, pattern };
+    const next = [...guesses, entry];
+    setGuesses(next);
+    setInput('');
+    if (g === target) setStatus('🎉 Correct!');
+    else if (next.length >= 6) setStatus(`❌ Out of tries. Word was "${target}".`);
+  };
+
+  const color = (p) => p==='g' ? '#16a34a' : p==='y' ? '#ca8a04' : '#374151';
+
+  return (
+    <div style={{ padding: 16, background: app?.design?.containerColor || '#111', color: 'white', borderRadius: 12 }}>
+      <div style={{ marginBottom: 8, opacity: 0.9 }}>Theme: {theme} • {length}-letter word</div>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${length}, 38px)`, gap: 6, marginBottom: 12 }}>
+        {Array.from({ length: 6 }).map((_, row) => (
+          <div key={row} style={{ display: 'contents' }}>
+            {Array.from({ length }).map((__, col) => {
+              const ch = guesses[row]?.word?.[col] || '';
+              const p = guesses[row]?.pattern?.[col] || null;
+              return (
+                <div key={col} style={{
+                  width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: p ? color(p) : 'rgba(255,255,255,0.08)', borderRadius: 6, fontWeight: 700, textTransform: 'uppercase'
+                }}>{ch}</div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <form onSubmit={onSubmit} style={{ display: 'flex', gap: 8 }}>
+        <input className="input" value={input} onChange={e=>setInput(e.target.value)} maxLength={length} placeholder={`${length}-letter guess`} style={{ flex: 1 }} />
+        <button className="btn primary" type="submit" disabled={guesses.length>=6 || status==='🎉 Correct!'}>Guess</button>
+      </form>
+      <div style={{ marginTop: 8, minHeight: 24 }}>{status}</div>
+    </div>
+  );
+}
+
 export default function AppOutput({ run, app }) {
   // Support both full trace runs and lightweight runs (outputs only)
   const hasTrace = Array.isArray(run?.trace) && run.trace.length > 0;
   const lastStep = hasTrace ? run.trace[run.trace.length - 1] : null;
   const output = hasTrace ? lastStep?.output : (run?.outputs || null);
   const usedStub = hasTrace ? lastStep?.usedStub : false;
+
+  // Prefer explicit render type from runtime (future-proof), then id fallback
+  const renderType = app?.runtime?.render_type || app?.render_type || null;
+  if (
+    renderType === 'chat' || app.id === 'chat-encouragement' ||
+    renderType === 'game:flappy' || app.id === 'flappy-bird-mini' ||
+    renderType === 'game:wordle' || app.id === 'wordle-daily-themed'
+  ) {
+    if (renderType === 'chat' || app.id === 'chat-encouragement') return <ChatOutput app={app} run={run} />;
+    if (renderType === 'game:flappy' || app.id === 'flappy-bird-mini') return <FlappyOutput app={app} run={run} />;
+    if (renderType === 'game:wordle' || app.id === 'wordle-daily-themed') return <WordleOutput app={app} run={run} />;
+  }
+
   if (!output) {
     return <div className="small" style={{ padding: 16, textAlign: 'center', opacity: 0.6 }}>Running...</div>;
   }
@@ -336,6 +585,15 @@ export default function AppOutput({ run, app }) {
   }
 
   // Render based on app type (only for successful real AI responses)
+  if (app.id === 'chat-encouragement') {
+    return <ChatOutput app={app} run={run} />;
+  }
+  if (app.id === 'flappy-bird-mini') {
+    return <FlappyOutput app={app} run={run} />;
+  }
+  if (app.id === 'wordle-daily-themed') {
+    return <WordleOutput app={app} run={run} />;
+  }
   if (app.id === 'affirmations-daily' || app.id.includes('affirmations')) {
     return <AffirmationsOutput output={output} />;
   }

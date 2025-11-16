@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/src/lib/supabase-server';
 import { NextResponse } from 'next/server';
+import { uploadImageVariants } from '@/src/lib/supabase-storage';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // Allow up to 60 seconds for image generation
@@ -100,27 +101,23 @@ Create a beautiful image that captures the essence of this app in an elevated, p
     }
     
     const imageBase64 = imagePart.inlineData.data;
-    const mimeType = imagePart.inlineData.mimeType || 'image/png';
+    const buffer = Buffer.from(imageBase64, 'base64');
+    const baseKey = `app-previews/${appId}`;
+    const { defaultUrl, urls } = await uploadImageVariants(buffer, baseKey);
+    console.log('[Generate Image] Uploaded variants for:', app.name, urls);
     
-    // Create data URL for preview
-    const dataUrl = `data:${mimeType};base64,${imageBase64}`;
-    
-    console.log('[Generate Image] Image generated successfully for:', app.name);
-    
-    // Update app with generated image (store as data URL for now)
     await supabase
       .from('apps')
       .update({
         preview_type: 'image',
-        preview_url: dataUrl
+        preview_url: defaultUrl
       })
       .eq('id', appId);
     
     return NextResponse.json({
       success: true,
       appId,
-      imageUrl: dataUrl,
-      mimeType
+      imageUrl: defaultUrl
     });
     
   } catch (error) {

@@ -1,5 +1,6 @@
 import { createAdminSupabaseClient } from '@/src/lib/supabase-server';
 import { NextResponse } from 'next/server';
+import { uploadImageVariants } from '@/src/lib/supabase-storage';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes for batch generation
@@ -90,20 +91,21 @@ Create a beautiful image that captures the essence of this app in an elevated, p
         }
         
         const imageBase64 = imagePart.inlineData.data;
-        const mimeType = imagePart.inlineData.mimeType || 'image/png';
-        const dataUrl = `data:${mimeType};base64,${imageBase64}`;
+        const buffer = Buffer.from(imageBase64, 'base64');
+        const baseKey = `app-previews/${app.id}`;
+        const { defaultUrl, urls } = await uploadImageVariants(buffer, baseKey);
         
         // Update app with generated image
         await supabase
           .from('apps')
           .update({
             preview_type: 'image',
-            preview_url: dataUrl
+            preview_url: defaultUrl
           })
           .eq('id', app.id);
         
-        console.log(`[Generate All Images] ✓ Generated for: ${app.name}`);
-        results.push({ appId: app.id, appName: app.name, success: true });
+        console.log(`[Generate All Images] ✓ Generated for: ${app.name}`, urls);
+        results.push({ appId: app.id, appName: app.name, success: true, url: defaultUrl });
         
         // Small delay to avoid rate limits
         await new Promise(resolve => setTimeout(resolve, 2000));

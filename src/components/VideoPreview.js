@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 
 export default function VideoPreview({ app, autoplay = false, onClick }) {
   // Generate elevated, descriptive image URL based on app description
@@ -68,21 +69,32 @@ export default function VideoPreview({ app, autoplay = false, onClick }) {
       ) : (
         <>
           {/* Dynamic generated image */}
-          <img
-            src={imageUrl}
-            alt={app.name}
-            loading="lazy"
-            decoding="async"
-            onError={(e) => {
-              // Fallback to gradient if image fails to load
-              e.target.style.display = 'none';
-            }}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover'
-            }}
-          />
+          {hasImage ? (
+            <Image
+              src={app.preview_url}
+              alt={app.name}
+              fill
+              sizes="100vw"
+              style={{ objectFit: 'cover' }}
+              priority={false}
+            />
+          ) : (
+            <img
+              src={imageUrl}
+              alt={app.name}
+              loading="lazy"
+              decoding="async"
+              onError={(e) => {
+                // Fallback to gradient if image fails to load
+                e.target.style.display = 'none';
+              }}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover'
+              }}
+            />
+          )}
           
           {/* Subtle gradient overlay for text contrast */}
           <div style={{

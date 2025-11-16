@@ -1,5 +1,6 @@
 import { createAdminSupabaseClient } from '@/src/lib/supabase-server';
 import { NextResponse } from 'next/server';
+import { uploadImageVariants } from '@/src/lib/supabase-storage';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -41,41 +42,20 @@ export async function POST(req) {
         // Convert base64 to buffer
         const buffer = Buffer.from(base64Data, 'base64');
         
-        // Determine file extension
-        const ext = mimeType.includes('png') ? 'png' : 'jpg';
-        const filePath = `app-previews/${app.id}.${ext}`;
-        
-        console.log(`[Migrate Images] Uploading ${app.name}: ${Math.round(buffer.length / 1024)} KB`);
-        
-        // Upload to Supabase Storage
-        const { error: uploadError } = await supabase.storage
-          .from('app-images')
-          .upload(filePath, buffer, {
-            contentType: mimeType,
-            upsert: true
-          });
-        
-        if (uploadError) {
-          console.error(`[Migrate Images] Upload failed for ${app.name}:`, uploadError);
-          results.push({ appId: app.id, success: false, error: uploadError.message });
-          continue;
-        }
-        
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('app-images')
-          .getPublicUrl(filePath);
+        // Upload responsive variants (WebP) and set 720 as canonical
+        const baseKey = `app-previews/${app.id}`;
+        const { defaultUrl, urls } = await uploadImageVariants(buffer, baseKey);
         
         // Update app with storage URL
         await supabase
           .from('apps')
           .update({
-            preview_url: publicUrl
+            preview_url: defaultUrl
           })
           .eq('id', app.id);
         
-        console.log(`[Migrate Images] ✓ Migrated ${app.name} to: ${publicUrl}`);
-        results.push({ appId: app.id, appName: app.name, success: true, url: publicUrl });
+        console.log(`[Migrate Images] ✓ Migrated ${app.name} to variants`, urls);
+        results.push({ appId: app.id, appName: app.name, success: true, url: defaultUrl });
         
       } catch (err) {
         console.error(`[Migrate Images] Error for ${app.name}:`, err);

@@ -1,4 +1,5 @@
 import { createAdminSupabaseClient } from './supabase-server';
+import sharp from 'sharp';
 
 /**
  * Upload base64 image to Supabase Storage
@@ -62,5 +63,41 @@ export async function deleteImageFromStorage(filePath) {
   }
   
   console.log('[Storage] Deleted:', filePath);
+}
+
+/**
+ * Upload 360/720/1080 WebP variants for an image buffer
+ * Returns canonical 720 URL and all variant URLs following a stable naming
+ * @param {Buffer} buffer
+ * @param {string} baseFileKey e.g. "app-previews/abc123" (no extension)
+ */
+export async function uploadImageVariants(buffer, baseFileKey) {
+  const supabase = createAdminSupabaseClient();
+  const variants = [
+    { w: 360, key: `${baseFileKey}-360.webp` },
+    { w: 720, key: `${baseFileKey}-720.webp` },
+    { w: 1080, key: `${baseFileKey}-1080.webp` }
+  ];
+  const out = {};
+  for (const v of variants) {
+    const webp = await sharp(buffer).resize({ width: v.w, fit: 'inside', withoutEnlargement: true }).webp({ quality: 70 }).toBuffer();
+    const { error } = await supabase.storage
+      .from('app-images')
+      .upload(v.key, webp, {
+        contentType: 'image/webp',
+        upsert: true,
+        cacheControl: '31536000'
+      });
+    if (error) {
+      console.error('[Storage] Variant upload error:', v.key, error);
+      throw error;
+    }
+    const { data: { publicUrl } } = supabase.storage.from('app-images').getPublicUrl(v.key);
+    out[v.w] = publicUrl;
+  }
+  return {
+    defaultUrl: out[720] || out[360] || out[1080],
+    urls: out
+  };
 }
 
