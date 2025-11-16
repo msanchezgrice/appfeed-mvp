@@ -50,6 +50,15 @@ export default function AppForm({ app, onSubmit, defaults={} }) {
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
+          ) : spec.type === 'phone' ? (
+            <input
+              type="tel"
+              className="input"
+              placeholder={spec.placeholder || '+1 555 123 4567'}
+              value={values[k]}
+              onChange={e => set(k, e.target.value)}
+              pattern={spec.pattern || '\\+?[0-9\\s\\-()]{7,}'}
+            />
           ) : spec.enum ? (
             <select className="input" value={values[k]} onChange={e => set(k, e.target.value)}>
               {[ '', ...spec.enum].map(opt => <option key={opt} value={opt}>{opt||'—'}</option>)}

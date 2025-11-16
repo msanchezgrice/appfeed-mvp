@@ -534,12 +534,52 @@ export async function tool_email_send({ userId, args, mode, supabase }) {
   }
 }
 
+// SMS sending tool using Twilio
+export async function tool_sms_send({ userId, args }) {
+  console.log('[SMS Send] Starting:', { userId, to: args.to });
+  const { to, body } = args || {};
+  if (!to || !body) {
+    return { output: { markdown: '❌ Phone number and message body are required' }, error: 'MISSING_PARAMS' };
+  }
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const from = process.env.TWILIO_FROM_NUMBER;
+  if (!accountSid || !authToken || !from) {
+    console.error('[SMS Send] Missing Twilio env config');
+    return {
+      output: { markdown: '🔌 SMS not configured. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER.' },
+      usedStub: true,
+      error: 'NO_TWILIO_CONFIG'
+    };
+  }
+  try {
+    const creds = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+    const form = new URLSearchParams({ To: to, From: from, Body: body });
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+      method: 'POST',
+      headers: { 'Authorization': `Basic ${creds}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString()
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      console.error('[SMS Send] Twilio error:', res.status, txt);
+      return { output: { markdown: `❌ SMS failed (${res.status})` }, error: `TWILIO_${res.status}` };
+    }
+    const j = await res.json();
+    return { output: { markdown: `✅ **SMS sent** to ${to}` }, metadata: { sid: j.sid } };
+  } catch (err) {
+    console.error('[SMS Send] Error:', err);
+    return { output: { markdown: `❌ Error sending SMS: ${err.message}` }, error: 'SMS_ERROR' };
+  }
+}
+
 export const ToolRegistry = {
   'llm.complete': tool_llm_complete,
   'image.process': tool_image_process,
   'email.send': tool_email_send,
   'activities.lookup': tool_activities_lookup,
-  'todo.add': tool_todo_add
+  'todo.add': tool_todo_add,
+  'sms.send': tool_sms_send
 };
 
 export function interpolateArgs(args, ctx) {

@@ -58,6 +58,7 @@ export default function VideoPreview({ app, autoplay = false, onClick }) {
           loop
           muted
           playsInline
+          preload="none"
           style={{
             width: '100%',
             height: '100%',
@@ -70,6 +71,8 @@ export default function VideoPreview({ app, autoplay = false, onClick }) {
           <img
             src={imageUrl}
             alt={app.name}
+            loading="lazy"
+            decoding="async"
             onError={(e) => {
               // Fallback to gradient if image fails to load
               e.target.style.display = 'none';

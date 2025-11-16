@@ -25,6 +25,7 @@ export default function ProfilePage() {
     totalRemixes: 0,
     followers: 0
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Redirect to sign-in if not authenticated
@@ -36,6 +37,7 @@ export default function ProfilePage() {
     if (!clerkUser) return;
 
     (async () => {
+      setLoading(true);
       const userId = clerkUser.id;
       
       // Sync profile to Supabase if it doesn't exist (workaround for webhook delays)
@@ -56,15 +58,24 @@ export default function ProfilePage() {
       }
       
       // Fetch all apps (including user's unpublished apps for the Created tab)
-      const appsRes = await fetch(`/api/apps?includeUnpublished=true&userId=${userId}`);
-      const appsData = await appsRes.json();
-      console.log('[Profile] Apps data received:', { count: appsData.apps?.length, includesUnpublished: true });
-      setApps(appsData.apps || []);
+      let appsData = { apps: [] };
+      try {
+        const appsRes = await fetch(`/api/apps?includeUnpublished=true&userId=${userId}&limit=50&offset=0`);
+        appsData = await appsRes.json();
+        console.log('[Profile] Apps data received:', { count: appsData.apps?.length, includesUnpublished: true });
+        setApps(appsData.apps || []);
+      } catch (e) {
+        setApps([]);
+      }
 
-      const libRes = await fetch('/api/library');
-      const libData = await libRes.json();
-      console.log('[Profile] Library data received:', libData);
-      setLibrary(libData.items || []);
+      try {
+        const libRes = await fetch('/api/library');
+        const libData = await libRes.json();
+        console.log('[Profile] Library data received:', libData);
+        setLibrary(libData.items || []);
+      } catch {
+        setLibrary([]);
+      }
 
       // Get user info from Clerk
       setUser({
@@ -96,10 +107,15 @@ export default function ProfilePage() {
       const totalRemixes = userApps.reduce((sum, app) => sum + (app.remix_count || 0), 0);
 
       // Get real follower count and following list from database
-      const followRes = await fetch('/api/follow');
-      const followData = await followRes.json();
-      const followers = followData.followers?.length || 0;
-      setFollowing(followData.following || []);
+      let followers = 0;
+      try {
+        const followRes = await fetch('/api/follow');
+        const followData = await followRes.json();
+        followers = followData.followers?.length || 0;
+        setFollowing(followData.following || []);
+      } catch {
+        setFollowing([]);
+      }
 
       setAnalytics({
         totalViews,
@@ -109,8 +125,35 @@ export default function ProfilePage() {
         totalRemixes,
         followers
       });
-    })();
+      setLoading(false);
+    })().catch(() => setLoading(false));
   }, [clerkUser, isLoaded, isSignedIn, router]);
+
+  if (!isLoaded || loading) {
+    return (
+      <>
+        <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px 0', paddingBottom: '100px', minHeight: 'calc(100vh - 60px)' }}>
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#0f0f0f', margin: '0 auto 12px auto', animation: 'pulse 1.5s ease-in-out infinite' }} />
+            <div style={{ width: 180, height: 14, borderRadius: 999, background: '#0f0f0f', margin: '0 auto 6px auto', animation: 'pulse 1.5s ease-in-out infinite' }} />
+            <div style={{ width: 140, height: 12, borderRadius: 999, background: '#0f0f0f', margin: '0 auto', animation: 'pulse 1.5s ease-in-out infinite' }} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={`sk-${i}`} style={{ height: 120, borderRadius: 12, background: '#0f0f0f', animation: 'pulse 1.5s ease-in-out infinite' }} />
+            ))}
+          </div>
+        </div>
+        <style jsx global>{`
+          @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+          }
+        `}</style>
+      </>
+    );
+  }
 
   const saveApiKeys = async () => {
     try {
