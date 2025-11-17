@@ -153,37 +153,32 @@ function getViralManifests() {
       }
     },
     {
-      name: 'AI Meme Generator',
-      description: 'Create viral meme images with custom text overlay on AI-generated backgrounds. Perfect for social media.',
-      tags: ['meme', 'text', 'viral', 'generator'],
-      preview_gradient: 'linear-gradient(135deg, #f5af19 0%, #f12711 100%)',
+      name: 'ControlNet Hidden Text Meme',
+      description: 'Create optical illusion memes where text is hidden in the image. Squint your eyes to see the hidden message!',
+      tags: ['meme', 'illusion', 'viral', 'controlnet'],
+      preview_gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       design: { containerColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', fontColor: 'white', fontFamily: 'system-ui', inputLayout: 'vertical' },
       modal_theme: { backgroundColor: '#1a1a1a', buttonColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', accentColor: '#667eea' },
       input_theme: { borderColor: '#333', backgroundColor: '#0f0f0f' },
-      demo: { sampleInputs: { background: 'A messy room with computers and electronics', text: 'AI ART', font_size: '130' } },
+      demo: { sampleInputs: { scene: 'room full of computers and electronics', text: 'CLIPCADE' } },
       inputs: {
-        background: { 
-          type: 'string', 
-          label: 'Background Scene (simple works, messy best!)', 
-          placeholder: 'e.g., A messy room with computers and electronics', 
+        scene: { 
+          type: 'select',
+          label: 'Scene',
+          options: [
+            { value: 'aerial view of a dense forest at sunset', label: 'Forest Sunset' },
+            { value: 'room full of computers and electronics', label: 'Computer Room' },
+            { value: 'a crowd of people at a concert', label: 'Concert Crowd' },
+            { value: 'a cozy detailed living room with plants and books', label: 'Cozy Living Room' },
+            { value: 'a field of colorful flowers with depth of field', label: 'Flower Field' }
+          ],
+          default: 'room full of computers and electronics',
           required: true 
         },
         text: { 
           type: 'string', 
-          label: 'Text to Display (ALL CAPS works best)', 
-          placeholder: 'e.g., AI ART', 
-          required: true 
-        },
-        font_size: { 
-          type: 'select', 
-          label: 'Font Size', 
-          options: [
-            { value: '80', label: '80 - Small' },
-            { value: '100', label: '100 - Medium' },
-            { value: '130', label: '130 - Large (Recommended)' },
-            { value: '150', label: '150 - Extra Large' }
-          ], 
-          default: '130', 
+          label: 'Hidden Text (ALL CAPS best)', 
+          placeholder: 'e.g., CLIPCADE', 
           required: true 
         }
       },
@@ -193,7 +188,7 @@ function getViralManifests() {
         steps: [{
           tool: 'image.process',
           args: {
-            instruction: 'Generate an image: {{background}}. Add large bold text overlay that says "{{text}}" in massive {{font_size}}px font. Style: high contrast, bold sans-serif font, centered text, meme-style with black text stroke/outline for readability. The text should be the dominant feature. Photorealistic background with professional text overlay.'
+            instruction: '{{scene}}, optical illusion artwork, hidden text illusion that spells "{{text}}", Illusion Diffusion style, fusion art, high-frequency tiny details, intricate noisy texture, squint your eyes to read the hidden word, ControlNet hidden text meme, soft global lighting, 4k, ultra realistic, highly detailed, sharp focus'
           },
           output: 'meme'
         }]

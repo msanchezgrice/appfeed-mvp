@@ -22,6 +22,12 @@ export default function PublishPage() {
   // Form states for AI app
   const [aiPrompt, setAiPrompt] = useState('');
   const [createdApp, setCreatedApp] = useState(null);
+  
+  // Form states for URL scraper
+  const [scrapeUrl, setScrapeUrl] = useState('');
+  const [scraping, setScraping] = useState(false);
+  const [scrapeError, setScrapeError] = useState(null);
+  const [scrapeSuccess, setScrapeSuccess] = useState(false);
 
   // Form states for remote app
   const [remoteUrl, setRemoteUrl] = useState('');
@@ -174,6 +180,44 @@ export default function PublishPage() {
       setStep('success');
     } catch (error) {
       alert('Error publishing app: ' + error.message);
+    }
+  };
+
+  const handleScrapeUrl = async (e) => {
+    e.preventDefault();
+    setScraping(true);
+    setScrapeError(null);
+    setScrapeSuccess(false);
+    
+    try {
+      const response = await fetch('/api/scrape-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ url: scrapeUrl })
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to scrape URL');
+      }
+      
+      // Auto-fill the prompt with the extracted data
+      const data = result.data;
+      setAiPrompt(data.suggestedPrompt || '');
+      
+      // If tags were provided by scraper and user hasn't set any, use them
+      if (data.tags && data.tags.length > 0 && !tags) {
+        setTags(data.tags.join(', '));
+      }
+      
+      setScrapeSuccess(true);
+      setTimeout(() => setScrapeSuccess(false), 3000);
+    } catch (error) {
+      setScrapeError(error.message);
+    } finally {
+      setScraping(false);
     }
   };
 
@@ -382,6 +426,74 @@ export default function PublishPage() {
             </button>
           </div>
 
+          {/* URL Scraper Section */}
+          <div className="card" style={{ marginBottom: 16, background: 'linear-gradient(135deg, #667eea22 0%, #764ba222 100%)', border: '1px solid #667eea44' }}>
+            <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              🔗 Scrape from URL (Optional)
+            </h3>
+            <p className="small" style={{ marginBottom: 16, color: '#aaa' }}>
+              Paste a URL to auto-generate a prompt from an existing app or website
+            </p>
+            
+            <form onSubmit={handleScrapeUrl}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                <input
+                  type="url"
+                  className="input"
+                  placeholder="https://glif.app/@user/glifs/..."
+                  value={scrapeUrl}
+                  onChange={(e) => setScrapeUrl(e.target.value)}
+                  disabled={scraping}
+                  style={{ flex: 1 }}
+                />
+                <button 
+                  type="submit" 
+                  className="btn primary" 
+                  disabled={scraping || !scrapeUrl}
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  {scraping ? 'Scraping...' : 'Scrape →'}
+                </button>
+              </div>
+            </form>
+            
+            {scraping && (
+              <div style={{ padding: 12, background: 'var(--bg)', borderRadius: 8, marginTop: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 16,
+                    height: 16,
+                    border: '2px solid var(--brand)',
+                    borderTopColor: 'transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite'
+                  }} />
+                  <span className="small">📸 Analyzing page with AI...</span>
+                </div>
+              </div>
+            )}
+            
+            {scrapeError && (
+              <div style={{ padding: 12, background: '#ef444422', border: '1px solid #ef4444', borderRadius: 8, marginTop: 8 }}>
+                <div className="small" style={{ color: '#ef4444' }}>
+                  <strong>Error:</strong> {scrapeError}
+                </div>
+              </div>
+            )}
+            
+            {scrapeSuccess && (
+              <div style={{ padding: 12, background: '#10b98122', border: '1px solid #10b981', borderRadius: 8, marginTop: 8 }}>
+                <div className="small" style={{ color: '#10b981' }}>
+                  ✅ Successfully scraped! Prompt filled below.
+                </div>
+              </div>
+            )}
+            
+            <p className="small" style={{ marginTop: 12, marginBottom: 0, color: '#666' }}>
+              Example: https://glif.app/@fab1an/glifs/clmqp99820001jn0f2xywz250
+            </p>
+          </div>
+
           <form onSubmit={handleSubmitAI}>
             <div className="card" style={{ marginBottom: 16 }}>
               <h3 style={{ marginTop: 0 }}>Describe Your App</h3>
@@ -394,7 +506,7 @@ export default function PublishPage() {
                 required
               />
               <p className="small" style={{ marginTop: 8, color: '#888' }}>
-                We’ll generate inputs, runtime steps, and design based on your prompt. You can remix later.
+                We'll generate inputs, runtime steps, and design based on your prompt. You can remix later.
               </p>
             </div>
 
@@ -427,6 +539,12 @@ export default function PublishPage() {
               Generate App →
             </button>
           </form>
+          
+          <style jsx>{`
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
         </div>
       )}
 
