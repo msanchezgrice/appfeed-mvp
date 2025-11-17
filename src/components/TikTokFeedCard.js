@@ -436,7 +436,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
       </div>
 
       {/* Try Modal */}
-      {showTry && !searchParams.get('run') && (
+      {showTry && (
         <div className="modal" onClick={() => setShowTry(false)}>
           <div className="dialog" onClick={e => e.stopPropagation()}>
             <div className="row" style={{justifyContent:'space-between'}}>
@@ -581,7 +581,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
       )}
 
       {/* Use Modal */}
-      {showUse && !searchParams.get('run') && (
+      {showUse && (
         <div className="modal" onClick={() => setShowUse(false)}>
           <div className="dialog" onClick={e => e.stopPropagation()}>
             <div className="row" style={{justifyContent:'space-between'}}>
@@ -890,6 +890,102 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                 </p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Play Overlay - Full-screen result display */}
+      {searchParams.get('run') && run?.id === searchParams.get('run') && (
+        <div className="modal" onClick={() => router.replace(window.location.pathname)} style={{ zIndex: 9999 }}>
+          <div
+            className="dialog"
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100vw',
+              maxWidth: '100vw',
+              height: '100dvh',
+              maxHeight: '100dvh',
+              borderRadius: 0,
+              padding: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}
+          >
+            {/* Header */}
+            <div
+              className="row"
+              style={{
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 16px',
+                paddingTop: 'calc(12px + env(safe-area-inset-top))',
+                position: 'sticky',
+                top: 0,
+                zIndex: 2,
+                background: 'var(--panel)',
+                borderBottom: '1px solid #1f2937'
+              }}
+            >
+              <b>Play: {app.name}</b>
+              <div className="row" style={{ gap: 8 }}>
+                <button
+                  className="btn"
+                  disabled={resultSaved}
+                  onClick={async () => {
+                    if (!user) {
+                      setSignInAction('save this result to your Library');
+                      setShowSignInModal(true);
+                      return;
+                    }
+                    try {
+                      const res = await fetch('/api/assets', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ action: 'save', runId: run.id })
+                      });
+                      if (res.ok) setResultSaved(true);
+                    } catch {}
+                  }}
+                >
+                  {resultSaved ? 'Saved' : 'Save'}
+                </button>
+                <button
+                  className="btn"
+                  onClick={async () => {
+                    const appUrl = `${window.location.origin}/app/${app.id}?run=${run.id}`;
+                    if (navigator.share) {
+                      try {
+                        await navigator.share({ title: app.name, text: app.description, url: appUrl });
+                      } catch (err) {
+                        if (err.name !== 'AbortError') console.error('Share failed:', err);
+                      }
+                    } else {
+                      navigator.clipboard.writeText(appUrl);
+                      alert('Link copied to clipboard!');
+                    }
+                  }}
+                >
+                  Share
+                </button>
+                <button className="btn ghost" onClick={() => router.replace(window.location.pathname)}>
+                  Close
+                </button>
+              </div>
+            </div>
+
+            {/* Result Content */}
+            <div
+              style={{
+                flex: 1,
+                overflow: 'auto',
+                padding: '16px',
+                paddingBottom: 'calc(16px + env(safe-area-inset-bottom))'
+              }}
+            >
+              <AppOutput run={run} app={app} />
+            </div>
           </div>
         </div>
       )}
