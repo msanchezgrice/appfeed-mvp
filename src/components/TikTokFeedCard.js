@@ -94,15 +94,12 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
     setRun(r);
     setResultSaved(false);
     try {
-      if (typeof window !== 'undefined') {
-        const isMobile = window.innerWidth <= 480; // iPhone 15 width and current mobile modal breakpoint
-        if (isMobile && r?.id) {
-          // Push a history entry with ?run= to open the full-screen result overlay on the page.
-          // The Try/Use modal remains open behind the overlay, so closing returns to inputs.
-          const basePath = window.location.pathname;
-          const nextUrl = `${basePath}?run=${encodeURIComponent(r.id)}`;
-          router.push(nextUrl);
-        }
+      if (typeof window !== 'undefined' && r?.id) {
+        // Always open the full-screen result overlay via URL, on all screen sizes.
+        // The Try/Use modal remains open behind it; closing overlay returns to inputs.
+        const basePath = window.location.pathname;
+        const nextUrl = `${basePath}?run=${encodeURIComponent(r.id)}`;
+        router.push(nextUrl);
       }
     } catch {}
   };

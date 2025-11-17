@@ -358,38 +358,67 @@ export default function AppDetailPage() {
       {/* Result Overlay */}
       {overlayOpen && overlayRun && (
         <div className="modal" onClick={closeOverlay}>
-          <div className="dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
-            <div className="row" style={{ justifyContent:'space-between', alignItems:'center' }}>
-              <b>Result: {app.name}</b>
-              <button className="btn ghost" onClick={closeOverlay}>Close</button>
-            </div>
-            <p className="small">From your Library • <Link href={`/app/${appId}`}>Open App</Link></p>
-            <div style={{ maxWidth: 520, margin: '0 auto' }}>
-              <AppOutput run={overlayRun} app={app} />
-            </div>
-            <div className="row result-actions" style={{ justifyContent:'flex-end', gap: 8, marginTop: 12 }}>
-              <Link href={`/app/${appId}`} className="btn">Run Again</Link>
-              <button className="btn" disabled={resultSaved} onClick={saveResult}>
-                {resultSaved ? 'Saved' : 'Save Result'}
-              </button>
-              <button
-                className="btn"
-                onClick={async () => {
-                  const appUrl = `${window.location.origin}/app/${appId}?run=${overlayRun.id}`;
-                  if (navigator.share) {
-                    try {
-                      await navigator.share({ title: app.name, text: app.description, url: appUrl });
-                    } catch (err) {
-                      if (err.name !== 'AbortError') console.error('Share failed:', err);
+          <div
+            className="dialog"
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100vw',
+              maxWidth: '100vw',
+              height: '100dvh',
+              maxHeight: '100dvh',
+              borderRadius: 0,
+              padding: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}
+          >
+            {/* Header */}
+            <div
+              className="row"
+              style={{
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 12px calc(12px + env(safe-area-inset-top))',
+                paddingTop: 'calc(12px + env(safe-area-inset-top))',
+                position: 'sticky',
+                top: 0,
+                zIndex: 2,
+                background: 'var(--panel)',
+                borderBottom: '1px solid #1f2937'
+              }}
+            >
+              <b>Play: {app.name}</b>
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn" disabled={resultSaved} onClick={saveResult}>
+                  {resultSaved ? 'Saved' : 'Save'}
+                </button>
+                <button
+                  className="btn"
+                  onClick={async () => {
+                    const appUrl = `${window.location.origin}/app/${appId}?run=${overlayRun.id}`;
+                    if (navigator.share) {
+                      try {
+                        await navigator.share({ title: app.name, text: app.description, url: appUrl });
+                      } catch (err) {
+                        if (err.name !== 'AbortError') console.error('Share failed:', err);
+                      }
+                    } else {
+                      navigator.clipboard.writeText(appUrl);
+                      alert('Link copied to clipboard!');
                     }
-                  } else {
-                    navigator.clipboard.writeText(appUrl);
-                    alert('Link copied to clipboard!');
-                  }
-                }}
-              >
-                Share
-              </button>
+                  }}
+                >
+                  Share
+                </button>
+                <button className="btn ghost" onClick={closeOverlay}>Close</button>
+              </div>
+            </div>
+            {/* Body */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: 16, WebkitOverflowScrolling: 'touch' }}>
+              <div style={{ maxWidth: 720, margin: '0 auto' }}>
+                <AppOutput run={overlayRun} app={app} />
+              </div>
             </div>
           </div>
         </div>
