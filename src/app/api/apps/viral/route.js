@@ -189,7 +189,7 @@ function getViralManifests() {
         steps: [{
           tool: 'image.process',
           args: {
-            instruction: 'Create an optical illusion meme image made of {{scene}}. At first glance it just looks like a chaotic collage or grid of these elements, but when you squint your eyes or zoom out you can clearly read the hidden word "{{text}}" spelled in big block letters by the overall arrangement. The images, shadows and background details should form the strokes of the letters, not flat text on top. High-frequency tiny details, noisy texture, lots of small shapes so the word only appears when blurred. Photorealistic, 4k, highly detailed, sharp when viewed normally, optical illusion style, "squint your eyes to read the hidden word" meme.'
+            instruction: 'Create an ultra-photorealistic optical illusion image made entirely of {{scene}}. The scene should look completely natural and chaotic at first glance - a realistic photograph with natural lighting, shadows, and depth. Hidden within the subtle shadows, edges, lighting gradients, and negative space, the word "{{text}}" should be barely visible, formed by extremely subtle variations in tone, shadow placement, and object arrangement. Very low contrast between the text and background - the letters should be almost invisible when viewed normally, only becoming readable when you squint or zoom way out. The text is NOT overlaid - it emerges from the natural shadows, edges of objects, and subtle lighting differences. Ultra high detail, cinematic photography, natural color grading, soft lighting, realistic depth of field, 4k, the hidden word should be nearly imperceptible and blend seamlessly into the photorealistic scene.'
           },
           output: 'meme'
         }]
