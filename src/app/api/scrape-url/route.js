@@ -98,29 +98,86 @@ export async function POST(request) {
     }
     
     // Use OpenAI to analyze the page content or image
-    const systemPrompt = `You are an AI app analyzer. You will receive either web page content or a screenshot/image and need to extract information to help create a similar app on the Clipcade platform.
+    const systemPrompt = `You are an AI app analyzer for Clipcade. You will receive either web page content or a screenshot/image and need to extract information to help create a similar app.
+
+CLIPCADE APP STRUCTURE:
+Apps have these key components:
+- name, description, icon (emoji), tags
+- inputs: Define form fields users fill out
+- outputs: What the app produces (image, markdown text, etc.)
+- runtime: Sequential steps using tools (llm.complete, image.process)
+- design: Visual styling for the app
+
+AVAILABLE TOOLS:
+1. llm.complete - Generate text with AI (GPT-4o-mini)
+   - Good for: summaries, analysis, generation, rewrites
+   - Args: { prompt: "...", temperature: 0.7, max_tokens: 500 }
+   
+2. image.process - Transform images with AI (Gemini 2.5 Flash)
+   - Good for: style transfer, image editing, artistic effects
+   - Args: { image: "{{inputFieldName}}", instruction: "detailed instruction here" }
+
+OUTPUT DESIGN:
+- If the app generates IMAGES, use image.process tool and output type "image"
+- If the app generates TEXT, use llm.complete and output type "markdown" (string)
+- IMPORTANT: Match the output type to what the tool produces!
 
 Analyze the content/image and extract:
 1. App name/title
-2. Description of what it does
-3. Input fields (name, type, label, placeholder, any constraints)
-4. Output types (image, text, video, etc.)
-5. Suggested tags/categories
-6. UI design elements and style
+2. Description (2-3 sentences explaining what it does)
+3. Input fields with proper types (string, number, enum, image, etc.)
+4. Output types (MUST match tool used: "image" for image.process, "markdown" for llm.complete)
+5. Tags/categories
+6. UI design elements (colors, gradients, style)
+7. Runtime steps with proper tool usage
 
-Return ONLY a valid JSON object with this structure:
+Return ONLY a valid JSON object:
 {
   "appName": "string",
   "description": "string (2-3 sentences)",
+  "icon": "emoji",
   "inputs": [
-    {"name": "string", "type": "string", "label": "string", "placeholder": "string", "required": boolean}
+    {"name": "string", "type": "string|number|enum|image", "label": "string", "placeholder": "string", "required": boolean}
   ],
-  "outputTypes": ["image", "text", etc.],
+  "outputTypes": ["image" OR "markdown"],
   "tags": ["tag1", "tag2", ...],
-  "suggestedPrompt": "A complete, detailed prompt that describes how to recreate this app"
+  "colorPalette": "Purple/Blue|Pink/Red|Blue/Cyan|Green|Orange|Pastel",
+  "suggestedPrompt": "A COMPLETE prompt for AI generation (see format below)"
 }
 
-Make the suggestedPrompt detailed and actionable. Include specifics about the UI, functionality, and behavior.`;
+SUGGESTED PROMPT FORMAT (this is what you return in "suggestedPrompt"):
+Create an app called "[APP NAME]" that [WHAT IT DOES].
+
+Inputs:
+- [input1 name] ([type]): [description]
+- [input2 name] ([type]): [description]
+
+The app should use [tool name: llm.complete OR image.process]:
+[Detailed explanation of what the tool should do, including the exact prompt or instruction]
+
+Output: [image OR markdown text]
+
+Design:
+- Color palette: [choose from: Purple/Blue, Pink/Red, Blue/Cyan, Green, Orange, Pastel]
+- Style: [modern, minimal, bold, playful, professional, etc.]
+- Preview gradient: [gradient colors from palette]
+- Container background: [gradient]
+- Font: [system-ui, monospace, etc.]
+
+NANO BANANA IMAGE:
+The app's preview image (Nano Banana) will be AUTO-GENERATED using Gemini 2.5 Flash Image based on:
+- App name: "[name]"
+- Description: "[description]"
+- Style prompt: "Generate an elevated apple store type image for this mobile app"
+
+Make sure the name and description are compelling for image generation!
+
+IMPORTANT RULES:
+1. If output should be IMAGE → use image.process tool + output type "image"
+2. If output should be TEXT → use llm.complete tool + output type "markdown"
+3. Include specific tool args (prompt/instruction text)
+4. Choose appropriate color palette
+5. Make the suggestedPrompt DETAILED and COMPLETE`;
 
     // Build the user message based on whether we have URL or image
     let messages = [{ role: 'system', content: systemPrompt }];
