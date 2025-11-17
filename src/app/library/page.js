@@ -12,6 +12,11 @@ export default function LibraryPage() {
   const [createdApps, setCreatedApps] = useState([]);
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Pagination state for each section
+  const [savedVisible, setSavedVisible] = useState(9);
+  const [createdVisible, setCreatedVisible] = useState(9);
+  const [assetsVisible, setAssetsVisible] = useState(9);
 
   useEffect(() => {
     // Redirect to sign-in if not authenticated
@@ -107,44 +112,57 @@ export default function LibraryPage() {
         {savedApps.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 24, color: '#888' }}>No saved apps yet</div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-            {savedApps.map(app => (
-              <a
-                key={app.id}
-                href={`/me/app/${app.id}`}
-                style={{
-                  aspectRatio: '1',
-                  background: app.preview_gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  borderRadius: 6,
-                  overflow: 'hidden',
-                  position: 'relative',
-                  textDecoration: 'none'
-                }}
-              >
-                {app.preview_url && (
-                  <Image
-                    src={app.preview_url}
-                    alt={app.name}
-                    fill
-                    sizes="33vw"
-                    style={{ objectFit: 'cover' }}
-                    placeholder={app.preview_blur ? 'blur' : 'empty'}
-                    blurDataURL={app.preview_blur || undefined}
-                  />
-                )}
-                <div style={{
-                  position: 'absolute',
-                  left: 6,
-                  right: 6,
-                  top: 6,
-                  color: 'white',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  textShadow: '0 1px 2px rgba(0,0,0,0.5)'
-                }}>{app.name}</div>
-              </a>
-            ))}
-          </div>
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+              {savedApps.slice(0, savedVisible).map(app => (
+                <a
+                  key={app.id}
+                  href={`/me/app/${app.id}`}
+                  style={{
+                    aspectRatio: '1',
+                    background: app.preview_gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    borderRadius: 6,
+                    overflow: 'hidden',
+                    position: 'relative',
+                    textDecoration: 'none'
+                  }}
+                >
+                  {app.preview_url && (
+                    <Image
+                      src={app.preview_url}
+                      alt={app.name}
+                      fill
+                      sizes="33vw"
+                      style={{ objectFit: 'cover' }}
+                      placeholder={app.preview_blur ? 'blur' : 'empty'}
+                      blurDataURL={app.preview_blur || undefined}
+                    />
+                  )}
+                  <div style={{
+                    position: 'absolute',
+                    left: 6,
+                    right: 6,
+                    top: 6,
+                    color: 'white',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textShadow: '0 1px 2px rgba(0,0,0,0.5)'
+                  }}>{app.name}</div>
+                </a>
+              ))}
+            </div>
+            {savedVisible < savedApps.length && (
+              <div style={{ textAlign: 'center', marginTop: 12 }}>
+                <button
+                  onClick={() => setSavedVisible(prev => prev + 9)}
+                  className="btn"
+                  style={{ padding: '8px 16px', fontSize: 13 }}
+                >
+                  Show more ({savedApps.length - savedVisible} remaining)
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
 
@@ -153,44 +171,57 @@ export default function LibraryPage() {
         {createdApps.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 24, color: '#888' }}>No created apps yet</div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-            {createdApps.map(app => (
-              <a
-                key={app.id}
-                href={`/me/app/${app.id}`}
-                style={{
-                  aspectRatio: '1',
-                  background: app.preview_gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  borderRadius: 6,
-                  overflow: 'hidden',
-                  position: 'relative',
-                  textDecoration: 'none'
-                }}
-              >
-                {app.preview_url && (
-                  <Image
-                    src={app.preview_url}
-                    alt={app.name}
-                    fill
-                    sizes="33vw"
-                    style={{ objectFit: 'cover' }}
-                    placeholder={app.preview_blur ? 'blur' : 'empty'}
-                    blurDataURL={app.preview_blur || undefined}
-                  />
-                )}
-                <div style={{
-                  position: 'absolute',
-                  left: 6,
-                  right: 6,
-                  top: 6,
-                  color: 'white',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  textShadow: '0 1px 2px rgba(0,0,0,0.5)'
-                }}>{app.name}</div>
-              </a>
-            ))}
-          </div>
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+              {createdApps.slice(0, createdVisible).map(app => (
+                <a
+                  key={app.id}
+                  href={`/me/app/${app.id}`}
+                  style={{
+                    aspectRatio: '1',
+                    background: app.preview_gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    borderRadius: 6,
+                    overflow: 'hidden',
+                    position: 'relative',
+                    textDecoration: 'none'
+                  }}
+                >
+                  {app.preview_url && (
+                    <Image
+                      src={app.preview_url}
+                      alt={app.name}
+                      fill
+                      sizes="33vw"
+                      style={{ objectFit: 'cover' }}
+                      placeholder={app.preview_blur ? 'blur' : 'empty'}
+                      blurDataURL={app.preview_blur || undefined}
+                    />
+                  )}
+                  <div style={{
+                    position: 'absolute',
+                    left: 6,
+                    right: 6,
+                    top: 6,
+                    color: 'white',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textShadow: '0 1px 2px rgba(0,0,0,0.5)'
+                  }}>{app.name}</div>
+                </a>
+              ))}
+            </div>
+            {createdVisible < createdApps.length && (
+              <div style={{ textAlign: 'center', marginTop: 12 }}>
+                <button
+                  onClick={() => setCreatedVisible(prev => prev + 9)}
+                  className="btn"
+                  style={{ padding: '8px 16px', fontSize: 13 }}
+                >
+                  Show more ({createdApps.length - createdVisible} remaining)
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
 
@@ -199,8 +230,9 @@ export default function LibraryPage() {
         {assets.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 24, color: '#888' }}>No assets yet</div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-            {assets.map(r => {
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+              {assets.slice(0, assetsVisible).map(r => {
               const href = `/app/${r.app_id}?run=${r.id}`;
               const isImage = !!r.asset_url;
               let preview = null;
@@ -299,23 +331,72 @@ export default function LibraryPage() {
                 }
               }
               return (
-                <a
+                <div
                   key={r.id}
-                  href={href}
                   style={{
                     aspectRatio: '1',
-                    background: '#111',
-                    borderRadius: 6,
-                    overflow: 'hidden',
-                    position: 'relative',
-                    textDecoration: 'none'
+                    position: 'relative'
                   }}
                 >
-                  {preview}
-                </a>
+                  <a
+                    href={href}
+                    style={{
+                      aspectRatio: '1',
+                      background: '#111',
+                      borderRadius: 6,
+                      overflow: 'hidden',
+                      position: 'relative',
+                      textDecoration: 'none',
+                      display: 'block',
+                      width: '100%',
+                      height: '100%'
+                    }}
+                  >
+                    {preview}
+                  </a>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      // Frontend-only deletion
+                      setAssets(prev => prev.filter(asset => asset.id !== r.id));
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      background: 'rgba(0,0,0,0.7)',
+                      border: 'none',
+                      borderRadius: 4,
+                      color: 'white',
+                      padding: '4px 8px',
+                      fontSize: 11,
+                      cursor: 'pointer',
+                      zIndex: 10,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title="Remove from library"
+                  >
+                    ✕
+                  </button>
+                </div>
               );
             })}
-          </div>
+            </div>
+            {assetsVisible < assets.length && (
+              <div style={{ textAlign: 'center', marginTop: 12 }}>
+                <button
+                  onClick={() => setAssetsVisible(prev => prev + 9)}
+                  className="btn"
+                  style={{ padding: '8px 16px', fontSize: 13 }}
+                >
+                  Show more ({assets.length - assetsVisible} remaining)
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
     </div>
