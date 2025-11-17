@@ -113,6 +113,10 @@ export async function tool_llm_complete({ userId, args, mode, supabase, fallback
   const system = tpl(args.system || '', {});
   const prompt = tpl(args.prompt || '', {});
   
+  // Check if image input is provided (vision mode)
+  const hasImageInput = !!args.image;
+  console.log('[LLM] Has image input:', hasImageInput);
+  
   // Check if prompt needs web search (contains URL OR asks to search web/news)
   const hasUrl = /https?:\/\/[^\s]+/.test(prompt);
   const needsWebSearch = hasUrl || 
@@ -120,6 +124,10 @@ export async function tool_llm_complete({ userId, args, mode, supabase, fallback
   
   if (needsWebSearch) {
     console.log('[LLM] Web search needed (URL or news request), using Responses API with web_search tool');
+  }
+  
+  if (hasImageInput) {
+    console.log('[LLM] Vision mode enabled - using GPT-4o for image analysis');
   }
   
   // Enhanced design guidelines for prettier outputs
@@ -147,6 +155,87 @@ Remember: Make the output visually appealing and easy to read!
 
   const enhancedSystem = system ? `${system}${designGuidelines}` : `You are a helpful AI assistant.${designGuidelines}`;
   
+  // If image is provided, use GPT-4o vision API
+  if (hasImageInput) {
+    console.log('[LLM] Vision mode - using GPT-4o');
+    
+    // Extract base64 data if it's a data URL
+    let imageUrl = args.image;
+    if (typeof args.image === 'string' && args.image.startsWith('data:')) {
+      imageUrl = args.image; // GPT-4o accepts data URLs directly
+    }
+    
+    try {
+      const response = await fetch(`${OPENAI_BASE}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o', // Vision requires gpt-4o
+          messages: [
+            {
+              role: 'system',
+              content: enhancedSystem
+            },
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: prompt
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: imageUrl,
+                    detail: args.imageDetail || 'high' // 'low', 'high', or 'auto'
+                  }
+                }
+              ]
+            }
+          ],
+          temperature: args.temperature ?? 0.7,
+          max_tokens: args.max_tokens ?? 1000
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[LLM Vision] OpenAI error:', response.status, errorText);
+        return {
+          output: { markdown: `❌ Vision API error: ${response.statusText}` },
+          error: `OPENAI_${response.status}`
+        };
+      }
+      
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || 'No response';
+      
+      console.log('[LLM Vision] Success:', {
+        model: data.model,
+        tokens: data.usage?.total_tokens
+      });
+      
+      return {
+        output: { markdown: content },
+        metadata: {
+          model: data.model,
+          tokens: data.usage?.total_tokens || 0
+        }
+      };
+      
+    } catch (error) {
+      console.error('[LLM Vision] Error:', error);
+      return {
+        output: { markdown: `❌ Error: ${error.message}` },
+        error: 'VISION_ERROR'
+      };
+    }
+  }
+  
+  // Text-only mode (existing logic)
   console.log('[LLM] Making OpenAI API request:', {
     model: DEFAULT_MODEL,
     promptLength: prompt.length,

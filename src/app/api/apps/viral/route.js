@@ -67,14 +67,43 @@ function getViralManifests() {
       outputs: { image: { type: 'image' }, markdown: { type: 'string' } },
       runtime: {
         engine: 'local',
-        steps: [{
-          tool: 'image.process',
-          args: {
-            image: '{{photo}}',
-            instruction: 'Enhance this person with {{focus}} improvements. Show enhanced facial features, better grooming, improved lighting and posture. Create a realistic "glow-up" version showing their maximum potential. Professional photography quality, aspirational but believable transformation.'
+        steps: [
+          {
+            tool: 'image.process',
+            args: {
+              image: '{{photo}}',
+              instruction: 'Enhance this person with {{focus}} improvements. Show enhanced facial features, better grooming, improved lighting and posture. Create a realistic "glow-up" version showing their maximum potential. Professional photography quality, aspirational but believable transformation.'
+            },
+            output: 'enhanced_image'
           },
-          output: 'enhanced'
-        }]
+          {
+            tool: 'llm.complete',
+            args: {
+              image: '{{enhanced_image}}',
+              prompt: `You are a looksmaxxing coach. Analyze this enhanced photo and provide:
+
+## 📊 Rating
+- **Before:** 6-7/10 (baseline estimate)
+- **After:** Rate this enhanced version /10
+
+## ✨ Key Improvements Made
+List 3-5 specific visual improvements you can see in this enhanced version:
+
+## 💪 Actionable Tips for IRL
+Provide 3-4 practical tips to achieve similar results in real life:
+- Focus area: {{focus}}
+- Be specific about grooming, fitness, style, or posture
+- Make tips achievable within 30-90 days
+- Include specific product recommendations if relevant
+
+Use emojis, be encouraging but realistic!`,
+              temperature: 0.7,
+              max_tokens: 500,
+              imageDetail: 'high'
+            },
+            output: 'analysis'
+          }
+        ]
       }
     },
     {
@@ -192,6 +221,80 @@ function getViralManifests() {
             instruction: 'Create an ultra-photorealistic optical illusion image made entirely of {{scene}}. The scene should look completely natural and chaotic at first glance - a realistic photograph with natural lighting, shadows, and depth. Hidden within the subtle shadows, edges, lighting gradients, and negative space, the word "{{text}}" should be barely visible, formed by extremely subtle variations in tone, shadow placement, and object arrangement. Very low contrast between the text and background - the letters should be almost invisible when viewed normally, only becoming readable when you squint or zoom way out. The text is NOT overlaid - it emerges from the natural shadows, edges of objects, and subtle lighting differences. Ultra high detail, cinematic photography, natural color grading, soft lighting, realistic depth of field, 4k, the hidden word should be nearly imperceptible and blend seamlessly into the photorealistic scene.'
           },
           output: 'meme'
+        }]
+      }
+    },
+    {
+      name: 'Receipt to Recipes',
+      description: 'Snap your grocery receipt and instantly get three delicious recipes tailored to your purchases.',
+      tags: ['cooking', 'recipes', 'food', 'grocery', 'meal-planning'],
+      preview_gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+      design: { containerColor: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', fontColor: 'white', fontFamily: 'system-ui', inputLayout: 'vertical' },
+      modal_theme: { backgroundColor: '#0b1f17', buttonColor: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', accentColor: '#10b981' },
+      input_theme: { borderColor: '#1d3a2c', backgroundColor: '#0f2a20' },
+      demo: { sampleInputs: {} },
+      inputs: {
+        receipt_photo: { type: 'image', label: 'Receipt Photo', accept: 'image/*', required: true }
+      },
+      outputs: { markdown: { type: 'string' } },
+      runtime: {
+        engine: 'local',
+        steps: [{
+          tool: 'llm.complete',
+          args: {
+            image: '{{receipt_photo}}',
+            prompt: `Analyze this grocery receipt and extract all the food items purchased.
+
+Then, create 3 delicious recipes that use these ingredients:
+
+## 🍳 Recipe 1: [Creative Name]
+**What it is:** Brief appetizing description
+
+**Ingredients from your receipt:**
+- List the items from the receipt that will be used
+
+**Quick Steps:**
+1. Step one
+2. Step two
+3. Step three
+4. Step four
+
+---
+
+## 🥗 Recipe 2: [Creative Name]
+**What it is:** Brief appetizing description
+
+**Ingredients from your receipt:**
+- List the items from the receipt that will be used
+
+**Quick Steps:**
+1. Step one
+2. Step two
+3. Step three
+4. Step four
+
+---
+
+## 🍝 Recipe 3: [Creative Name]
+**What it is:** Brief appetizing description
+
+**Ingredients from your receipt:**
+- List the items from the receipt that will be used
+
+**Quick Steps:**
+1. Step one
+2. Step two
+3. Step three
+4. Step four
+
+---
+
+💡 **Pro Tip:** Add a helpful cooking tip or substitution idea!`,
+            temperature: 0.7,
+            max_tokens: 1500,
+            imageDetail: 'high'
+          },
+          output: 'recipes'
         }]
       }
     }
