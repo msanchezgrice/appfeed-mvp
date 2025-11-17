@@ -35,7 +35,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
   const [remixPrompt, setRemixPrompt] = useState('');
   const [remixing, setRemixing] = useState(false);
   
-  // Advanced editor state (JSON)
+  // Advanced editor state (JSON) - full app manifest
   const [advancedJSON, setAdvancedJSON] = useState('');
   const [run, setRun] = useState(null);
   const [saved, setSaved] = useState(false);
@@ -834,18 +834,21 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
             {remixTab === 'advanced' && (
               <div>
                 <p className="small" style={{marginBottom: 16, color: '#888'}}>
-                  Edit the app's JSON directly. This gives you full control over all variables.
+                  Edit the full app manifest JSON. You can modify inputs, outputs, runtime steps, design, themes, and more.
                 </p>
                 
                 <div style={{ marginBottom: 12, fontSize: 13 }}>
                   <div style={{ fontWeight: 600, marginBottom: 8 }}>✅ Editable Variables:</div>
-                  <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12, color: '#888' }}>
-                    <li>design.containerColor (background gradient or #hex)</li>
-                    <li>design.fontColor (text color)</li>
-                    <li>design.fontFamily (font)</li>
-                    <li>name (app name)</li>
-                    <li>description (app description)</li>
-                    <li>tags (array of tags)</li>
+                  <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12, color: '#888', columns: 2 }}>
+                    <li>name, description, icon, tags</li>
+                    <li>inputs (form fields)</li>
+                    <li>outputs (what app produces)</li>
+                    <li>runtime.steps (tool calls)</li>
+                    <li>design.* (container, fonts, colors)</li>
+                    <li>modal_theme.* (try modal styling)</li>
+                    <li>input_theme.* (input styling)</li>
+                    <li>preview_gradient</li>
+                    <li>demo.sampleInputs</li>
                   </ul>
                 </div>
 
@@ -854,15 +857,24 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                   value={advancedJSON || JSON.stringify({
                     name: app.name,
                     description: app.description,
+                    icon: app.icon || '🎨',
+                    tags: app.tags || [],
+                    inputs: app.inputs || {},
+                    outputs: app.outputs || {},
+                    runtime: app.runtime || { engine: 'local', steps: [] },
                     design: app.design || {
                       containerColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                       fontColor: 'white',
-                      fontFamily: 'inherit'
+                      fontFamily: 'inherit',
+                      inputLayout: 'vertical'
                     },
-                    tags: app.tags || []
+                    modal_theme: app.modal_theme || {},
+                    input_theme: app.input_theme || {},
+                    preview_gradient: app.preview_gradient || '',
+                    demo: app.demo || { sampleInputs: {} }
                   }, null, 2)}
                   onChange={(e) => setAdvancedJSON(e.target.value)}
-                  rows={14}
+                  rows={20}
                   style={{
                     width: '100%',
                     padding: 12,
