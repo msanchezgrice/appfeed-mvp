@@ -122,7 +122,15 @@ export default function LibraryPage() {
                 }}
               >
                 {app.preview_url && (
-                  <Image src={app.preview_url} alt={app.name} fill sizes="33vw" style={{ objectFit: 'cover' }} />
+                  <Image
+                    src={app.preview_url}
+                    alt={app.name}
+                    fill
+                    sizes="33vw"
+                    style={{ objectFit: 'cover' }}
+                    placeholder={app.preview_blur ? 'blur' : 'empty'}
+                    blurDataURL={app.preview_blur || undefined}
+                  />
                 )}
                 <div style={{
                   position: 'absolute',
@@ -160,7 +168,15 @@ export default function LibraryPage() {
                 }}
               >
                 {app.preview_url && (
-                  <Image src={app.preview_url} alt={app.name} fill sizes="33vw" style={{ objectFit: 'cover' }} />
+                  <Image
+                    src={app.preview_url}
+                    alt={app.name}
+                    fill
+                    sizes="33vw"
+                    style={{ objectFit: 'cover' }}
+                    placeholder={app.preview_blur ? 'blur' : 'empty'}
+                    blurDataURL={app.preview_blur || undefined}
+                  />
                 )}
                 <div style={{
                   position: 'absolute',

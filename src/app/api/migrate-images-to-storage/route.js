@@ -44,13 +44,14 @@ export async function POST(req) {
         
         // Upload responsive variants (WebP) and set 720 as canonical
         const baseKey = `app-previews/${app.id}`;
-        const { defaultUrl, urls } = await uploadImageVariants(buffer, baseKey);
+        const { defaultUrl, urls, blurDataUrl } = await uploadImageVariants(buffer, baseKey);
         
         // Update app with storage URL
         await supabase
           .from('apps')
           .update({
-            preview_url: defaultUrl
+            preview_url: defaultUrl,
+            preview_blur: blurDataUrl
           })
           .eq('id', app.id);
         

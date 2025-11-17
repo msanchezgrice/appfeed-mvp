@@ -1,5 +1,6 @@
 import { createAdminSupabaseClient } from './supabase-server';
 import sharp from 'sharp';
+import crypto from 'crypto';
 
 /**
  * Upload base64 image to Supabase Storage
@@ -73,10 +74,22 @@ export async function deleteImageFromStorage(filePath) {
  */
 export async function uploadImageVariants(buffer, baseFileKey) {
   const supabase = createAdminSupabaseClient();
+  const sanitizeSegment = (s) => {
+    return String(s || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/gi, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 96);
+  };
+  const parts = String(baseFileKey).split('/');
+  const dir = parts.slice(0, -1).join('/');
+  const name = sanitizeSegment(parts[parts.length - 1] || 'asset');
+  const version = crypto.createHash('sha1').update(buffer).digest('hex').slice(0, 8);
+  const keyFor = (w) => `${dir}/${name}-${w}-${version}.webp`;
   const variants = [
-    { w: 360, key: `${baseFileKey}-360.webp` },
-    { w: 720, key: `${baseFileKey}-720.webp` },
-    { w: 1080, key: `${baseFileKey}-1080.webp` }
+    { w: 360, key: keyFor(360) },
+    { w: 720, key: keyFor(720) },
+    { w: 1080, key: keyFor(1080) }
   ];
   const out = {};
   for (const v of variants) {
@@ -95,9 +108,14 @@ export async function uploadImageVariants(buffer, baseFileKey) {
     const { data: { publicUrl } } = supabase.storage.from('app-images').getPublicUrl(v.key);
     out[v.w] = publicUrl;
   }
+  // Tiny blur placeholder (24px width)
+  const blurBuf = await sharp(buffer).resize({ width: 24, fit: 'inside', withoutEnlargement: true }).webp({ quality: 35 }).toBuffer();
+  const blurDataUrl = `data:image/webp;base64,${blurBuf.toString('base64')}`;
   return {
     defaultUrl: out[720] || out[360] || out[1080],
-    urls: out
+    urls: out,
+    blurDataUrl,
+    version
   };
 }
 

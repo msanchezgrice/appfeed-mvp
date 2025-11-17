@@ -77,6 +77,8 @@ export default function VideoPreview({ app, autoplay = false, onClick }) {
               sizes="100vw"
               style={{ objectFit: 'cover' }}
               priority={false}
+              placeholder={app.preview_blur ? 'blur' : 'empty'}
+              blurDataURL={app.preview_blur || undefined}
             />
           ) : (
             <img

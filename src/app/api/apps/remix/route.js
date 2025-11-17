@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/src/lib/supabase-server';
 import sharp from 'sharp';
+import { uploadImageVariants } from '@/src/lib/supabase-storage';
 import { logEventServer } from '@/src/lib/metrics';
 
 export const dynamic = 'force-dynamic';
@@ -198,12 +199,11 @@ Color mapping:
           if (imagePart) {
             const imageBase64 = imagePart.inlineData.data;
             const buffer = Buffer.from(imageBase64, 'base64');
-            const { uploadImageVariants } = await import('@/src/lib/supabase-storage');
             const baseKey = `app-previews/${remixedAppId}`;
-            const { defaultUrl, urls } = await uploadImageVariants(buffer, baseKey);
+            const { defaultUrl, urls, blurDataUrl } = await uploadImageVariants(buffer, baseKey);
             await supabase
               .from('apps')
-              .update({ preview_url: defaultUrl, preview_type: 'image' })
+              .update({ preview_url: defaultUrl, preview_type: 'image', preview_blur: blurDataUrl })
               .eq('id', remixedAppId);
             console.log('[Remix] Nano Banana image uploaded! ✅', urls);
           }

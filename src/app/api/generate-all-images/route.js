@@ -93,14 +93,15 @@ Create a beautiful image that captures the essence of this app in an elevated, p
         const imageBase64 = imagePart.inlineData.data;
         const buffer = Buffer.from(imageBase64, 'base64');
         const baseKey = `app-previews/${app.id}`;
-        const { defaultUrl, urls } = await uploadImageVariants(buffer, baseKey);
+        const { defaultUrl, urls, blurDataUrl } = await uploadImageVariants(buffer, baseKey);
         
         // Update app with generated image
         await supabase
           .from('apps')
           .update({
             preview_type: 'image',
-            preview_url: defaultUrl
+            preview_url: defaultUrl,
+            preview_blur: blurDataUrl
           })
           .eq('id', app.id);
         
