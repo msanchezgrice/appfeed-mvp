@@ -108,7 +108,17 @@ export default function AppDetailPage() {
 
   const closeOverlay = () => {
     setOverlayOpen(false);
-    router.replace(`/app/${appId}`);
+    // Prefer back navigation so the hardware/browser back button semantics match closing the overlay.
+    // Fallback to direct navigation in case history doesn't have a prior state.
+    try {
+      if (typeof window !== 'undefined' && window.history.length > 1) {
+        router.back();
+      } else {
+        router.replace(`/app/${appId}`);
+      }
+    } catch {
+      router.replace(`/app/${appId}`);
+    }
   };
 
   // Log a view once per session when the detail page is opened
@@ -124,6 +134,32 @@ export default function AppDetailPage() {
       // ignore
     }
   }, [appId]);
+
+  // Lock background scroll when overlay is open (mobile full-screen UX)
+  useEffect(() => {
+    if (!overlayOpen) return;
+    const prev = typeof document !== 'undefined' ? document.body.style.overflow : '';
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.body.style.overflow = prev || '';
+      }
+    };
+  }, [overlayOpen]);
+
+  // ESC to close overlay
+  useEffect(() => {
+    if (!overlayOpen) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        closeOverlay();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [overlayOpen]);
 
   if (loading) {
     return (

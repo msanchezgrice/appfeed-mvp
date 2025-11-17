@@ -8,6 +8,7 @@ import AppOutput from './AppOutput';
 import SignInModal from './SignInModal';
 import SuccessModal from './SuccessModal';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 
 // Dynamically import to avoid SSR issues
 const AdvancedRemixEditor = dynamic(() => import('./AdvancedRemixEditor'), { ssr: false });
@@ -24,6 +25,7 @@ async function api(path, method='GET', body) {
 
 export default function TikTokFeedCard({ app, presetDefaults }) {
   const { user, isLoaded } = useUser();
+  const router = useRouter();
   const [hasLoggedImpression, setHasLoggedImpression] = useState(false);
   const [showTry, setShowTry] = useState(false);
   const [showUse, setShowUse] = useState(false);
@@ -91,6 +93,18 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
     const r = await api('/api/runs', 'POST', { appId: app.id, inputs, mode });
     setRun(r);
     setResultSaved(false);
+    try {
+      if (typeof window !== 'undefined') {
+        const isMobile = window.innerWidth <= 480; // iPhone 15 width and current mobile modal breakpoint
+        if (isMobile && r?.id) {
+          // Push a history entry with ?run= to open the full-screen result overlay on the page.
+          // The Try/Use modal remains open behind the overlay, so closing returns to inputs.
+          const basePath = window.location.pathname;
+          const nextUrl = `${basePath}?run=${encodeURIComponent(r.id)}`;
+          router.push(nextUrl);
+        }
+      }
+    } catch {}
   };
 
   const save = async (add=true) => {
