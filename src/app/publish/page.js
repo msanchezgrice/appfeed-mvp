@@ -30,6 +30,7 @@ export default function PublishPage() {
   const [scraping, setScraping] = useState(false);
   const [scrapeError, setScrapeError] = useState(null);
   const [scrapeSuccess, setScrapeSuccess] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Form states for remote app
   const [remoteUrl, setRemoteUrl] = useState('');
@@ -188,13 +189,46 @@ export default function PublishPage() {
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setScrapeImagePreview(reader.result);
-        setScrapeImage(reader.result);
-      };
-      reader.readAsDataURL(file);
+      processImageFile(file);
+    }
+  };
+
+  const processImageFile = (file) => {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setScrapeError('Please upload an image file');
+      return;
+    }
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setScrapeImagePreview(reader.result);
+      setScrapeImage(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      processImageFile(files[0]);
     }
   };
 
@@ -478,15 +512,44 @@ export default function PublishPage() {
               
               <div style={{ marginBottom: 12 }}>
                 <label className="label" style={{ marginBottom: 8 }}>Or Upload Screenshot</label>
-                <input
-                  type="file"
-                  className="input"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  disabled={scraping}
-                />
-                {scrapeImagePreview && (
-                  <div style={{ marginTop: 12, position: 'relative' }}>
+                
+                {!scrapeImagePreview ? (
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    style={{
+                      border: isDragging ? '2px dashed var(--brand)' : '2px dashed #333',
+                      borderRadius: 8,
+                      padding: 32,
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      background: isDragging ? 'rgba(102, 126, 234, 0.1)' : 'var(--bg)',
+                      transition: 'all 0.2s ease',
+                      position: 'relative'
+                    }}
+                    onClick={() => document.getElementById('image-upload-input')?.click()}
+                  >
+                    <div style={{ fontSize: 48, marginBottom: 12 }}>
+                      {isDragging ? '📥' : '🖼️'}
+                    </div>
+                    <div style={{ marginBottom: 8, color: isDragging ? 'var(--brand)' : '#fff' }}>
+                      {isDragging ? 'Drop image here' : 'Drag & drop an image'}
+                    </div>
+                    <div className="small" style={{ color: '#888' }}>
+                      or click to browse
+                    </div>
+                    <input
+                      id="image-upload-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={scraping}
+                      style={{ display: 'none' }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{ position: 'relative' }}>
                     <img 
                       src={scrapeImagePreview} 
                       alt="Preview" 
@@ -494,7 +557,8 @@ export default function PublishPage() {
                         maxWidth: '100%', 
                         maxHeight: 200, 
                         borderRadius: 8,
-                        border: '1px solid #333'
+                        border: '1px solid #333',
+                        display: 'block'
                       }} 
                     />
                     <button
@@ -513,10 +577,11 @@ export default function PublishPage() {
                         borderRadius: 4,
                         padding: '4px 8px',
                         cursor: 'pointer',
-                        fontSize: 12
+                        fontSize: 12,
+                        fontWeight: 'bold'
                       }}
                     >
-                      Remove
+                      ✕ Remove
                     </button>
                   </div>
                 )}
