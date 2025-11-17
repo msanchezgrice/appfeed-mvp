@@ -9,6 +9,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'apps', 'creators', 'viral', 'growth'
   const [stats, setStats] = useState(null);
   const [topApps, setTopApps] = useState([]);
+  const [manageApps, setManageApps] = useState([]); // dedicated list for Manage tab
   const [viralityLeaderboard, setViralityLeaderboard] = useState([]);
   const [followerLeaderboard, setFollowerLeaderboard] = useState([]);
   const [growthByDay, setGrowthByDay] = useState([]);
@@ -66,6 +67,24 @@ export default function AdminDashboard() {
 
     const fetchTab = async () => {
       try {
+        // Special case: Manage tab needs full app list (including unpublished) for admins
+        if (activeTab === 'manage') {
+          const res = await fetch(`/api/apps?includeUnpublished=true&limit=500`, { signal: AbortSignal.timeout(10000) });
+          if (!res.ok) {
+            console.error('[Admin] Manage fetch failed:', res.status);
+            return;
+          }
+          const data = await res.json();
+          if (Array.isArray(data.apps)) {
+            setManageApps(data.apps);
+            console.log('[Admin] Manage apps loaded:', data.apps.length);
+          } else {
+            setManageApps([]);
+          }
+          setFetchedKey(key);
+          return;
+        }
+
         const time = activeTab === 'growth' ? growthFilter : timeFilter;
         const url = `/api/admin/stats?tab=${activeTab}&time=${time}`;
         const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
@@ -617,7 +636,7 @@ export default function AdminDashboard() {
             Delete apps from the platform (careful - this is permanent!)
           </p>
           <div style={{ background: 'var(--bg-dark)', borderRadius: 12, border: '1px solid #333' }}>
-            {topApps.length > 0 ? topApps.map(app => (
+            {manageApps.length > 0 ? manageApps.map(app => (
               <div 
                 key={app.id}
                 style={{
