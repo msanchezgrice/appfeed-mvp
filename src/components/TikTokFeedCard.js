@@ -123,6 +123,14 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
     } catch {}
   };
 
+  // Clear run state when ?run= is removed from URL
+  useEffect(() => {
+    if (!searchParams.get('run')) {
+      setRun(null);
+      setResultSaved(false);
+    }
+  }, [searchParams]);
+
   const save = async (add=true) => {
     if (!user) {
       setSignInAction('save apps to your library');
@@ -914,77 +922,83 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
           >
             {/* Header */}
             <div
-              className="row"
               style={{
-                justifyContent: 'space-between',
-                alignItems: 'center',
                 padding: '12px 16px',
                 paddingTop: 'calc(12px + env(safe-area-inset-top))',
                 position: 'sticky',
                 top: 0,
                 zIndex: 2,
                 background: 'var(--panel)',
-                borderBottom: '1px solid #1f2937'
+                borderBottom: '1px solid #1f2937',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
               }}
             >
-              <b>Play: {app.name}</b>
-              <div className="row" style={{ gap: 8 }}>
-                <button
-                  className="btn"
-                  disabled={resultSaved}
-                  onClick={async () => {
-                    if (!user) {
-                      setSignInAction('save this result to your Library');
-                      setShowSignInModal(true);
-                      return;
-                    }
-                    try {
-                      const res = await fetch('/api/assets', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ action: 'save', runId: run.id })
-                      });
-                      if (res.ok) setResultSaved(true);
-                    } catch {}
-                  }}
-                >
-                  {resultSaved ? 'Saved' : 'Save'}
-                </button>
-                <button
-                  className="btn"
-                  onClick={async () => {
-                    const appUrl = `${window.location.origin}/app/${app.id}?run=${run.id}`;
-                    if (navigator.share) {
-                      try {
-                        await navigator.share({ title: app.name, text: app.description, url: appUrl });
-                      } catch (err) {
-                        if (err.name !== 'AbortError') console.error('Share failed:', err);
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <b>Play: {app.name}</b>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    className="btn"
+                    disabled={resultSaved}
+                    onClick={async () => {
+                      if (!user) {
+                        setSignInAction('save this result to your Library');
+                        setShowSignInModal(true);
+                        return;
                       }
-                    } else {
-                      navigator.clipboard.writeText(appUrl);
-                      alert('Link copied to clipboard!');
-                    }
-                  }}
-                >
-                  Share
-                </button>
-                <button className="btn ghost" onClick={() => router.replace(window.location.pathname)}>
-                  Close
-                </button>
+                      try {
+                        const res = await fetch('/api/assets', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({ action: 'save', runId: run.id })
+                        });
+                        if (res.ok) setResultSaved(true);
+                      } catch {}
+                    }}
+                  >
+                    {resultSaved ? 'Saved' : 'Save'}
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={async () => {
+                      const appUrl = `${window.location.origin}/app/${app.id}?run=${run.id}`;
+                      if (navigator.share) {
+                        try {
+                          await navigator.share({ title: app.name, text: app.description, url: appUrl });
+                        } catch (err) {
+                          if (err.name !== 'AbortError') console.error('Share failed:', err);
+                        }
+                      } else {
+                        navigator.clipboard.writeText(appUrl);
+                        alert('Link copied to clipboard!');
+                      }
+                    }}
+                  >
+                    Share
+                  </button>
+                </div>
               </div>
+              <button className="btn ghost" onClick={() => router.replace(window.location.pathname)}>
+                ✕
+              </button>
             </div>
 
-            {/* Result Content */}
+            {/* Result Content with max-width on desktop */}
             <div
               style={{
                 flex: 1,
                 overflow: 'auto',
                 padding: '16px',
-                paddingBottom: 'calc(16px + env(safe-area-inset-bottom))'
+                paddingBottom: 'calc(16px + env(safe-area-inset-bottom))',
+                display: 'flex',
+                justifyContent: 'center'
               }}
             >
-              <AppOutput run={run} app={app} />
+              <div style={{ width: '100%', maxWidth: '800px' }}>
+                <AppOutput run={run} app={app} />
+              </div>
             </div>
           </div>
         </div>

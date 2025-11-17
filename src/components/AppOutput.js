@@ -245,8 +245,22 @@ function ChatOutput({ app, run }) {
     ? run.outputs
     : (run?.outputs?.markdown || (Array.isArray(run?.trace) ? (run.trace[run.trace.length-1]?.output?.markdown || '') : ''));
   const inputs = run?.inputs || {};
+  
+  // Strip markdown formatting for clean chat display
+  const stripMarkdown = (text) => {
+    if (!text) return '';
+    return text
+      .replace(/^###\s+/gm, '')
+      .replace(/^##\s+/gm, '')
+      .replace(/^#\s+/gm, '')
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/\*(.+?)\*/g, '$1')
+      .replace(/^[-*]\s+/gm, '• ')
+      .trim();
+  };
+  
   const [messages, setMessages] = useState([
-    ...(initialAssistant ? [{ role: 'assistant', content: initialAssistant }] : [])
+    ...(initialAssistant ? [{ role: 'assistant', content: stripMarkdown(initialAssistant) }] : [])
   ]);
   const [pending, setPending] = useState(false);
   const [text, setText] = useState('');
@@ -278,7 +292,7 @@ function ChatOutput({ app, run }) {
       });
       const data = await res.json();
       const reply = data?.message || data?.output?.markdown || '...';
-      setMessages(m => [...m, { role: 'assistant', content: reply }]);
+      setMessages(m => [...m, { role: 'assistant', content: stripMarkdown(reply) }]);
       // annotate chat history (last 20 messages)
       if (run?.id) {
         const updated = [...messages, { role: 'user', content: msg }, { role: 'assistant', content: reply }].slice(-20);
