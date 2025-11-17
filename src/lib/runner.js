@@ -77,7 +77,15 @@ export async function runApp({ app, inputs, userId, mode='try', supabase, fallba
         error: res.error
       });
       trace[i] = { ...trace[i], status:'ok', output: res.output, usedStub: res.usedStub || false };
-      outputs = res.output;
+      
+      // Merge outputs from multiple steps instead of replacing
+      if (outputs && typeof outputs === 'object' && typeof res.output === 'object') {
+        // Merge objects - later steps can override or add to earlier outputs
+        outputs = { ...outputs, ...res.output };
+        console.log(`[Runner] Step ${i} merged outputs:`, Object.keys(outputs));
+      } else {
+        outputs = res.output;
+      }
       
       // Store step output by name for next steps to reference
       if (step.output) {
