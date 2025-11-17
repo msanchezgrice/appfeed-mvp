@@ -291,6 +291,16 @@ export async function POST(request) {
     // Create app object based on mode
     let newApp;
 
+    // helper: infer render_type from name/description/tags
+    const inferRenderType = (name, desc, tags=[]) => {
+      const s = `${name || ''} ${desc || ''}`.toLowerCase();
+      const t = (tags || []).map(x => String(x||'').toLowerCase());
+      if (s.includes('wordle') || t.includes('wordle')) return 'wordle';
+      if (s.includes('flappy') || t.includes('arcade') || s.includes('arcade')) return 'flappy';
+      if (s.includes('chat') || t.includes('chat')) return 'chat';
+      return null;
+    };
+
     if (mode === 'inline') {
       // Parse manifest JSON
       let manifest;
@@ -298,6 +308,13 @@ export async function POST(request) {
         manifest = JSON.parse(appData.manifestJson);
       } catch (e) {
         return NextResponse.json({ error: 'Invalid manifest JSON' }, { status: 400 });
+      }
+
+      // Backfill render_type
+      const inferred = inferRenderType(appData.name, appData.description, appData.tags ? appData.tags.split(',').map(t=>t.trim()) : []);
+      if (inferred) {
+        manifest.runtime = manifest.runtime || {};
+        manifest.runtime.render_type = manifest.runtime.render_type || inferred;
       }
 
       newApp = {
@@ -335,6 +352,13 @@ export async function POST(request) {
       const aiName = manifest.name || 'AI App';
       const aiId = `${aiName.toLowerCase().replace(/\s+/g, '-')}-${Date.now().toString(36)}`;
       
+      // Backfill render_type
+      const inferred = inferRenderType(aiName, manifest.description, (appData.tags ? appData.tags.split(',').map(t => t.trim()) : manifest.tags || []));
+      if (inferred) {
+        manifest.runtime = manifest.runtime || { engine: 'local', steps: [] };
+        manifest.runtime.render_type = manifest.runtime.render_type || inferred;
+      }
+
       newApp = {
         id: aiId,
         name: aiName,
@@ -381,6 +405,13 @@ export async function POST(request) {
       const analysisName = appData.analysisResult?.name || appData.name || 'GitHub App';
       const analysisDescription = appData.analysisResult?.description || appData.description || 'AI-generated app from GitHub';
       const analysisTags = appData.tags ? appData.tags.split(',').map(t => t.trim()) : (appData.analysisResult?.tags || ['github', 'ai-generated']);
+
+      // Backfill render_type
+      const inferred = inferRenderType(analysisName, analysisDescription, analysisTags);
+      if (inferred) {
+        manifest.runtime = manifest.runtime || {};
+        manifest.runtime.render_type = manifest.runtime.render_type || inferred;
+      }
 
       newApp = {
         id: appId,
