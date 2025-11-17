@@ -585,13 +585,14 @@ export default function AppOutput({ run, app }) {
   }
 
   // Render based on app type (only for successful real AI responses)
-  if (app.id === 'chat-encouragement') {
+  const renderType = app?.runtime?.render_type;
+  if (renderType === 'chat' || app.id === 'chat-encouragement') {
     return <ChatOutput app={app} run={run} />;
   }
-  if (app.id === 'flappy-bird-mini') {
+  if (renderType === 'flappy' || app.id === 'flappy-bird-mini') {
     return <FlappyOutput app={app} run={run} />;
   }
-  if (app.id === 'wordle-daily-themed') {
+  if (renderType === 'wordle' || app.id === 'wordle-daily-themed') {
     return <WordleOutput app={app} run={run} />;
   }
   if (app.id === 'affirmations-daily' || app.id.includes('affirmations')) {
