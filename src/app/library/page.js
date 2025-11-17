@@ -209,24 +209,94 @@ export default function LibraryPage() {
                   <Image src={r.asset_url} alt={r.id} fill sizes="33vw" style={{ objectFit: 'cover' }} />
                 );
               } else {
-                // Try to pull short text from outputs
-                const text = typeof r.outputs === 'string'
-                  ? r.outputs
-                  : (r.outputs?.markdown || r.outputs?.text || JSON.stringify(r.outputs || {}).slice(0, 80));
-                preview = (
-                  <div style={{
-                    padding: 8,
-                    fontSize: 11,
-                    color: '#fff',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    textShadow: '0 1px 2px rgba(0,0,0,0.3)'
-                  }}>
-                    {String(text || '').slice(0, 120)}
-                  </div>
-                );
+                // Custom summary for non-image outputs
+                const out = (typeof r.outputs === 'object') ? r.outputs : {};
+                if (out?.kind === 'flappy') {
+                  preview = (
+                    <div style={{
+                      background: 'linear-gradient(135deg, #f5af19 0%, #f12711 100%)',
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontWeight: 800,
+                      fontSize: 22,
+                      textShadow: '0 2px 6px rgba(0,0,0,0.45)'
+                    }}>
+                      Score: {out.score ?? 0}
+                    </div>
+                  );
+                } else if (out?.kind === 'wordle') {
+                  const guesses = out.guesses || [];
+                  const length = (guesses[0]?.word || out.target || '').length || 5;
+                  const color = (p) => p==='g' ? '#16a34a' : p==='y' ? '#ca8a04' : '#374151';
+                  preview = (
+                    <div style={{
+                      background: '#111',
+                      color: '#fff',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: 8
+                    }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${length}, 16px)`, gap: 3 }}>
+                        {Array.from({ length: 6 }).map((_, row) => (
+                          <div key={row} style={{ display: 'contents' }}>
+                            {Array.from({ length }).map((__, col) => {
+                              const p = guesses[row]?.pattern?.[col] || null;
+                              return <div key={col} style={{
+                                width: 16, height: 16, borderRadius: 3,
+                                background: p ? color(p) : 'rgba(255,255,255,0.12)'
+                              }} />;
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: 11, opacity: 0.9 }}>
+                        {out.result === 'win' ? '✅' : '❌'} {guesses.length}/6
+                      </div>
+                    </div>
+                  );
+                } else if (out?.kind === 'chat') {
+                  const msgs = out.messages || [];
+                  const lastTwo = msgs.slice(-2).map(m => (m.role === 'user' ? 'You: ' : 'Agent: ') + String(m.content||'')).join('\\n');
+                  preview = (
+                    <div style={{
+                      padding: 8,
+                      fontSize: 11,
+                      color: '#fff',
+                      background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      whiteSpace: 'pre-wrap',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.3)'
+                    }}>
+                      {lastTwo.slice(0, 140)}
+                    </div>
+                  );
+                } else {
+                  const text = typeof r.outputs === 'string'
+                    ? r.outputs
+                    : (r.outputs?.markdown || r.outputs?.text || JSON.stringify(r.outputs || {}).slice(0, 80));
+                  preview = (
+                    <div style={{
+                      padding: 8,
+                      fontSize: 11,
+                      color: '#fff',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.3)'
+                    }}>
+                      {String(text || '').slice(0, 120)}
+                    </div>
+                  );
+                }
               }
               return (
                 <a

@@ -279,6 +279,17 @@ function ChatOutput({ app, run }) {
       const data = await res.json();
       const reply = data?.message || data?.output?.markdown || '...';
       setMessages(m => [...m, { role: 'assistant', content: reply }]);
+      // annotate chat history (last 20 messages)
+      if (run?.id) {
+        const updated = [...messages, { role: 'user', content: msg }, { role: 'assistant', content: reply }].slice(-20);
+        try {
+          fetch('/api/runs/annotate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ runId: run.id, patch: { kind: 'chat', messages: updated } })
+          });
+        } catch {}
+      }
     } catch (e) {
       setMessages(m => [...m, { role: 'assistant', content: '⚠️ Network error. Try again.' }]);
     } finally {
@@ -374,6 +385,7 @@ function tick(){
   } else {
     ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(0,0,canvas.width,canvas.height);
     ctx.fillStyle='#fff'; ctx.font='bold 24px system-ui'; ctx.fillText('Game Over - tap to restart', 20, 50);
+    try { parent.postMessage({ type: 'flappy_score', score }, '*'); } catch(e) {}
   }
   // bird
   ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle=color(); ctx.fill(); ctx.closePath();
@@ -386,6 +398,23 @@ window.addEventListener('keydown',(e)=>{ if(e.code==='Space'){ if(!alive){ resta
 tick();
 </script></body></html>`;
   const src = 'data:text/html;base64,' + (typeof window==='undefined' ? '' : btoa(unescape(encodeURIComponent(html))));
+  // annotate score when iframe posts message
+  useEffect(() => {
+    const handler = async (e) => {
+      if (e?.data?.type === 'flappy_score' && run?.id) {
+        const score = Number(e.data.score) || 0;
+        try {
+          await fetch('/api/runs/annotate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ runId: run.id, patch: { kind: 'flappy', score, when: new Date().toISOString() } })
+          });
+        } catch {}
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [run?.id]);
   return (
     <div style={{ borderRadius: 12, overflow: 'hidden', height: '70vh', maxHeight: 700, background: bg }}>
       <iframe src={src} title="Flappy" style={{ width: '100%', height: '100%', border: 'none' }} />
@@ -442,6 +471,17 @@ function WordleOutput({ app, run }) {
     setInput('');
     if (g === target) setStatus('🎉 Correct!');
     else if (next.length >= 6) setStatus(`❌ Out of tries. Word was "${target}".`);
+    const done = (g === target) || next.length >= 6;
+    if (done && run?.id) {
+      const result = g === target ? 'win' : 'lose';
+      try {
+        fetch('/api/runs/annotate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ runId: run.id, patch: { kind: 'wordle', result, tries: next.length, target, guesses: next } })
+        });
+      } catch {}
+    }
   };
 
   const color = (p) => p==='g' ? '#16a34a' : p==='y' ? '#ca8a04' : '#374151';

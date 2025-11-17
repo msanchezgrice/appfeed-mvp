@@ -12,8 +12,16 @@ export default async function Head({ params }) {
       .single();
     app = data || null;
   } catch {}
+  const rtype = app?.runtime?.render_type || null;
+  const friendly = rtype === 'wordle'
+    ? 'Play today’s themed Wordle on Clipcade.'
+    : rtype === 'flappy'
+    ? 'Beat your high score in Flappy Mini.'
+    : rtype === 'chat'
+    ? 'Chat live with a mood-based agent.'
+    : null;
   const title = app?.name ? `${app.name} • Clipcade` : 'Clipcade App';
-  const desc = app?.description || 'Run & remix mini-apps on Clipcade.';
+  const desc = friendly || app?.description || 'Run & remix mini-apps on Clipcade.';
   const img = app?.preview_url || undefined;
   return (
     <>
