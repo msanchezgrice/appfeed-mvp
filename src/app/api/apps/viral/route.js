@@ -22,54 +22,21 @@ async function compressImage(base64Data, mimeType) {
   }
 }
 
-// Five viral manifests with varied modal/input themes
+// Four viral image transformation apps
 function getViralManifests() {
   return [
     {
-      name: 'Tweet Roast or Toast',
-      description: 'Paste a tweet link or text and get a spicy roast or wholesome toast in one line.',
-      tags: ['twitter', 'meme', 'roast', 'hot-take'],
+      name: 'Roast My Photo',
+      description: 'Upload your selfie and prepare for a spicy roast. The AI analyzes your photo and delivers brutal (but funny) commentary.',
+      tags: ['roast', 'meme', 'selfie', 'viral'],
       preview_gradient: 'linear-gradient(135deg, #f5af19 0%, #f12711 100%)',
       design: { containerColor: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', fontColor: 'white', fontFamily: 'system-ui', inputLayout: 'vertical' },
       modal_theme: { backgroundColor: '#1a1a1a', buttonColor: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', accentColor: '#f5576c' },
       input_theme: { borderColor: '#333', backgroundColor: '#0f0f0f' },
-      demo: { sampleInputs: { tweet_url: 'https://x.com/someone/status/123', tone: 'roast', spice: 'medium' } },
+      demo: { sampleInputs: { spice_level: 'medium' } },
       inputs: {
-        tweet_url: { type: 'string', label: 'Tweet URL or text', placeholder: 'https://x.com/… or paste text', required: true },
-        tone: { type: 'string', label: 'Tone', enum: ['roast', 'toast'], default: 'roast', required: true },
-        spice: { type: 'string', label: 'Spice level', enum: ['mild', 'medium', 'spicy'], default: 'medium', required: true }
-      },
-      outputs: { markdown: { type: 'string' } },
-      runtime: {
-        engine: 'local',
-        steps: [{
-          tool: 'llm.complete',
-          args: {
-            system: 'You are a witty, PG-13 internet comedian. One line, ≤240 chars, 1–2 emojis max. No slurs or harassment.',
-            prompt: 'Content: {{tweet_url}}. Write a {{tone}} with {{spice}} spice. Return only the line.'
-          },
-          output: 'result'
-        }]
-      }
-    },
-    {
-      name: 'Pet as CEO Poster',
-      description: 'Upload a pet photo and get a glossy magazine‑cover poster in your chosen persona.',
-      tags: ['pet', 'poster', 'image', 'meme'],
-      preview_gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-      design: { containerColor: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', fontColor: 'black', fontFamily: 'system-ui', inputLayout: 'vertical' },
-      modal_theme: { backgroundColor: '#121212', buttonColor: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', accentColor: '#ff7aa2' },
-      input_theme: { borderColor: '#333', backgroundColor: '#0f0f0f' },
-      demo: { sampleInputs: { persona: 'CEO', palette: 'neon', slogan: 'Chief Treat Officer' } },
-      inputs: {
-        image: { type: 'image', label: 'Pet photo', accept: 'image/*', required: true },
-        persona: { type: 'string', label: 'Persona', enum: ['CEO', 'Tech bro', 'Supervillain', 'Angel investor'], default: 'CEO', required: true },
-        palette: { type: 'select', label: 'Palette', options: [
-          { value: 'neon', label: 'Neon' },
-          { value: 'pastel', label: 'Pastel' },
-          { value: 'monochrome', label: 'Monochrome' }
-        ], default: 'neon', required: true },
-        slogan: { type: 'string', label: 'Slogan (optional)', placeholder: 'e.g., Chief Treat Officer' }
+        photo: { type: 'image', label: 'Your Photo', accept: 'image/*', required: true },
+        spice_level: { type: 'string', label: 'Roast Level', enum: ['mild', 'medium', 'nuclear'], default: 'medium', required: true }
       },
       outputs: { image: { type: 'image' }, markdown: { type: 'string' } },
       runtime: {
@@ -77,92 +44,111 @@ function getViralManifests() {
         steps: [{
           tool: 'image.process',
           args: {
-            image: '{{image}}',
-            instruction: 'Turn the subject into a high‑gloss magazine cover as a {{persona}}. {{palette}} color vibe, cinematic lighting, centered subject, minimal typography. If provided, tastefully include the text: “{{slogan}}”.'
+            image: '{{photo}}',
+            instruction: 'Analyze this photo and provide a witty, {{spice_level}} roast. Focus on fashion choices, pose, background, lighting - anything visible. Keep it PG-13, funny, and under 200 characters. Add 2-3 fire emojis. No personal attacks, just playful observations about what you see in the image.'
           },
-          output: 'poster'
+          output: 'roast'
         }]
       }
     },
     {
-      name: 'Headline → Spicy Take',
-      description: 'Paste a link to get an ultra‑shareable one‑liner spicy take.',
-      tags: ['news', 'hot-take', 'twitter', 'meme'],
+      name: 'LooksMax Me',
+      description: 'Upload your photo and see your looksmaxxed potential. Get an AI-enhanced glow-up plus ratings and improvement tips.',
+      tags: ['looksmaxing', 'glow-up', 'transformation', 'viral'],
       preview_gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
       design: { containerColor: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', fontColor: 'white', fontFamily: 'system-ui', inputLayout: 'vertical' },
       modal_theme: { backgroundColor: '#0f172a', buttonColor: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', accentColor: '#38bdf8' },
       input_theme: { borderColor: '#334155', backgroundColor: '#0b1220' },
-      demo: { sampleInputs: { url: 'https://www.nytimes.com/...', tone: 'spicy', perspective: 'crypto', length: 'one-liner' } },
+      demo: { sampleInputs: { focus: 'overall' } },
       inputs: {
-        url: { type: 'string', label: 'URL', placeholder: 'https://…', required: true },
-        tone: { type: 'string', label: 'Tone', enum: ['spicy', 'wholesome', 'deadpan'], default: 'spicy' },
-        perspective: { type: 'string', label: 'Perspective', enum: ['AI', 'crypto', 'Swifties', 'gamers', 'VC'], default: 'AI' },
-        length: { type: 'string', label: 'Length', enum: ['one-liner', 'thread (3 bullets)'], default: 'one-liner' }
+        photo: { type: 'image', label: 'Your Photo', accept: 'image/*', required: true },
+        focus: { type: 'string', label: 'Enhancement Focus', enum: ['overall', 'fitness', 'style', 'grooming'], default: 'overall', required: true }
       },
-      outputs: { markdown: { type: 'string' } },
+      outputs: { image: { type: 'image' }, markdown: { type: 'string' } },
       runtime: {
         engine: 'local',
         steps: [{
-          tool: 'llm.complete',
+          tool: 'image.process',
           args: {
-            system: 'You write viral, PG‑13, witty takes. Keep to the requested length. ≤240 chars for one‑liners, 3 bullets for threads.',
-            prompt: 'Read {{url}} and produce a {{tone}} take from {{perspective}} perspective as a {{length}}. No preface, just the output.'
+            image: '{{photo}}',
+            instruction: 'Transform this person into their peak potential with {{focus}} focus. Enhance: facial symmetry, skin quality, jawline, lighting, grooming, style. Create an aspirational but realistic enhanced version. Professional photography quality, cinematic lighting, magazine-worthy portrait.'
           },
-          output: 'result'
+          output: 'enhanced'
         }]
       }
     },
     {
-      name: 'Red Flag Scanner',
-      description: 'Paste text and get a humorous red‑flag meter + top 3 red flags.',
-      tags: ['dating', 'startups', 'meme', 'twitter'],
-      preview_gradient: 'linear-gradient(135deg, #f5af19 0%, #f12711 100%)',
-      design: { containerColor: 'linear-gradient(135deg, #f5af19 0%, #f12711 100%)', fontColor: 'white', fontFamily: 'system-ui', inputLayout: 'vertical' },
-      modal_theme: { backgroundColor: '#1a1a1a', buttonColor: 'linear-gradient(135deg, #f5af19 0%, #f12711 100%)', accentColor: '#fb923c' },
-      input_theme: { borderColor: '#333', backgroundColor: '#0f0f0f' },
-      demo: { sampleInputs: { text: 'I wake up at 4am to grind. Crypto maxi. Hustle is my love language.', persona: 'dating', strictness: '3' } },
+      name: 'Legendary Cover Star',
+      description: 'Put yourself on TIME Person of Year, Forbes 30 Under 30, FBI Most Wanted, or Vogue cover with custom headline.',
+      tags: ['magazine', 'cover', 'poster', 'meme', 'viral'],
+      preview_gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      design: { containerColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', fontColor: 'white', fontFamily: 'system-ui', inputLayout: 'vertical' },
+      modal_theme: { backgroundColor: '#1a2332', buttonColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', accentColor: '#667eea' },
+      input_theme: { borderColor: '#333', backgroundColor: '#1a1a1a' },
+      demo: { sampleInputs: { cover_type: 'time', headline: 'Changing The Game' } },
       inputs: {
-        text: { type: 'string', label: 'Text', placeholder: 'Paste bio, pitch, DM, etc.', required: true },
-        persona: { type: 'string', label: 'Context', enum: ['dating', 'startup', 'investor', 'influencer'], default: 'dating' },
-        strictness: { type: 'string', label: 'Strictness', enum: ['1', '2', '3', '4', '5'], default: '3' }
+        photo: { type: 'image', label: 'Your Photo', accept: 'image/*', required: true },
+        cover_type: { 
+          type: 'select', 
+          label: 'Cover Type', 
+          options: [
+            { value: 'time', label: 'TIME Person of Year' },
+            { value: 'forbes', label: 'Forbes 30 Under 30' },
+            { value: 'fbi', label: 'FBI Most Wanted' },
+            { value: 'vogue', label: 'Vogue Fashion' }
+          ], 
+          default: 'time', 
+          required: true 
+        },
+        headline: { type: 'string', label: 'Custom Headline (optional)', placeholder: 'e.g., Disrupting Everything' }
       },
-      outputs: { markdown: { type: 'string' } },
+      outputs: { image: { type: 'image' }, markdown: { type: 'string' } },
       runtime: {
         engine: 'local',
         steps: [{
-          tool: 'llm.complete',
+          tool: 'image.process',
           args: {
-            system: 'Be playful and PG‑13. Return a red‑flag meter and top‑3 flags.',
-            prompt: 'Context: {{persona}}. Strictness: {{strictness}}/5. Analyze: {{text}}. Output:\\n- Meter: [🟥🟥🟥⬜⬜] style\\n- Top 3 red flags (short, punchy)\\n- One playful tip'
+            image: '{{photo}}',
+            instruction: 'Create a professional {{cover_type}} magazine cover. TIME=red border, bold typography, authoritative portrait. Forbes=sleek modern design, entrepreneurial energy. FBI=wanted poster aesthetic, mugshot style, official government document look. Vogue=high fashion, editorial lighting, elegant typography. Subject should look polished and professional. Include headline text: "{{headline}}" if provided, otherwise use cover-appropriate default text. Photorealistic magazine quality.'
           },
-          output: 'result'
+          output: 'cover'
         }]
       }
     },
     {
-      name: 'Alignment Chart Maker',
-      description: 'Create a text‑based 3×3 alignment chart for any topic.',
-      tags: ['alignment', 'tierlist', 'meme', 'twitter'],
-      preview_gradient: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-      design: { containerColor: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', fontColor: 'black', fontFamily: 'system-ui', inputLayout: 'vertical' },
-      modal_theme: { backgroundColor: '#101010', buttonColor: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', accentColor: '#ef9fb0' },
+      name: 'Predict My Future',
+      description: 'Upload your photo and see AI predictions of how you\'ll look at 40, 60, or 80. Time travel to your future self!',
+      tags: ['aging', 'future', 'prediction', 'transformation', 'viral'],
+      preview_gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      design: { containerColor: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', fontColor: 'white', fontFamily: 'system-ui', inputLayout: 'vertical' },
+      modal_theme: { backgroundColor: '#0f172a', buttonColor: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', accentColor: '#10b981' },
       input_theme: { borderColor: '#333', backgroundColor: '#0f0f0f' },
-      demo: { sampleInputs: { axisX: 'Based↔Cringe', axisY: 'Chaotic↔Lawful', items: 'AI founders, Crypto bros, Swifties, VCs, Gamers' } },
+      demo: { sampleInputs: { target_age: '60', lifestyle: 'average' } },
       inputs: {
-        axisX: { type: 'string', label: 'X Axis', placeholder: 'e.g., Based↔Cringe', required: true },
-        axisY: { type: 'string', label: 'Y Axis', placeholder: 'e.g., Chaotic↔Lawful', required: true },
-        items: { type: 'string', label: 'Items (comma‑separated)', placeholder: 'Item A, Item B, …', required: true }
+        photo: { type: 'image', label: 'Your Photo', accept: 'image/*', required: true },
+        target_age: { 
+          type: 'select', 
+          label: 'Future Age', 
+          options: [
+            { value: '40', label: '40 Years Old' },
+            { value: '60', label: '60 Years Old' },
+            { value: '80', label: '80 Years Old' }
+          ], 
+          default: '60', 
+          required: true 
+        },
+        lifestyle: { type: 'string', label: 'Lifestyle Path', enum: ['healthy', 'average', 'rockstar'], default: 'average' }
       },
-      outputs: { markdown: { type: 'string' } },
+      outputs: { image: { type: 'image' }, markdown: { type: 'string' } },
       runtime: {
         engine: 'local',
         steps: [{
-          tool: 'llm.complete',
+          tool: 'image.process',
           args: {
-            system: 'You produce readable alignment charts in markdown.',
-            prompt: 'Axes: X={{axisX}} Y={{axisY}}. Items: {{items}}. Place items into a 3×3 grid with short, funny rationale. Use markdown headings per quadrant and bullet the items.'
+            image: '{{photo}}',
+            instruction: 'Age this person realistically to {{target_age}} years old with {{lifestyle}} lifestyle. Healthy path: graceful aging, good skin, minimal wrinkles, vitality. Average: normal aging signs, some wrinkles, gray hair. Rockstar: heavier aging, more weathered, lived-in look. Maintain facial structure and key features. Photorealistic, natural lighting, dignified portraiture.'
           },
-          output: 'result'
+          output: 'aged'
         }]
       }
     }
@@ -262,7 +248,7 @@ async function handleCreate() {
         }
         const geminiKey = userKey || envKey;
         if (geminiKey) {
-          const imagePrompt = `Generate an elevated apple store type image for this mobile app based on: ${newApp.name}. Description: ${newApp.description}`;
+          const imagePrompt = `Generate an elevated apple store type image for this mobile app based on: ${manifest.name}. Description: ${manifest.description}`;
           const geminiRes = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent`,
             {

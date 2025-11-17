@@ -276,18 +276,17 @@ function ChatOutput({ app, run }) {
     const msg = text.trim();
     if (!msg || pending) return;
     setText('');
-    setMessages(m => [...m, { role: 'user', content: msg }]);
+    const newMessages = [...messages, { role: 'user', content: msg }];
+    setMessages(newMessages);
     setPending(true);
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          appId: app.id,
           mood: inputs.mood || 'encouraging',
-          topic: inputs.topic || 'general',
           tone_strength: inputs.tone_strength || 'medium',
-          history: [...messages, { role: 'user', content: msg }]
+          messages: newMessages  // Send full conversation history
         })
       });
       const data = await res.json();
@@ -438,20 +437,50 @@ tick();
 
 function WordleOutput({ app, run }) {
   const theme = (run?.inputs?.theme || 'animals').toLowerCase();
-  const WORDS = useMemo(() => ({
-    animals: ['tiger','zebra','otter','eagle','whale','panda','camel','rhino','koala','sloth'],
-    foods: ['pasta','curry','bagel','pizza','chili','apple','olive','sushi','tacos','bread'],
-    cities: ['paris','tokyo','miami','milan','delhi','osaka','sofia','cairo','seoul','perth'],
-    verbs: ['build','write','teach','learn','speak','judge','drawn','laugh','dance','throw'],
-    brands: ['apple','tesla','nokia','sony','ikea','adobe','gucci','prada','visa','nvidia']
-  }), []);
-  const list = WORDS[theme] || WORDS.animals;
-  const dayIndex = Math.floor(Date.now() / (24*60*60*1000)) % list.length;
-  const target = list[dayIndex];
+  const [wordList, setWordList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [target, setTarget] = useState('');
   const [guesses, setGuesses] = useState([]);
   const [input, setInput] = useState('');
   const [status, setStatus] = useState('');
-  const length = target.length;
+  const length = target.length || 5;
+
+  // Fetch words from LLM on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/wordle/generate-words', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ theme })
+        });
+        const data = await res.json();
+        
+        if (data.ok && data.words && data.words.length > 0) {
+          setWordList(data.words);
+          // Select word based on day of year
+          const dayIndex = Math.floor(Date.now() / (24*60*60*1000)) % data.words.length;
+          setTarget(data.words[dayIndex]);
+        } else {
+          // Fallback words if API fails
+          const fallback = ['tiger','zebra','otter','eagle','whale','panda','camel','rhino','koala','sloth'];
+          setWordList(fallback);
+          const dayIndex = Math.floor(Date.now() / (24*60*60*1000)) % fallback.length;
+          setTarget(fallback[dayIndex]);
+        }
+      } catch (err) {
+        console.error('[Wordle] Error fetching words:', err);
+        // Fallback words on error
+        const fallback = ['tiger','zebra','otter','eagle','whale','panda','camel','rhino','koala','sloth'];
+        setWordList(fallback);
+        const dayIndex = Math.floor(Date.now() / (24*60*60*1000)) % fallback.length;
+        setTarget(fallback[dayIndex]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [theme]);
 
   const evaluate = (guess) => {
     guess = guess.toLowerCase();
@@ -499,6 +528,22 @@ function WordleOutput({ app, run }) {
   };
 
   const color = (p) => p==='g' ? '#16a34a' : p==='y' ? '#ca8a04' : '#374151';
+
+  if (loading) {
+    return (
+      <div style={{ padding: 16, background: app?.design?.containerColor || '#111', color: 'white', borderRadius: 12, textAlign: 'center' }}>
+        <div style={{ padding: 40 }}>Loading words for {theme}... 🎲</div>
+      </div>
+    );
+  }
+
+  if (!target) {
+    return (
+      <div style={{ padding: 16, background: app?.design?.containerColor || '#111', color: 'white', borderRadius: 12, textAlign: 'center' }}>
+        <div style={{ padding: 40 }}>Failed to load words. Please try again.</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 16, background: app?.design?.containerColor || '#111', color: 'white', borderRadius: 12 }}>
