@@ -8,7 +8,7 @@ import AppOutput from './AppOutput';
 import SignInModal from './SignInModal';
 import SuccessModal from './SuccessModal';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 // Dynamically import to avoid SSR issues
 const AdvancedRemixEditor = dynamic(() => import('./AdvancedRemixEditor'), { ssr: false });
@@ -26,6 +26,7 @@ async function api(path, method='GET', body) {
 export default function TikTokFeedCard({ app, presetDefaults }) {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [hasLoggedImpression, setHasLoggedImpression] = useState(false);
   const [showTry, setShowTry] = useState(false);
   const [showUse, setShowUse] = useState(false);
@@ -426,7 +427,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
             </div>
             <p className="small">Runs in a read-only sandbox with sample inputs.</p>
             <AppForm app={app} onSubmit={(vals) => onRun(vals, 'try')} defaults={presetDefaults || app.demo?.sampleInputs||{}} />
-            {run && (
+            {run && !searchParams.get('run') && (
               <>
                 <hr />
                 <div style={{ position: 'relative', maxWidth: 520, margin: '0 auto' }}>
@@ -491,7 +492,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                 </div>
               </>
             )}
-            {run && (
+            {run && !searchParams.get('run') && (
               <div className="row result-actions" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
                 <button
                   className="btn"
@@ -578,7 +579,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
               </div>
             ) : null}
             <AppForm app={app} onSubmit={(vals) => onRun(vals, 'use')} defaults={presetDefaults || app.demo?.sampleInputs||{}} />
-            {run && (
+            {run && !searchParams.get('run') && (
               <>
                 <hr />
                 <div style={{ position: 'relative', maxWidth: 520, margin: '0 auto' }}>
@@ -643,7 +644,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                 </div>
               </>
             )}
-            {run && (
+            {run && !searchParams.get('run') && (
               <div className="row result-actions" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
                 <button
                   className="btn"
