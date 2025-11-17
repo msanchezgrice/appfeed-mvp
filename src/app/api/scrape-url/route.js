@@ -13,24 +13,27 @@ export async function POST(request) {
     }
     
     const body = await request.json();
-    const { url } = body;
+    const { url, image } = body;
     
-    if (!url || typeof url !== 'string') {
-      return NextResponse.json({ error: 'URL is required' }, { status: 400 });
+    // Validate that at least one input is provided
+    if (!url && !image) {
+      return NextResponse.json({ error: 'URL or image is required' }, { status: 400 });
     }
     
-    // Basic URL validation
+    // Basic URL validation if provided
     let parsedUrl;
-    try {
-      parsedUrl = new URL(url);
-      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-        throw new Error('Invalid protocol');
+    if (url) {
+      try {
+        parsedUrl = new URL(url);
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+          throw new Error('Invalid protocol');
+        }
+      } catch (e) {
+        return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
       }
-    } catch (e) {
-      return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
     }
     
-    console.log('[Scrape URL] Processing:', url, 'for user:', userId);
+    console.log('[Scrape URL] Processing:', { hasUrl: !!url, hasImage: !!image }, 'for user:', userId);
     
     // Get OpenAI API key (user's or platform's)
     const envKey = process.env.OPENAI_API_KEY;
@@ -50,52 +53,54 @@ export async function POST(request) {
       }, { status: 400 });
     }
     
-    // Fetch the page content
-    console.log('[Scrape URL] Fetching page content...');
+    // Fetch the page content if URL is provided
     let pageContent = '';
     let pageTitle = '';
     
-    try {
-      const pageResponse = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; ClipcadeBot/1.0; +https://clipcade.com)'
-        },
-        signal: AbortSignal.timeout(15000) // 15 second timeout
-      });
-      
-      if (!pageResponse.ok) {
-        throw new Error(`Failed to fetch page: ${pageResponse.status}`);
+    if (url) {
+      console.log('[Scrape URL] Fetching page content...');
+      try {
+        const pageResponse = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; ClipcadeBot/1.0; +https://clipcade.com)'
+          },
+          signal: AbortSignal.timeout(15000) // 15 second timeout
+        });
+        
+        if (!pageResponse.ok) {
+          throw new Error(`Failed to fetch page: ${pageResponse.status}`);
+        }
+        
+        const html = await pageResponse.text();
+        
+        // Extract title and visible text content (simple approach)
+        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        pageTitle = titleMatch ? titleMatch[1] : '';
+        
+        // Remove scripts, styles, and extract text (basic cleaning)
+        pageContent = html
+          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+          .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 8000); // Limit to 8000 chars to avoid token limits
+        
+        console.log('[Scrape URL] Page title:', pageTitle);
+        console.log('[Scrape URL] Content length:', pageContent.length);
+        
+      } catch (fetchError) {
+        console.error('[Scrape URL] Failed to fetch page:', fetchError);
+        return NextResponse.json({ 
+          error: 'Failed to fetch the URL. Make sure it is publicly accessible.' 
+        }, { status: 400 });
       }
-      
-      const html = await pageResponse.text();
-      
-      // Extract title and visible text content (simple approach)
-      const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-      pageTitle = titleMatch ? titleMatch[1] : '';
-      
-      // Remove scripts, styles, and extract text (basic cleaning)
-      pageContent = html
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, 8000); // Limit to 8000 chars to avoid token limits
-      
-      console.log('[Scrape URL] Page title:', pageTitle);
-      console.log('[Scrape URL] Content length:', pageContent.length);
-      
-    } catch (fetchError) {
-      console.error('[Scrape URL] Failed to fetch page:', fetchError);
-      return NextResponse.json({ 
-        error: 'Failed to fetch the URL. Make sure it is publicly accessible.' 
-      }, { status: 400 });
     }
     
-    // Use OpenAI to analyze the page content
-    const systemPrompt = `You are an AI app analyzer. You will receive the content of a web page and need to extract information to help create a similar app on the Clipcade platform.
+    // Use OpenAI to analyze the page content or image
+    const systemPrompt = `You are an AI app analyzer. You will receive either web page content or a screenshot/image and need to extract information to help create a similar app on the Clipcade platform.
 
-Analyze the page content and extract:
+Analyze the content/image and extract:
 1. App name/title
 2. Description of what it does
 3. Input fields (name, type, label, placeholder, any constraints)
@@ -117,7 +122,39 @@ Return ONLY a valid JSON object with this structure:
 
 Make the suggestedPrompt detailed and actionable. Include specifics about the UI, functionality, and behavior.`;
 
-    const userPrompt = `Analyze this web page and extract app information:
+    // Build the user message based on whether we have URL or image
+    let messages = [{ role: 'system', content: systemPrompt }];
+    
+    if (image) {
+      // Vision API request with image
+      console.log('[Scrape URL] Analyzing image with vision...');
+      
+      // Extract base64 data from data URL
+      const base64Match = image.match(/^data:image\/[^;]+;base64,(.+)$/);
+      const base64Data = base64Match ? base64Match[1] : image;
+      
+      messages.push({
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: `Analyze this screenshot/image and extract app information. Look at the UI, text, inputs, and functionality shown. Provide a comprehensive prompt that could be used to recreate a similar app on the Clipcade platform.${url ? `\n\nThe image is from: ${url}` : ''}`
+          },
+          {
+            type: 'image_url',
+            image_url: {
+              url: `data:image/jpeg;base64,${base64Data}`,
+              detail: 'high'
+            }
+          }
+        ]
+      });
+    } else {
+      // Text-only request with URL content
+      console.log('[Scrape URL] Analyzing URL content...');
+      messages.push({
+        role: 'user',
+        content: `Analyze this web page and extract app information:
 
 URL: ${url}
 Page Title: ${pageTitle}
@@ -125,12 +162,14 @@ Page Title: ${pageTitle}
 Page Content:
 ${pageContent}
 
-Extract all relevant information about what this app does, its inputs, outputs, and functionality. Provide a comprehensive prompt that could be used to recreate a similar app on the Clipcade platform.`;
+Extract all relevant information about what this app does, its inputs, outputs, and functionality. Provide a comprehensive prompt that could be used to recreate a similar app on the Clipcade platform.`
+      });
+    }
 
-    // Call OpenAI API with GPT-4o
+    // Call OpenAI API with GPT-4o (supports vision)
     const model = 'gpt-4o';
     
-    console.log('[Scrape URL] Calling OpenAI with model:', model);
+    console.log('[Scrape URL] Calling OpenAI with model:', model, '(vision:', !!image, ')');
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -140,10 +179,7 @@ Extract all relevant information about what this app does, its inputs, outputs, 
       },
       body: JSON.stringify({
         model: model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
+        messages: messages,
         temperature: 0.3,
         max_tokens: 2000,
         response_format: { type: 'json_object' }

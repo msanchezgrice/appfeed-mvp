@@ -25,6 +25,8 @@ export default function PublishPage() {
   
   // Form states for URL scraper
   const [scrapeUrl, setScrapeUrl] = useState('');
+  const [scrapeImage, setScrapeImage] = useState(null);
+  const [scrapeImagePreview, setScrapeImagePreview] = useState(null);
   const [scraping, setScraping] = useState(false);
   const [scrapeError, setScrapeError] = useState(null);
   const [scrapeSuccess, setScrapeSuccess] = useState(false);
@@ -183,8 +185,28 @@ export default function PublishPage() {
     }
   };
 
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setScrapeImagePreview(reader.result);
+        setScrapeImage(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleScrapeUrl = async (e) => {
     e.preventDefault();
+    
+    // Check if user provided either URL or image
+    if (!scrapeUrl && !scrapeImage) {
+      setScrapeError('Please provide either a URL or upload an image');
+      return;
+    }
+    
     setScraping(true);
     setScrapeError(null);
     setScrapeSuccess(false);
@@ -194,13 +216,16 @@ export default function PublishPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ url: scrapeUrl })
+        body: JSON.stringify({ 
+          url: scrapeUrl || null,
+          image: scrapeImage || null
+        })
       });
       
       const result = await response.json();
       
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to scrape URL');
+        throw new Error(result.error || 'Failed to analyze content');
       }
       
       // Auto-fill the prompt with the extracted data
@@ -429,32 +454,82 @@ export default function PublishPage() {
           {/* URL Scraper Section */}
           <div className="card" style={{ marginBottom: 16, background: 'linear-gradient(135deg, #667eea22 0%, #764ba222 100%)', border: '1px solid #667eea44' }}>
             <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-              🔗 Scrape from URL (Optional)
+              🔗 Auto-Generate from URL or Image (Optional)
             </h3>
             <p className="small" style={{ marginBottom: 16, color: '#aaa' }}>
-              Paste a URL to auto-generate a prompt from an existing app or website
+              Paste a URL or upload a screenshot to auto-generate a prompt from an existing app
             </p>
             
             <form onSubmit={handleScrapeUrl}>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                <input
-                  type="url"
-                  className="input"
-                  placeholder="https://glif.app/@user/glifs/..."
-                  value={scrapeUrl}
-                  onChange={(e) => setScrapeUrl(e.target.value)}
-                  disabled={scraping}
-                  style={{ flex: 1 }}
-                />
-                <button 
-                  type="submit" 
-                  className="btn primary" 
-                  disabled={scraping || !scrapeUrl}
-                  style={{ whiteSpace: 'nowrap' }}
-                >
-                  {scraping ? 'Scraping...' : 'Scrape →'}
-                </button>
+              <div style={{ marginBottom: 12 }}>
+                <label className="label" style={{ marginBottom: 8 }}>URL</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    type="url"
+                    className="input"
+                    placeholder="https://glif.app/@user/glifs/..."
+                    value={scrapeUrl}
+                    onChange={(e) => setScrapeUrl(e.target.value)}
+                    disabled={scraping}
+                    style={{ flex: 1 }}
+                  />
+                </div>
               </div>
+              
+              <div style={{ marginBottom: 12 }}>
+                <label className="label" style={{ marginBottom: 8 }}>Or Upload Screenshot</label>
+                <input
+                  type="file"
+                  className="input"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={scraping}
+                />
+                {scrapeImagePreview && (
+                  <div style={{ marginTop: 12, position: 'relative' }}>
+                    <img 
+                      src={scrapeImagePreview} 
+                      alt="Preview" 
+                      style={{ 
+                        maxWidth: '100%', 
+                        maxHeight: 200, 
+                        borderRadius: 8,
+                        border: '1px solid #333'
+                      }} 
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScrapeImage(null);
+                        setScrapeImagePreview(null);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        background: '#ef4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 4,
+                        padding: '4px 8px',
+                        cursor: 'pointer',
+                        fontSize: 12
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              <button 
+                type="submit" 
+                className="btn primary" 
+                disabled={scraping || (!scrapeUrl && !scrapeImage)}
+                style={{ width: '100%' }}
+              >
+                {scraping ? 'Analyzing...' : 'Analyze & Generate Prompt →'}
+              </button>
             </form>
             
             {scraping && (
