@@ -48,6 +48,24 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
   const [successMessage, setSuccessMessage] = useState('');
   const [resultSaved, setResultSaved] = useState(false);
 
+  // Ensure Try/Use modals can open even if a previous ?run= is in the URL
+  const openTry = () => {
+    try {
+      if (typeof window !== 'undefined' && searchParams.get('run')) {
+        router.replace(window.location.pathname);
+      }
+    } catch {}
+    setShowTry(true);
+  };
+  const openUse = () => {
+    try {
+      if (typeof window !== 'undefined' && searchParams.get('run')) {
+        router.replace(window.location.pathname);
+      }
+    } catch {}
+    setShowUse(true);
+  };
+
   useEffect(() => {
     (async () => {
       const secrets = await api('/api/secrets');
@@ -211,7 +229,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
       marginBottom: 16
     }}>
       {/* Video Preview - Clickable to open Try modal */}
-      <VideoPreview app={app} autoplay={true} onClick={() => setShowTry(true)} />
+      <VideoPreview app={app} autoplay={true} onClick={openTry} />
 
       {/* Right-side Action Buttons (TikTok style) */}
       <div style={{
@@ -386,7 +404,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
-            onClick={() => setShowTry(true)}
+            onClick={openTry}
             style={{
               padding: '8px 16px',
               background: 'rgba(255,255,255,0.9)',
