@@ -77,7 +77,6 @@ export default function VideoPreview({ app, autoplay = false, onClick }) {
               sizes="100vw"
               style={{ objectFit: 'cover' }}
               priority={false}
-              unoptimized={String(app.preview_url || '').startsWith('data:')}
             />
           ) : (
             <img

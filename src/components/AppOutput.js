@@ -481,7 +481,17 @@ export default function AppOutput({ run, app }) {
   const output = hasTrace ? lastStep?.output : (run?.outputs || null);
   const usedStub = hasTrace ? lastStep?.usedStub : false;
 
-  // (Routing handled later after error check)
+  // Route custom UIs FIRST (these don't require LLM output to render)
+  const rType = app?.runtime?.render_type;
+  if (rType === 'chat' || app.id === 'chat-encouragement') {
+    return <ChatOutput app={app} run={run} />;
+  }
+  if (rType === 'flappy' || rType === 'game:flappy' || app.id === 'flappy-bird-mini') {
+    return <FlappyOutput app={app} run={run} />;
+  }
+  if (rType === 'wordle' || rType === 'game:wordle' || app.id === 'wordle-daily-themed') {
+    return <WordleOutput app={app} run={run} />;
+  }
 
   if (!output) {
     return <div className="small" style={{ padding: 16, textAlign: 'center', opacity: 0.6 }}>Running...</div>;
