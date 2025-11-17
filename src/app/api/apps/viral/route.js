@@ -45,7 +45,7 @@ function getViralManifests() {
           tool: 'image.process',
           args: {
             image: '{{photo}}',
-            instruction: 'Analyze this photo and provide a witty, {{spice_level}} roast. Focus on fashion choices, pose, background, lighting - anything visible. Keep it PG-13, funny, and under 200 characters. Add 2-3 fire emojis. No personal attacks, just playful observations about what you see in the image.'
+            instruction: 'Create a humorous roast image overlay on this photo. Add witty text commentary about the photo (fashion, pose, background, etc). Roast level: {{spice_level}}. Keep it PG-13 and playful. Style: bold white text with black stroke, meme-style overlay.'
           },
           output: 'roast'
         }]
@@ -71,7 +71,7 @@ function getViralManifests() {
           tool: 'image.process',
           args: {
             image: '{{photo}}',
-            instruction: 'Transform this person into their peak potential with {{focus}} focus. Enhance: facial symmetry, skin quality, jawline, lighting, grooming, style. Create an aspirational but realistic enhanced version. Professional photography quality, cinematic lighting, magazine-worthy portrait.'
+            instruction: 'Enhance this person with {{focus}} improvements. Show enhanced facial features, better grooming, improved lighting and posture. Create a realistic "glow-up" version showing their maximum potential. Professional photography quality, aspirational but believable transformation.'
           },
           output: 'enhanced'
         }]
@@ -109,7 +109,7 @@ function getViralManifests() {
           tool: 'image.process',
           args: {
             image: '{{photo}}',
-            instruction: 'Create a professional {{cover_type}} magazine cover. TIME=red border, bold typography, authoritative portrait. Forbes=sleek modern design, entrepreneurial energy. FBI=wanted poster aesthetic, mugshot style, official government document look. Vogue=high fashion, editorial lighting, elegant typography. Subject should look polished and professional. Include headline text: "{{headline}}" if provided, otherwise use cover-appropriate default text. Photorealistic magazine quality.'
+            instruction: 'Transform this into a {{cover_type}} magazine cover. TIME: red border, bold "PERSON OF THE YEAR" text. Forbes: sleek "30 UNDER 30" design. FBI: wanted poster with "WANTED" header and description. Vogue: high fashion with elegant "VOGUE" masthead. Add headline: "{{headline}}" if provided. Professional magazine layout with proper branding and typography.'
           },
           output: 'cover'
         }]
@@ -146,7 +146,7 @@ function getViralManifests() {
           tool: 'image.process',
           args: {
             image: '{{photo}}',
-            instruction: 'Age this person realistically to {{target_age}} years old with {{lifestyle}} lifestyle. Healthy path: graceful aging, good skin, minimal wrinkles, vitality. Average: normal aging signs, some wrinkles, gray hair. Rockstar: heavier aging, more weathered, lived-in look. Maintain facial structure and key features. Photorealistic, natural lighting, dignified portraiture.'
+            instruction: 'Age this person to {{target_age}} years old. Lifestyle: {{lifestyle}}. Show realistic aging effects - wrinkles, age spots, gray/white hair, skin texture changes. Healthy lifestyle = graceful aging. Average = normal aging. Rockstar = heavy weathering. Keep facial structure recognizable. Natural lighting, realistic aged portrait.'
           },
           output: 'aged'
         }]

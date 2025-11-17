@@ -83,23 +83,27 @@ export async function POST(req) {
       hasOutput: !!run.outputs
     });
     
-    // Save run to database
-    const { error: saveError } = await supabase
-      .from('runs')
-      .insert({
-        id: run.id,
-        app_id: app.id,
-        user_id: userId || 'anonymous',
-        mode,
-        status: run.status,
-        inputs: run.inputs,
-        outputs: run.outputs,
-        trace: run.trace,
-        duration_ms: run.durationMs
-      });
-    
-    if (saveError) {
-      console.error('Error saving run:', saveError);
+    // Save run to database (only for authenticated users)
+    if (userId) {
+      const { error: saveError } = await supabase
+        .from('runs')
+        .insert({
+          id: run.id,
+          app_id: app.id,
+          user_id: userId,
+          mode,
+          status: run.status,
+          inputs: run.inputs,
+          outputs: run.outputs,
+          trace: run.trace,
+          duration_ms: run.durationMs
+        });
+      
+      if (saveError) {
+        console.error('Error saving run:', saveError);
+      }
+    } else {
+      console.log('[API /runs] Skipping run save for anonymous user');
     }
 
     // Upload output asset (image) and input image (first image input) to storage
