@@ -79,7 +79,7 @@ function getViralManifests() {
           {
             tool: 'llm.complete',
             args: {
-              image: '{{enhanced_image}}',
+              image: '{{enhanced_image.image}}',
               prompt: `You are a looksmaxxing coach. Analyze this enhanced photo and provide:
 
 ## 📊 Rating
@@ -234,7 +234,7 @@ Use emojis, be encouraging but realistic!`,
       input_theme: { borderColor: '#1d3a2c', backgroundColor: '#0f2a20' },
       demo: { sampleInputs: {} },
       inputs: {
-        receipt_photo: { type: 'image', label: 'Receipt Photo', accept: 'image/*', required: true }
+        receipt: { type: 'image', label: 'Receipt Photo', accept: 'image/*', required: true }
       },
       outputs: { markdown: { type: 'string' } },
       runtime: {
@@ -242,7 +242,7 @@ Use emojis, be encouraging but realistic!`,
         steps: [{
           tool: 'llm.complete',
           args: {
-            image: '{{receipt_photo}}',
+            image: '{{receipt}}',
             prompt: `Analyze this grocery receipt and extract all the food items purchased.
 
 Then, create 3 delicious recipes that use these ingredients:
