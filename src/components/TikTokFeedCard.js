@@ -418,7 +418,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
       </div>
 
       {/* Try Modal */}
-      {showTry && (
+      {showTry && !searchParams.get('run') && (
         <div className="modal" onClick={() => setShowTry(false)}>
           <div className="dialog" onClick={e => e.stopPropagation()}>
             <div className="row" style={{justifyContent:'space-between'}}>
@@ -563,7 +563,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
       )}
 
       {/* Use Modal */}
-      {showUse && (
+      {showUse && !searchParams.get('run') && (
         <div className="modal" onClick={() => setShowUse(false)}>
           <div className="dialog" onClick={e => e.stopPropagation()}>
             <div className="row" style={{justifyContent:'space-between'}}>

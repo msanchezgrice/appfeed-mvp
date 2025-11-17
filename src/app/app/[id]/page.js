@@ -357,7 +357,7 @@ export default function AppDetailPage() {
       
       {/* Result Overlay */}
       {overlayOpen && overlayRun && (
-        <div className="modal" onClick={closeOverlay} style={{ zIndex: 2000 }}>
+        <div className="modal" onClick={closeOverlay} style={{ zIndex: 9999 }}>
           <div
             className="dialog"
             onClick={e => e.stopPropagation()}
