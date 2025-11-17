@@ -331,17 +331,10 @@ export async function tool_todo_add({ userId, args, mode, supabase }) {
 
 // Image processing tool using Gemini Image Generation
 export async function tool_image_process({ userId, args, mode, supabase }) {
-  console.log('[Image Process] Starting:', { userId, mode, instruction: args.instruction?.substring(0, 50) });
+  console.log('[Image Process] Starting:', { userId, mode, instruction: args.instruction?.substring(0, 50), hasImage: !!args.image });
   
-  const imageData = args.image; // base64 or URL
-  const instruction = args.instruction || 'Transform this image artistically';
-  
-  if (!imageData) {
-    return {
-      output: { markdown: 'No image provided' },
-      error: 'IMAGE_REQUIRED'
-    };
-  }
+  const imageData = args.image; // base64 or URL (can be null for text-to-image)
+  const instruction = args.instruction || 'Generate an artistic image';
   
   // Get Gemini API key - try user key first, then fall back to platform key
   const envKey = process.env.GEMINI_API_KEY;
@@ -368,21 +361,33 @@ export async function tool_image_process({ userId, args, mode, supabase }) {
   }
   
   try {
-    // Extract base64 data if it's a data URL
-    let base64Data = imageData;
-    let mimeType = 'image/jpeg';
-    
-    if (imageData.startsWith('data:')) {
-      const matches = imageData.match(/^data:(image\/[^;]+);base64,(.+)$/);
-      if (matches) {
-        mimeType = matches[1];
-        base64Data = matches[2];
-      }
-    }
-    
     console.log('[Image Process] Calling Gemini 2.5 Flash Image API for generation...');
     
-    // Use gemini-2.5-flash-image for actual image generation
+    // Build the request parts based on whether we have an input image
+    const parts = [{ text: instruction }];
+    
+    // Add image data if provided (for image-to-image transformation)
+    if (imageData) {
+      let base64Data = imageData;
+      let mimeType = 'image/jpeg';
+      
+      if (imageData.startsWith('data:')) {
+        const matches = imageData.match(/^data:(image\/[^;]+);base64,(.+)$/);
+        if (matches) {
+          mimeType = matches[1];
+          base64Data = matches[2];
+        }
+      }
+      
+      parts.push({
+        inline_data: {
+          mime_type: mimeType,
+          data: base64Data
+        }
+      });
+    }
+    
+    // Use gemini-2.5-flash-image for image generation
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${geminiKey}`,
       {
@@ -390,15 +395,7 @@ export async function tool_image_process({ userId, args, mode, supabase }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{
-            parts: [
-              { text: instruction },
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: base64Data
-                }
-              }
-            ]
+            parts: parts
           }],
           generationConfig: {
             responseModalities: ["Image"], // Request image output, not text

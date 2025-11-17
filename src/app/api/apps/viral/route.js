@@ -22,7 +22,7 @@ async function compressImage(base64Data, mimeType) {
   }
 }
 
-// Four viral image transformation apps
+// Five viral image apps including ControlNet meme generator
 function getViralManifests() {
   return [
     {
@@ -149,6 +149,53 @@ function getViralManifests() {
             instruction: 'Age this person to {{target_age}} years old. Lifestyle: {{lifestyle}}. Show realistic aging effects - wrinkles, age spots, gray/white hair, skin texture changes. Healthy lifestyle = graceful aging. Average = normal aging. Rockstar = heavy weathering. Keep facial structure recognizable. Natural lighting, realistic aged portrait.'
           },
           output: 'aged'
+        }]
+      }
+    },
+    {
+      name: 'AI Meme Generator',
+      description: 'Create viral meme images with custom text overlay on AI-generated backgrounds. Perfect for social media.',
+      tags: ['meme', 'text', 'viral', 'generator'],
+      preview_gradient: 'linear-gradient(135deg, #f5af19 0%, #f12711 100%)',
+      design: { containerColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', fontColor: 'white', fontFamily: 'system-ui', inputLayout: 'vertical' },
+      modal_theme: { backgroundColor: '#1a1a1a', buttonColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', accentColor: '#667eea' },
+      input_theme: { borderColor: '#333', backgroundColor: '#0f0f0f' },
+      demo: { sampleInputs: { background: 'A messy room with computers and electronics', text: 'AI ART', font_size: '130' } },
+      inputs: {
+        background: { 
+          type: 'string', 
+          label: 'Background Scene (simple works, messy best!)', 
+          placeholder: 'e.g., A messy room with computers and electronics', 
+          required: true 
+        },
+        text: { 
+          type: 'string', 
+          label: 'Text to Display (ALL CAPS works best)', 
+          placeholder: 'e.g., AI ART', 
+          required: true 
+        },
+        font_size: { 
+          type: 'select', 
+          label: 'Font Size', 
+          options: [
+            { value: '80', label: '80 - Small' },
+            { value: '100', label: '100 - Medium' },
+            { value: '130', label: '130 - Large (Recommended)' },
+            { value: '150', label: '150 - Extra Large' }
+          ], 
+          default: '130', 
+          required: true 
+        }
+      },
+      outputs: { image: { type: 'image' }, markdown: { type: 'string' } },
+      runtime: {
+        engine: 'local',
+        steps: [{
+          tool: 'image.process',
+          args: {
+            instruction: 'Generate an image: {{background}}. Add large bold text overlay that says "{{text}}" in massive {{font_size}}px font. Style: high contrast, bold sans-serif font, centered text, meme-style with black text stroke/outline for readability. The text should be the dominant feature. Photorealistic background with professional text overlay.'
+          },
+          output: 'meme'
         }]
       }
     }
