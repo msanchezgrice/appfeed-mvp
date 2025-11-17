@@ -481,17 +481,7 @@ export default function AppOutput({ run, app }) {
   const output = hasTrace ? lastStep?.output : (run?.outputs || null);
   const usedStub = hasTrace ? lastStep?.usedStub : false;
 
-  // Prefer explicit render type from runtime (future-proof), then id fallback
-  const renderType = app?.runtime?.render_type || app?.render_type || null;
-  if (
-    renderType === 'chat' || app.id === 'chat-encouragement' ||
-    renderType === 'game:flappy' || app.id === 'flappy-bird-mini' ||
-    renderType === 'game:wordle' || app.id === 'wordle-daily-themed'
-  ) {
-    if (renderType === 'chat' || app.id === 'chat-encouragement') return <ChatOutput app={app} run={run} />;
-    if (renderType === 'game:flappy' || app.id === 'flappy-bird-mini') return <FlappyOutput app={app} run={run} />;
-    if (renderType === 'game:wordle' || app.id === 'wordle-daily-themed') return <WordleOutput app={app} run={run} />;
-  }
+  // (Routing handled later after error check)
 
   if (!output) {
     return <div className="small" style={{ padding: 16, textAlign: 'center', opacity: 0.6 }}>Running...</div>;
