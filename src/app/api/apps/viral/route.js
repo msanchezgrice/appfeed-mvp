@@ -160,24 +160,25 @@ function getViralManifests() {
       design: { containerColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', fontColor: 'white', fontFamily: 'system-ui', inputLayout: 'vertical' },
       modal_theme: { backgroundColor: '#1a1a1a', buttonColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', accentColor: '#667eea' },
       input_theme: { borderColor: '#333', backgroundColor: '#0f0f0f' },
-      demo: { sampleInputs: { scene: 'room full of computers and electronics', text: 'CLIPCADE' } },
+      demo: { sampleInputs: { scene: 'dozens of computer monitors, keyboards, and electronic devices', text: 'CLIPCADE' } },
       inputs: {
         scene: { 
           type: 'select',
-          label: 'Scene',
+          label: 'Scene Type',
           options: [
-            { value: 'aerial view of a dense forest at sunset', label: 'Forest Sunset' },
-            { value: 'room full of computers and electronics', label: 'Computer Room' },
-            { value: 'a crowd of people at a concert', label: 'Concert Crowd' },
-            { value: 'a cozy detailed living room with plants and books', label: 'Cozy Living Room' },
-            { value: 'a field of colorful flowers with depth of field', label: 'Flower Field' }
+            { value: 'dozens of trees and leaves in a dense forest', label: 'Forest 🌲' },
+            { value: 'dozens of computer monitors, keyboards, and electronic devices', label: 'Tech Setup 💻' },
+            { value: 'hundreds of people in a crowd at a concert', label: 'Concert Crowd 🎸' },
+            { value: 'dozens of books, plants, and cozy furniture items', label: 'Cozy Room 🪴' },
+            { value: 'hundreds of colorful flowers and petals', label: 'Flower Field 🌸' },
+            { value: 'dozens of cute fluffy cats', label: 'Cats 🐱' }
           ],
-          default: 'room full of computers and electronics',
+          default: 'dozens of computer monitors, keyboards, and electronic devices',
           required: true 
         },
         text: { 
           type: 'string', 
-          label: 'Hidden Text (ALL CAPS best)', 
+          label: 'Hidden Word (ALL CAPS)', 
           placeholder: 'e.g., CLIPCADE', 
           required: true 
         }
@@ -188,7 +189,7 @@ function getViralManifests() {
         steps: [{
           tool: 'image.process',
           args: {
-            instruction: '{{scene}}, optical illusion artwork, hidden text illusion that spells "{{text}}", Illusion Diffusion style, fusion art, high-frequency tiny details, intricate noisy texture, squint your eyes to read the hidden word, ControlNet hidden text meme, soft global lighting, 4k, ultra realistic, highly detailed, sharp focus'
+            instruction: 'Create an optical illusion meme image made of {{scene}}. At first glance it just looks like a chaotic collage or grid of these elements, but when you squint your eyes or zoom out you can clearly read the hidden word "{{text}}" spelled in big block letters by the overall arrangement. The images, shadows and background details should form the strokes of the letters, not flat text on top. High-frequency tiny details, noisy texture, lots of small shapes so the word only appears when blurred. Photorealistic, 4k, highly detailed, sharp when viewed normally, optical illusion style, "squint your eyes to read the hidden word" meme.'
           },
           output: 'meme'
         }]
