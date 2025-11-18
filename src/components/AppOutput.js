@@ -575,6 +575,17 @@ function WordleOutput({ app, run }) {
 
 function IframeOutput({ app }) {
   const url = app?.runtime?.url;
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    // Detect mobile device
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   
   useEffect(() => {
     // Track iframe app load
@@ -582,17 +593,37 @@ function IframeOutput({ app }) {
       window.posthog.capture('iframe_app_loaded', {
         app_id: app.id,
         app_name: app.name,
-        external_url: url
+        external_url: url,
+        device_type: isMobile ? 'mobile' : 'desktop'
       });
     }
-  }, [app.id, app.name, url]);
+  }, [app.id, app.name, url, isMobile]);
   
   if (!url) {
     return <div style={{ padding: 16, textAlign: 'center', color: '#888' }}>No URL provided</div>;
   }
 
+  // Full screen on mobile for better experience
+  const containerStyle = isMobile ? {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100vw',
+    height: '100vh',
+    zIndex: 1000,
+    background: '#000'
+  } : {
+    borderRadius: 12,
+    overflow: 'hidden',
+    height: '70vh',
+    maxHeight: 700,
+    background: '#000'
+  };
+
   return (
-    <div style={{ borderRadius: 12, overflow: 'hidden', height: '70vh', maxHeight: 700, background: '#000' }}>
+    <div style={containerStyle}>
       <iframe 
         src={url} 
         title={app.name || 'External App'}
@@ -602,8 +633,9 @@ function IframeOutput({ app }) {
           border: 'none',
           display: 'block'
         }}
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-        allow="accelerometer; camera; encrypted-media; geolocation; gyroscope; microphone"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-pointer-lock"
+        allow="accelerometer; autoplay; camera; encrypted-media; fullscreen; geolocation; gyroscope; microphone; pointer-lock; touch; xr-spatial-tracking"
+        allowFullScreen
       />
     </div>
   );
@@ -612,9 +644,20 @@ function IframeOutput({ app }) {
 function HtmlBundleOutput({ app, run }) {
   const [usageExceeded, setUsageExceeded] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const htmlContent = app?.runtime?.html_content;
   const usageCount = app?.runtime?.usage_count || 0;
   const usageLimit = app?.runtime?.usage_limit || 100;
+
+  useEffect(() => {
+    // Detect mobile device
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     // Track usage on mount
@@ -639,7 +682,8 @@ function HtmlBundleOutput({ app, run }) {
             app_id: app.id,
             app_name: app.name,
             usage_count: usageCount + 1,
-            usage_limit: usageLimit
+            usage_limit: usageLimit,
+            device_type: isMobile ? 'mobile' : 'desktop'
           });
         }
       } catch (err) {
@@ -650,7 +694,7 @@ function HtmlBundleOutput({ app, run }) {
     };
 
     trackUsage();
-  }, [app.id, usageCount, usageLimit]);
+  }, [app.id, app.name, usageCount, usageLimit, isMobile]);
 
   if (loading) {
     return (
@@ -694,6 +738,25 @@ function HtmlBundleOutput({ app, run }) {
     return () => URL.revokeObjectURL(blobUrl);
   }, [blobUrl]);
 
+  // Full screen on mobile for better experience
+  const containerStyle = isMobile ? {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100vw',
+    height: '100vh',
+    zIndex: 1000,
+    background: '#000'
+  } : {
+    borderRadius: 12,
+    overflow: 'hidden',
+    height: '70vh',
+    maxHeight: 700,
+    background: '#000'
+  };
+
   return (
     <div style={{ position: 'relative' }}>
       <div style={{
@@ -709,7 +772,7 @@ function HtmlBundleOutput({ app, run }) {
       }}>
         {usageCount + 1}/{usageLimit} runs
       </div>
-      <div style={{ borderRadius: 12, overflow: 'hidden', height: '70vh', maxHeight: 700, background: '#000' }}>
+      <div style={containerStyle}>
         <iframe 
           src={blobUrl}
           title={app.name || 'HTML App'}
@@ -719,8 +782,9 @@ function HtmlBundleOutput({ app, run }) {
             border: 'none',
             display: 'block'
           }}
-          sandbox="allow-scripts allow-forms allow-popups"
-          allow="accelerometer; gyroscope"
+          sandbox="allow-scripts allow-forms allow-popups allow-pointer-lock"
+          allow="accelerometer; autoplay; fullscreen; gyroscope; pointer-lock; touch; xr-spatial-tracking"
+          allowFullScreen
         />
       </div>
     </div>
