@@ -3,6 +3,7 @@ import './globals.css';
 import BottomNav from '@/src/components/BottomNav';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { PostHogProvider } from '@/src/components/PostHogProvider';
 
 export const metadata = {
   title: 'Clipcade - Discover, Run & Remix Mini-Apps',
@@ -47,8 +48,10 @@ export default function RootLayout({ children }) {
           <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
         </head>
         <body>
+          <PostHogProvider>
           {children}
           <BottomNav />
+          </PostHogProvider>
           <Analytics />
           <SpeedInsights />
         </body>

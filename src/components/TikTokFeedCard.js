@@ -9,6 +9,7 @@ import SignInModal from './SignInModal';
 import SuccessModal from './SuccessModal';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { analytics } from '@/src/lib/analytics';
 
 // Dynamically import to avoid SSR issues
 const AdvancedRemixEditor = dynamic(() => import('./AdvancedRemixEditor'), { ssr: false });
@@ -56,6 +57,8 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
       }
     } catch {}
     setShowTry(true);
+    // Track app tried event
+    analytics.appTried(app.id, app.name, 'feed');
   };
   const openUse = () => {
     try {
@@ -97,6 +100,8 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
             fetch(`/api/apps/${app.id}/view?src=feed`, { method: 'POST', keepalive: true }).catch(() => {});
             if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(key, '1');
             setHasLoggedImpression(true);
+            // Track app viewed in PostHog
+            analytics.appViewed(app.id, app.name, app.creator_id, 'feed');
             observer.disconnect();
           }
         });
@@ -139,6 +144,10 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
     }
     await api('/api/library', 'POST', { action: add?'add':'remove', appId: app.id });
     setSaved(add);
+    // Track app saved event
+    if (add) {
+      analytics.appSaved(app.id, app.name);
+    }
   };
 
   const handleRemix = async () => {
@@ -303,6 +312,9 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
         <button
           onClick={async () => {
             const appUrl = `${window.location.origin}/app/${app.id}${run?.id ? `?run=${run.id}` : ''}`;
+            
+            // Track share event
+            analytics.appShared(app.id, app.name, navigator.share ? 'native_share' : 'copy_link');
             
             // For native share (mobile), include title and description
             if (navigator.share) {

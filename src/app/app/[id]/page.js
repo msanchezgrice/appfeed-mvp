@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Head from 'next/head';
 import TikTokFeedCard from '@/src/components/TikTokFeedCard';
 import AppOutput from '@/src/components/AppOutput';
+import { analytics } from '@/src/lib/analytics';
 
 export default function AppDetailPage() {
   const params = useParams();
@@ -30,7 +31,18 @@ export default function AppDetailPage() {
           const appData = await appRes.json();
           console.log('[App Detail] Fetched data:', appData);
           // API returns { app, creator } - extract the app
-          setApp(appData.app || appData);
+          const fetchedApp = appData.app || appData;
+          setApp(fetchedApp);
+          
+          // Track app view in PostHog
+          if (fetchedApp) {
+            analytics.appViewed(
+              fetchedApp.id,
+              fetchedApp.name,
+              fetchedApp.creator_id,
+              'detail' // view source
+            );
+          }
         }
 
         // Fetch all apps to find remixes
@@ -333,6 +345,7 @@ export default function AppDetailPage() {
             onClick={() => {
               navigator.clipboard.writeText(window.location.href);
               alert('Link copied to clipboard!');
+              analytics.appShared(app.id, app.name, 'copy_link');
             }}
             className="btn primary"
           >
@@ -346,6 +359,7 @@ export default function AppDetailPage() {
                   text: app.description,
                   url: window.location.href
                 });
+                analytics.appShared(app.id, app.name, 'native_share');
               }
             }}
             className="btn"
