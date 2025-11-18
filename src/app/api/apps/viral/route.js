@@ -80,23 +80,22 @@ function getViralManifests() {
             tool: 'llm.complete',
             args: {
               image: '{{enhanced_image.image}}',
-              prompt: `You are a looksmaxxing coach. Analyze this enhanced photo and provide:
+              prompt: `You are a personal enhancement coach. Analyze this enhanced photo and provide constructive improvement suggestions:
 
-## 📊 Rating
-- **Before:** 6-7/10 (baseline estimate)
-- **After:** Rate this enhanced version /10
+## ✨ Visual Enhancements Applied
+Describe 3-5 specific visual improvements you can observe in this enhanced version (better lighting, grooming, styling, etc.)
 
-## ✨ Key Improvements Made
-List 3-5 specific visual improvements you can see in this enhanced version:
-
-## 💪 Actionable Tips for IRL
-Provide 3-4 practical tips to achieve similar results in real life:
+## 💪 Practical Self-Improvement Tips
+Provide 3-4 actionable recommendations for personal enhancement:
 - Focus area: {{focus}}
-- Be specific about grooming, fitness, style, or posture
-- Make tips achievable within 30-90 days
-- Include specific product recommendations if relevant
+- Include specific grooming, fitness, style, or posture suggestions
+- Make recommendations achievable within 30-90 days
+- Suggest specific products, routines, or habits that could help
 
-Use emojis, be encouraging but realistic!`,
+## 🎯 Next Steps
+Provide 1-2 encouraging action items to get started
+
+Use emojis, be specific and encouraging!`,
               temperature: 0.7,
               max_tokens: 500,
               imageDetail: 'high'
