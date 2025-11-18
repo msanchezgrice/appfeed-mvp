@@ -57,8 +57,8 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
       }
     } catch {}
     setShowTry(true);
-    // Track app tried event
-    analytics.appTried(app.id, app.name, 'feed');
+    // Track app tried event (works for both anonymous and logged-in users)
+    analytics.appTried(app.id, app.name, 'feed', !!user);
   };
   const openUse = () => {
     try {
@@ -140,6 +140,9 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
     if (!user) {
       setSignInAction('save apps to your library');
       setShowSignInModal(true);
+      // Track anonymous user hitting signup wall
+      analytics.anonymousUserBlocked('save', app.id, app.name);
+      analytics.signupPrompted('save_app');
       return;
     }
     await api('/api/library', 'POST', { action: add?'add':'remove', appId: app.id });
@@ -154,6 +157,9 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
     if (!user) {
       setSignInAction('remix apps and build your own versions');
       setShowSignInModal(true);
+      // Track anonymous user hitting signup wall
+      analytics.anonymousUserBlocked('remix', app.id, app.name);
+      analytics.signupPrompted('remix_app');
       return;
     }
     
@@ -201,6 +207,9 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
   const handleSaveRemix = async () => {
     if (!user) {
       alert('Please sign in to create a remix');
+      // Track anonymous user hitting signup wall
+      analytics.anonymousUserBlocked('remix', app.id, app.name);
+      analytics.signupPrompted('remix_app');
       return;
     }
     

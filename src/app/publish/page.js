@@ -44,6 +44,9 @@ export default function PublishPage() {
   useEffect(() => {
     // Redirect to sign-in if not authenticated
     if (isLoaded && !isSignedIn) {
+      // Track anonymous user blocked from publishing
+      analytics.anonymousUserBlocked('publish', null, null);
+      analytics.signupPrompted('publish');
       router.push('/sign-in?redirect_url=/publish');
     }
   }, [isLoaded, isSignedIn, router]);

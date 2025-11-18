@@ -108,11 +108,13 @@ export const analytics = {
     });
   },
 
-  appTried: (appId, appName, source = 'unknown') => {
+  appTried: (appId, appName, source = 'unknown', isAuthenticated = false) => {
     trackEvent('app_tried', {
       app_id: appId,
       app_name: appName,
       try_source: source, // 'feed', 'detail'
+      is_authenticated: isAuthenticated,
+      user_type: isAuthenticated ? 'signed_in' : 'anonymous',
     });
   },
 
@@ -218,6 +220,23 @@ export const analytics = {
     trackEvent('conversion_funnel', {
       funnel_step: step,
       app_id: appId,
+    });
+  },
+
+  // Anonymous user tracking
+  anonymousUserBlocked: (action, appId, appName) => {
+    // Track when anonymous users hit signup wall
+    trackEvent('anonymous_user_blocked', {
+      blocked_action: action, // 'save', 'remix', 'publish'
+      app_id: appId,
+      app_name: appName,
+    });
+  },
+
+  signupPrompted: (trigger) => {
+    // Track what prompted user to sign up
+    trackEvent('signup_prompted', {
+      trigger: trigger, // 'save_app', 'remix_app', 'publish', 'follow_user'
     });
   },
 };

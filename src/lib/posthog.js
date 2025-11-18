@@ -15,7 +15,7 @@ export function initPostHog() {
   posthog.init(apiKey, {
     api_host: '/ingest', // Use reverse proxy to avoid ad blockers
     ui_host: 'https://us.posthog.com', // PostHog UI for toolbar
-    person_profiles: 'identified_only', // Only track identified users
+    person_profiles: 'always', // Track ALL users (anonymous + logged in)
     capture_pageview: false, // We handle this manually in PostHogProvider
     capture_pageleave: true, // Track when users leave
     autocapture: true, // Auto-capture clicks
