@@ -281,7 +281,16 @@ export default function ProfilePage() {
 
       {activeTab === 'analytics' ? (
         <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-          <h3 style={{ marginBottom: 20 }}>Your Performance</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h3 style={{ margin: 0 }}>Your Performance</h3>
+            <a
+              href="/me/analytics"
+              className="btn primary"
+              style={{ textDecoration: 'none', fontSize: 14 }}
+            >
+              📊 Full Analytics →
+            </a>
+          </div>
 
           <div style={{
             display: 'grid',

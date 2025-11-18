@@ -10,7 +10,7 @@ export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [days, setDays] = useState(30);
+  const [days, setDays] = useState(1); // Default to today
 
   useEffect(() => {
     if (isLoaded && !user) {
@@ -93,18 +93,23 @@ export default function AnalyticsPage() {
         marginBottom: 24,
         flexWrap: 'wrap'
       }}>
-        {[7, 30, 90].map(d => (
+        {[
+          { value: 1, label: 'Today' },
+          { value: 7, label: 'Last 7 days' },
+          { value: 30, label: 'Last 30 days' },
+          { value: 90, label: 'Last 90 days' }
+        ].map(({ value, label }) => (
           <button
-            key={d}
-            onClick={() => setDays(d)}
+            key={value}
+            onClick={() => setDays(value)}
             className="btn"
             style={{
-              background: days === d ? '#fe2c55' : '#1a1a1a',
+              background: days === value ? '#fe2c55' : '#1a1a1a',
               color: 'white',
-              border: days === d ? '1px solid #fe2c55' : '1px solid #333'
+              border: days === value ? '1px solid #fe2c55' : '1px solid #333'
             }}
           >
-            Last {d} days
+            {label}
           </button>
         ))}
         {loading && <span style={{ color: '#888', padding: '8px 12px' }}>Loading...</span>}
