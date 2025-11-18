@@ -181,6 +181,11 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
         throw new Error(result.error || 'Failed to remix app');
       }
 
+      // Track app remixed event
+      if (result.app?.id) {
+        analytics.appRemixed(app.id, result.app.id, app.name);
+      }
+
       setShowRemix(false);
       setRemixPrompt('');
       setSuccessMessage('Your remixed app is ready! Check your profile to see it.');
@@ -222,6 +227,11 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
 
       if (!response.ok) {
         throw new Error(result.error || 'Failed to remix app');
+      }
+
+      // Track app remixed event (advanced JSON)
+      if (result.app?.id) {
+        analytics.appRemixed(app.id, result.app.id, app.name);
       }
 
       setShowRemix(false);

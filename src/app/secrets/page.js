@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { analytics } from '@/src/lib/analytics';
 
 function uid() { return (typeof localStorage !== 'undefined' && localStorage.getItem('uid')) || 'u_jamie'; }
 
@@ -24,6 +25,9 @@ export default function SecretsPage() {
     await api('/api/secrets', 'POST', { provider:'openai', apiKey: openaiKey });
     setOpenaiKey('');
     await refresh();
+    
+    // Track secrets configuration
+    analytics.secretsConfigured('openai');
   };
 
   return (

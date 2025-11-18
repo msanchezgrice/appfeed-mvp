@@ -6,17 +6,17 @@ export function initPostHog() {
   if (typeof window === 'undefined' || isInitialized) return;
 
   const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;
 
-  if (!apiKey || !host) {
-    console.warn('[PostHog] Missing API key or host. Analytics disabled.');
+  if (!apiKey) {
+    console.warn('[PostHog] Missing API key. Analytics disabled.');
     return;
   }
 
   posthog.init(apiKey, {
-    api_host: host,
+    api_host: '/ingest', // Use reverse proxy to avoid ad blockers
+    ui_host: 'https://us.posthog.com', // PostHog UI for toolbar
     person_profiles: 'identified_only', // Only track identified users
-    capture_pageview: true, // Auto-capture pageviews
+    capture_pageview: false, // We handle this manually in PostHogProvider
     capture_pageleave: true, // Track when users leave
     autocapture: true, // Auto-capture clicks
     session_recording: {

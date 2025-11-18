@@ -2,6 +2,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import TikTokFeedCard from '@/src/components/TikTokFeedCard';
+import { analytics } from '@/src/lib/analytics';
 
 function SearchContent() {
   const searchParams = useSearchParams();
@@ -46,6 +47,11 @@ function SearchContent() {
         setTags(j.tags || []);
         setHasMore(first.length === PAGE_SIZE);
         setPage(1);
+        
+        // Track search event if user searched
+        if (searchQuery && searchQuery.trim()) {
+          analytics.searchPerformed(searchQuery.trim(), first.length);
+        }
       } catch (error) {
         console.error('Error fetching apps:', error);
         setApps([]);
@@ -59,7 +65,7 @@ function SearchContent() {
     setHasMore(true);
     setPage(0);
     loadFirstPage();
-  }, [apiQuery]);
+  }, [apiQuery, searchQuery]);
 
   // Infinite scroll: load next page when sentinel visible
   useEffect(() => {

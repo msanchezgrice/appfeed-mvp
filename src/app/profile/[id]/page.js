@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import TikTokFeedCard from '@/src/components/TikTokFeedCard';
+import { analytics } from '@/src/lib/analytics';
 
 function uid() {
   return (typeof localStorage !== 'undefined' && localStorage.getItem('uid')) || 'u_jamie';
@@ -66,7 +67,16 @@ export default function UserProfilePage() {
   }, [userId]);
 
   const handleFollow = async () => {
-    await api('/api/follow', 'POST', { creatorId: userId, action: isFollowing ? 'unfollow' : 'follow' });
+    const action = isFollowing ? 'unfollow' : 'follow';
+    await api('/api/follow', 'POST', { creatorId: userId, action });
+    
+    // Track follow/unfollow event
+    if (action === 'follow') {
+      analytics.userFollowed(userId, user?.name || userId);
+    } else {
+      analytics.userUnfollowed(userId);
+    }
+    
     setIsFollowing(!isFollowing);
   };
 

@@ -1,6 +1,7 @@
 import { Webhook } from 'svix';
 import { headers } from 'next/headers';
 import { createAdminSupabaseClient } from '@/src/lib/supabase-server';
+import { track } from '@vercel/analytics/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,6 +83,18 @@ export async function POST(req) {
       }
       
       console.log('Profile created successfully:', data);
+      
+      // Track signup event for analytics (server-side)
+      try {
+        await track('user_signed_up', {
+          user_id: id,
+          email: email_addresses?.[0]?.email_address,
+          username: username,
+          display_name: [first_name, last_name].filter(Boolean).join(' ') || username,
+        });
+      } catch (err) {
+        console.error('[Analytics] Failed to track signup:', err);
+      }
     }
     
     if (eventType === 'user.updated') {

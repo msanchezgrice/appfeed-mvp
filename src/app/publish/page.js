@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { analytics } from '@/src/lib/analytics';
 
 export default function PublishPage() {
   const { user, isLoaded, isSignedIn } = useUser();
@@ -88,6 +89,17 @@ export default function PublishPage() {
 
       console.log('App published:', result);
       setCreatedApp(result.app || null);
+      
+      // Track app published event
+      if (result.app) {
+        analytics.appPublished(
+          result.app.id,
+          result.app.name,
+          tags?.split(',').map(t => t.trim()).filter(Boolean) || [],
+          false // inline mode
+        );
+      }
+      
       setStep('success');
     } catch (error) {
       alert('Error publishing app: ' + error.message);
@@ -120,6 +132,17 @@ export default function PublishPage() {
 
       console.log('App published:', result);
       setCreatedApp(result.app || null);
+      
+      // Track app published event
+      if (result.app) {
+        analytics.appPublished(
+          result.app.id,
+          result.app.name,
+          tags?.split(',').map(t => t.trim()).filter(Boolean) || [],
+          false // remote mode
+        );
+      }
+      
       setStep('success');
     } catch (error) {
       alert('Error publishing app: ' + error.message);
@@ -180,6 +203,17 @@ export default function PublishPage() {
 
       console.log('App published:', result);
       setCreatedApp(result.app || null);
+      
+      // Track app published event
+      if (result.app) {
+        analytics.appPublished(
+          result.app.id,
+          result.app.name,
+          tags?.split(',').map(t => t.trim()).filter(Boolean) || [],
+          false // github mode
+        );
+      }
+      
       setStep('success');
     } catch (error) {
       alert('Error publishing app: ' + error.message);
@@ -302,6 +336,17 @@ export default function PublishPage() {
         throw new Error(result.error || 'Failed to generate app');
       }
       setCreatedApp(result.app || null);
+      
+      // Track app published event (AI-generated)
+      if (result.app) {
+        analytics.appPublished(
+          result.app.id,
+          result.app.name,
+          tags?.split(',').map(t => t.trim()).filter(Boolean) || [],
+          true // AI-generated
+        );
+      }
+      
       setStep('success');
     } catch (error) {
       alert('Error generating app: ' + error.message);
