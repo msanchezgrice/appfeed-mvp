@@ -1,19 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { initPostHog, posthog } from '@/src/lib/posthog';
 
-export function PostHogProvider({ children }) {
+function PostHogTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { user, isLoaded } = useUser();
-
-  // Initialize PostHog
-  useEffect(() => {
-    initPostHog();
-  }, []);
 
   // Track pageviews
   useEffect(() => {
@@ -27,6 +21,17 @@ export function PostHogProvider({ children }) {
       });
     }
   }, [pathname, searchParams]);
+
+  return null;
+}
+
+export function PostHogProvider({ children }) {
+  const { user, isLoaded } = useUser();
+
+  // Initialize PostHog
+  useEffect(() => {
+    initPostHog();
+  }, []);
 
   // Identify user when Clerk loads
   useEffect(() => {
@@ -43,5 +48,12 @@ export function PostHogProvider({ children }) {
     }
   }, [user, isLoaded]);
 
-  return <>{children}</>;
+  return (
+    <>
+      <Suspense fallback={null}>
+        <PostHogTracker />
+      </Suspense>
+      {children}
+    </>
+  );
 }
