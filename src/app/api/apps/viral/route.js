@@ -80,10 +80,7 @@ function getViralManifests() {
             tool: 'llm.complete',
             args: {
               image: '{{enhanced_image.image}}',
-              prompt: `You are a personal enhancement coach. Analyze this enhanced photo and provide constructive improvement suggestions:
-
-## ✨ Visual Enhancements Applied
-Describe 3-5 specific visual improvements you can observe in this enhanced version (better lighting, grooming, styling, etc.)
+              prompt: `You are a personal enhancement coach. Provide constructive improvement suggestions:
 
 ## 💪 Practical Self-Improvement Tips
 Provide 3-4 actionable recommendations for personal enhancement:
