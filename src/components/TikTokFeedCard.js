@@ -50,15 +50,35 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
   const [resultSaved, setResultSaved] = useState(false);
 
   // Ensure Try/Use modals can open even if a previous ?run= is in the URL
-  const openTry = () => {
+  const openTry = async () => {
     try {
       if (typeof window !== 'undefined' && searchParams.get('run')) {
         router.replace(window.location.pathname);
       }
     } catch {}
-    setShowTry(true);
+    
     // Track app tried event (works for both anonymous and logged-in users)
     analytics.appTried(app.id, app.name, 'feed', !!user);
+    
+    // For iframe/html-bundle apps, skip the form and open directly
+    if (app?.runtime?.render_type === 'iframe' || app?.runtime?.render_type === 'html-bundle') {
+      // Create a dummy run to trigger overlay
+      const dummyRun = {
+        id: `${app.id}-play-${Date.now()}`,
+        app_id: app.id,
+        inputs: {},
+        outputs: {},
+        mode: 'try'
+      };
+      setRun(dummyRun);
+      
+      // Navigate to play overlay
+      const nextUrl = `${window.location.pathname}?run=${dummyRun.id}`;
+      router.push(nextUrl);
+      return;
+    }
+    
+    setShowTry(true);
   };
   const openUse = () => {
     try {
@@ -114,6 +134,24 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
   }, [app.id, hasLoggedImpression]);
 
   const onRun = async (inputs, mode='try') => {
+    // For iframe/html-bundle apps, don't create a server run
+    if (app?.runtime?.render_type === 'iframe' || app?.runtime?.render_type === 'html-bundle') {
+      const dummyRun = {
+        id: `${app.id}-play-${Date.now()}`,
+        app_id: app.id,
+        inputs: {},
+        outputs: {},
+        mode: mode
+      };
+      setRun(dummyRun);
+      setResultSaved(false);
+      
+      const basePath = window.location.pathname;
+      const nextUrl = `${basePath}?run=${encodeURIComponent(dummyRun.id)}`;
+      router.push(nextUrl);
+      return;
+    }
+    
     const r = await api('/api/runs', 'POST', { appId: app.id, inputs, mode });
     setRun(r);
     setResultSaved(false);
