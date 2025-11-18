@@ -1034,7 +1034,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
               overflow: 'hidden'
             }}
           >
-            {/* Header */}
+            {/* Header - hide on mobile for iframe/html-bundle apps */}
             <div
               style={{
                 padding: '12px 16px',
@@ -1044,7 +1044,10 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                 zIndex: 2,
                 background: 'var(--panel)',
                 borderBottom: '1px solid #1f2937',
-                display: 'flex',
+                display: (typeof window !== 'undefined' && window.innerWidth <= 768 && 
+                         (app?.runtime?.render_type === 'iframe' || app?.runtime?.render_type === 'html-bundle')) 
+                  ? 'none' 
+                  : 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}
@@ -1104,8 +1107,14 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
               style={{
                 flex: 1,
                 overflow: 'auto',
-                padding: '16px',
-                paddingBottom: 'calc(16px + env(safe-area-inset-bottom))',
+                padding: (typeof window !== 'undefined' && window.innerWidth <= 768 && 
+                         (app?.runtime?.render_type === 'iframe' || app?.runtime?.render_type === 'html-bundle')) 
+                  ? '0'
+                  : '16px',
+                paddingBottom: (typeof window !== 'undefined' && window.innerWidth <= 768 && 
+                               (app?.runtime?.render_type === 'iframe' || app?.runtime?.render_type === 'html-bundle')) 
+                  ? '0'
+                  : 'calc(16px + env(safe-area-inset-bottom))',
                 display: 'flex',
                 justifyContent: 'center'
               }}

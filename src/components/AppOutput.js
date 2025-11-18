@@ -605,13 +605,26 @@ function IframeOutput({ app }) {
     return <div style={{ padding: 16, textAlign: 'center', color: '#888' }}>No URL provided</div>;
   }
 
-  // On mobile: use parent container's full space (no fixed positioning)
-  // The parent modal already handles fullscreen
-  const containerStyle = {
-    width: '100%',
-    height: '100%',
+  // Use parent container's full space
+  // On mobile, parent has no padding so this becomes fullscreen
+  const containerStyle = isMobile ? {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100vw',
+    height: '100vh',
     background: '#000',
-    position: 'relative'
+    zIndex: 1
+  } : {
+    width: '100%',
+    height: '70vh',
+    maxHeight: 700,
+    background: '#000',
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden'
   };
 
   return (
