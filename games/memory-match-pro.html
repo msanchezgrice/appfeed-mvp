@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Memory Match Pro</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    #game-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+    }
+    
+    #header {
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .stat-box {
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+      padding: 10px 16px;
+      border-radius: 16px;
+      color: white;
+      font-weight: 700;
+      font-size: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    
+    #theme-selector {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      padding: 12px 20px;
+    }
+    
+    .theme-btn {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      border: 2px solid transparent;
+      padding: 8px 16px;
+      border-radius: 12px;
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .theme-btn.active {
+      background: white;
+      color: #4facfe;
+      border-color: white;
+    }
+    
+    .theme-btn:active {
+      transform: scale(0.95);
+    }
+    
+    #board {
+      flex: 1;
+      display: grid;
+      gap: 12px;
+      padding: 20px;
+      grid-template-columns: repeat(4, 1fr);
+      align-content: center;
+    }
+    
+    .card {
+      aspect-ratio: 1;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
+      border-radius: 16px;
+      cursor: pointer;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+    
+    .card.flipped {
+      transform: rotateY(180deg);
+    }
+    
+    .card.matched {
+      animation: matchPulse 0.6s ease;
+      pointer-events: none;
+    }
+    
+    @keyframes matchPulse {
+      0%, 100% {
+        transform: rotateY(180deg) scale(1);
+      }
+      50% {
+        transform: rotateY(180deg) scale(1.1);
+        box-shadow: 0 12px 30px rgba(0, 255, 0, 0.5);
+      }
+    }
+    
+    .card-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+    }
+    
+    .card-back {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
+      border: 3px solid rgba(255, 255, 255, 0.5);
+    }
+    
+    .card-back::after {
+      content: '?';
+      font-size: 48px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .card-front {
+      background: white;
+      transform: rotateY(180deg);
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    #game-over {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(15px);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      animation: fadeIn 0.4s ease;
+    }
+    
+    #game-over.show {
+      display: flex;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .modal-content {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      padding: 40px 30px;
+      border-radius: 24px;
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    @keyframes slideUp {
+      from {
+        transform: translateY(100px) scale(0.9);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+    }
+    
+    .victory-emoji {
+      font-size: 72px;
+      margin-bottom: 16px;
+      animation: bounce 1s ease infinite;
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-15px); }
+    }
+    
+    .game-over-title {
+      font-size: 32px;
+      font-weight: 900;
+      color: white;
+      margin-bottom: 24px;
+      text-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    
+    .stat-card {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      padding: 16px;
+      border-radius: 16px;
+    }
+    
+    .stat-value {
+      font-size: 32px;
+      font-weight: 900;
+      color: white;
+      margin-bottom: 4px;
+    }
+    
+    .stat-label-small {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    #restart-btn {
+      background: white;
+      color: #4facfe;
+      border: none;
+      padding: 16px 48px;
+      border-radius: 30px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s ease;
+    }
+    
+    #restart-btn:active {
+      transform: scale(0.95);
+    }
+    
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background: white;
+      pointer-events: none;
+      animation: confettiFall 3s linear forwards;
+      z-index: 1000;
+    }
+    
+    @keyframes confettiFall {
+      to {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
+    
+    #difficulty-selector {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      padding: 0 20px 12px;
+    }
+    
+    .diff-btn {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      border: 2px solid transparent;
+      padding: 6px 12px;
+      border-radius: 10px;
+      color: white;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .diff-btn.active {
+      background: rgba(255, 215, 0, 0.9);
+      color: #000;
+      border-color: #ffd700;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="header">
+      <div class="stat-box">
+        <span class="stat-label">Moves:</span>
+        <span id="moves">0</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">Time:</span>
+        <span id="timer">0:00</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">Pairs:</span>
+        <span id="pairs">0/<span id="total-pairs">8</span></span>
+      </div>
+    </div>
+    
+    <div id="difficulty-selector">
+      <button class="diff-btn active" data-size="8">Easy</button>
+      <button class="diff-btn" data-size="12">Medium</button>
+      <button class="diff-btn" data-size="16">Hard</button>
+    </div>
+    
+    <div id="theme-selector">
+      <button class="theme-btn active" data-theme="emojis">😊 Emojis</button>
+      <button class="theme-btn" data-theme="animals">🐶 Animals</button>
+      <button class="theme-btn" data-theme="colors">🎨 Colors</button>
+    </div>
+    
+    <div id="board"></div>
+    
+    <div id="game-over">
+      <div class="modal-content">
+        <div class="victory-emoji">🎉</div>
+        <div class="game-over-title">You Won!</div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="final-moves">0</div>
+            <div class="stat-label-small">Moves</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="final-time">0:00</div>
+            <div class="stat-label-small">Time</div>
+          </div>
+        </div>
+        <button id="restart-btn">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const board = document.getElementById('board');
+    const movesEl = document.getElementById('moves');
+    const timerEl = document.getElementById('timer');
+    const pairsEl = document.getElementById('pairs');
+    const totalPairsEl = document.getElementById('total-pairs');
+    const gameOverEl = document.getElementById('game-over');
+    const finalMovesEl = document.getElementById('final-moves');
+    const finalTimeEl = document.getElementById('final-time');
+    const restartBtn = document.getElementById('restart-btn');
+    const themeButtons = document.querySelectorAll('.theme-btn');
+    const diffButtons = document.querySelectorAll('.diff-btn');
+    
+    const THEMES = {
+      emojis: ['😊', '🎉', '🌟', '❤️', '🔥', '🎨', '🎮', '🚀', '🌈', '⚡', '🎵', '🌺', '🍕', '🎯', '💎', '🏆'],
+      animals: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔'],
+      colors: ['🟥', '🟦', '🟩', '🟨', '🟧', '🟪', '⬛', '⬜', '🟫', '🔴', '🔵', '🟢', '🟡', '🟠', '🟣', '⚫']
+    };
+    
+    let currentTheme = 'emojis';
+    let difficulty = 8;
+    let cards = [];
+    let flippedCards = [];
+    let matchedPairs = 0;
+    let moves = 0;
+    let startTime = null;
+    let timerInterval = null;
+    let canFlip = true;
+    
+    function shuffle(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+    
+    function initGame() {
+      // Clear board
+      board.innerHTML = '';
+      cards = [];
+      flippedCards = [];
+      matchedPairs = 0;
+      moves = 0;
+      startTime = null;
+      canFlip = true;
+      
+      // Update UI
+      movesEl.textContent = '0';
+      timerEl.textContent = '0:00';
+      pairsEl.textContent = '0';
+      totalPairsEl.textContent = difficulty / 2;
+      
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      
+      // Adjust grid based on difficulty
+      if (difficulty === 8) {
+        board.style.gridTemplateColumns = 'repeat(4, 1fr)';
+      } else if (difficulty === 12) {
+        board.style.gridTemplateColumns = 'repeat(4, 1fr)';
+      } else {
+        board.style.gridTemplateColumns = 'repeat(4, 1fr)';
+      }
+      
+      // Generate card pairs
+      const symbols = THEMES[currentTheme].slice(0, difficulty / 2);
+      const cardValues = shuffle([...symbols, ...symbols]);
+      
+      // Create cards
+      cardValues.forEach((symbol, index) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.dataset.symbol = symbol;
+        card.dataset.index = index;
+        
+        card.innerHTML = `
+          <div class="card-face card-back"></div>
+          <div class="card-face card-front">${symbol}</div>
+        `;
+        
+        card.addEventListener('click', () => flipCard(card));
+        board.appendChild(card);
+        cards.push(card);
+      });
+    }
+    
+    function startTimer() {
+      if (!startTime) {
+        startTime = Date.now();
+        timerInterval = setInterval(updateTimer, 100);
+      }
+    }
+    
+    function updateTimer() {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const mins = Math.floor(elapsed / 60);
+      const secs = elapsed % 60;
+      timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+    
+    function flipCard(card) {
+      if (!canFlip || card.classList.contains('flipped') || card.classList.contains('matched')) {
+        return;
+      }
+      
+      startTimer();
+      
+      card.classList.add('flipped');
+      flippedCards.push(card);
+      
+      if (flippedCards.length === 2) {
+        canFlip = false;
+        moves++;
+        movesEl.textContent = moves;
+        
+        setTimeout(checkMatch, 600);
+      }
+    }
+    
+    function checkMatch() {
+      const [card1, card2] = flippedCards;
+      const match = card1.dataset.symbol === card2.dataset.symbol;
+      
+      if (match) {
+        card1.classList.add('matched');
+        card2.classList.add('matched');
+        matchedPairs++;
+        pairsEl.textContent = matchedPairs;
+        
+        if (matchedPairs === difficulty / 2) {
+          setTimeout(endGame, 500);
+        }
+      } else {
+        setTimeout(() => {
+          card1.classList.remove('flipped');
+          card2.classList.remove('flipped');
+        }, 400);
+      }
+      
+      flippedCards = [];
+      canFlip = true;
+    }
+    
+    function createConfetti() {
+      for (let i = 0; i < 50; i++) {
+        setTimeout(() => {
+          const confetti = document.createElement('div');
+          confetti.className = 'confetti';
+          confetti.style.left = Math.random() * 100 + '%';
+          confetti.style.background = ['#ff6b6b', '#4ecdc4', '#ffd93d', '#a8e6cf', '#c6a8ff'][Math.floor(Math.random() * 5)];
+          confetti.style.animationDelay = Math.random() * 0.5 + 's';
+          document.body.appendChild(confetti);
+          
+          setTimeout(() => confetti.remove(), 3000);
+        }, i * 30);
+      }
+    }
+    
+    function endGame() {
+      clearInterval(timerInterval);
+      const finalTime = timerEl.textContent;
+      
+      finalMovesEl.textContent = moves;
+      finalTimeEl.textContent = finalTime;
+      
+      createConfetti();
+      gameOverEl.classList.add('show');
+      
+      // Send score to parent
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: 'memory_match_complete',
+          moves: moves,
+          time: finalTime,
+          difficulty: difficulty,
+          theme: currentTheme
+        }, '*');
+      }
+    }
+    
+    // Theme selector
+    themeButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        themeButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentTheme = btn.dataset.theme;
+        initGame();
+      });
+    });
+    
+    // Difficulty selector
+    diffButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        diffButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        difficulty = parseInt(btn.dataset.size);
+        initGame();
+      });
+    });
+    
+    // Restart button
+    restartBtn.addEventListener('click', () => {
+      gameOverEl.classList.remove('show');
+      setTimeout(initGame, 100);
+    });
+    
+    // Initialize
+    initGame();
+  </script>
+</body>
+</html>

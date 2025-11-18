@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Bubble Pop Blitz</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      touch-action: none;
+    }
+    
+    #game-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: pointer;
+    }
+    
+    #hud {
+      position: fixed;
+      top: env(safe-area-inset-top, 20px);
+      left: 0;
+      right: 0;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+      pointer-events: none;
+    }
+    
+    .hud-item {
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(10px);
+      padding: 12px 20px;
+      border-radius: 20px;
+      color: white;
+      font-weight: 700;
+      font-size: 18px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+    
+    #score {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    #combo {
+      font-size: 14px;
+      background: rgba(255, 215, 0, 0.9);
+      color: #000;
+      transform: scale(1);
+      transition: transform 0.2s ease;
+    }
+    
+    #combo.active {
+      transform: scale(1.15);
+    }
+    
+    #time {
+      background: rgba(0, 0, 0, 0.5);
+    }
+    
+    #game-over {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(10px);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      padding: 20px;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    #game-over.show {
+      display: flex;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .modal-content {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 40px 30px;
+      border-radius: 24px;
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      animation: slideUp 0.4s ease;
+    }
+    
+    @keyframes slideUp {
+      from {
+        transform: translateY(50px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+    
+    .game-over-title {
+      font-size: 36px;
+      font-weight: 900;
+      color: white;
+      margin-bottom: 16px;
+      text-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+    
+    .final-score {
+      font-size: 56px;
+      font-weight: 900;
+      color: #ffd700;
+      margin-bottom: 8px;
+      text-shadow: 0 4px 15px rgba(255, 215, 0, 0.5);
+    }
+    
+    .score-label {
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 24px;
+    }
+    
+    .stats {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 32px;
+    }
+    
+    .stat {
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: white;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    #restart-btn {
+      background: white;
+      color: #667eea;
+      border: none;
+      padding: 16px 48px;
+      border-radius: 30px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      pointer-events: auto;
+    }
+    
+    #restart-btn:active {
+      transform: scale(0.95);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+    
+    #instructions {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: white;
+      z-index: 5;
+      pointer-events: none;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    
+    .instruction-text {
+      font-size: 24px;
+      font-weight: 600;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+      margin-bottom: 12px;
+    }
+    
+    .instruction-emoji {
+      font-size: 48px;
+      animation: bounce 1.5s infinite;
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="canvas"></canvas>
+    
+    <div id="hud">
+      <div class="hud-item" id="score">0</div>
+      <div class="hud-item" id="combo" style="display: none;">Combo x2</div>
+      <div class="hud-item" id="time">60s</div>
+    </div>
+    
+    <div id="instructions">
+      <div class="instruction-text">Tap Bubbles!</div>
+      <div class="instruction-emoji">👆</div>
+    </div>
+    
+    <div id="game-over">
+      <div class="modal-content">
+        <div class="game-over-title">Time's Up!</div>
+        <div class="final-score" id="final-score">0</div>
+        <div class="score-label">Final Score</div>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-value" id="total-pops">0</div>
+            <div class="stat-label">Pops</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="best-combo">1x</div>
+            <div class="stat-label">Best Combo</div>
+          </div>
+        </div>
+        <button id="restart-btn">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const comboEl = document.getElementById('combo');
+    const timeEl = document.getElementById('time');
+    const gameOverEl = document.getElementById('game-over');
+    const finalScoreEl = document.getElementById('final-score');
+    const totalPopsEl = document.getElementById('total-pops');
+    const bestComboEl = document.getElementById('best-combo');
+    const restartBtn = document.getElementById('restart-btn');
+    const instructionsEl = document.getElementById('instructions');
+    
+    let width, height, dpr;
+    let bubbles = [];
+    let particles = [];
+    let score = 0;
+    let gameTime = 60;
+    let gameStarted = false;
+    let gameRunning = false;
+    let lastTime = 0;
+    let comboCount = 0;
+    let comboTimer = 0;
+    let totalPops = 0;
+    let bestCombo = 1;
+    
+    const BUBBLE_SPAWN_RATE = 1000; // ms
+    const BUBBLE_SPEED = 0.8;
+    const COMBO_WINDOW = 1000; // ms
+    
+    const COLORS = [
+      { gradient: ['#FF6B6B', '#EE5A6F'], glow: 'rgba(255, 107, 107, 0.4)' },
+      { gradient: ['#4ECDC4', '#44A08D'], glow: 'rgba(78, 205, 196, 0.4)' },
+      { gradient: ['#FFD93D', '#FFC93C'], glow: 'rgba(255, 217, 61, 0.4)' },
+      { gradient: ['#A8E6CF', '#56AB91'], glow: 'rgba(168, 230, 207, 0.4)' },
+      { gradient: ['#C6A8FF', '#9B59B6'], glow: 'rgba(198, 168, 255, 0.4)' },
+      { gradient: ['#FF8B94', '#FF6F91'], glow: 'rgba(255, 139, 148, 0.4)' },
+    ];
+    
+    function resize() {
+      dpr = window.devicePixelRatio || 1;
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      ctx.scale(dpr, dpr);
+    }
+    
+    class Bubble {
+      constructor() {
+        this.radius = 30 + Math.random() * 25;
+        this.x = this.radius + Math.random() * (width - this.radius * 2);
+        this.y = height + this.radius;
+        this.targetY = Math.random() * (height * 0.5);
+        this.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+        this.speed = BUBBLE_SPEED + Math.random() * 0.5;
+        this.wobble = Math.random() * Math.PI * 2;
+        this.wobbleSpeed = 0.02 + Math.random() * 0.02;
+        this.scale = 0;
+      }
+      
+      update(dt) {
+        if (this.scale < 1) {
+          this.scale += 0.05;
+        }
+        this.y -= this.speed;
+        this.wobble += this.wobbleSpeed;
+        this.x += Math.sin(this.wobble) * 0.5;
+      }
+      
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.scale(this.scale, this.scale);
+        
+        // Glow
+        ctx.shadowColor = this.color.glow;
+        ctx.shadowBlur = 20;
+        
+        // Gradient fill
+        const gradient = ctx.createRadialGradient(0, -this.radius * 0.3, 0, 0, 0, this.radius);
+        gradient.addColorStop(0, this.color.gradient[0]);
+        gradient.addColorStop(1, this.color.gradient[1]);
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Shine highlight
+        ctx.shadowBlur = 0;
+        const highlight = ctx.createRadialGradient(
+          -this.radius * 0.3, -this.radius * 0.3, 0,
+          -this.radius * 0.3, -this.radius * 0.3, this.radius * 0.6
+        );
+        highlight.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
+        highlight.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = highlight;
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.restore();
+      }
+      
+      contains(x, y) {
+        const dx = x - this.x;
+        const dy = y - this.y;
+        return dx * dx + dy * dy <= this.radius * this.radius;
+      }
+    }
+    
+    class Particle {
+      constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.vx = (Math.random() - 0.5) * 4;
+        this.vy = (Math.random() - 0.5) * 4 - 2;
+        this.life = 1;
+        this.decay = 0.02;
+        this.size = 3 + Math.random() * 4;
+        this.color = color;
+      }
+      
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += 0.1;
+        this.life -= this.decay;
+      }
+      
+      draw() {
+        ctx.globalAlpha = this.life;
+        ctx.fillStyle = this.color.gradient[0];
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+    
+    function spawnBubble() {
+      if (gameRunning && bubbles.length < 12) {
+        bubbles.push(new Bubble());
+      }
+    }
+    
+    function createParticles(x, y, color, count = 12) {
+      for (let i = 0; i < count; i++) {
+        particles.push(new Particle(x, y, color));
+      }
+    }
+    
+    function startGame() {
+      gameStarted = true;
+      gameRunning = true;
+      score = 0;
+      gameTime = 60;
+      comboCount = 0;
+      comboTimer = 0;
+      totalPops = 0;
+      bestCombo = 1;
+      bubbles = [];
+      particles = [];
+      instructionsEl.style.display = 'none';
+      updateScore();
+      updateTime();
+    }
+    
+    function endGame() {
+      gameRunning = false;
+      finalScoreEl.textContent = score;
+      totalPopsEl.textContent = totalPops;
+      bestComboEl.textContent = bestCombo + 'x';
+      gameOverEl.classList.add('show');
+      
+      // Send score to parent
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: 'bubble_pop_score',
+          score: score,
+          pops: totalPops,
+          bestCombo: bestCombo
+        }, '*');
+      }
+    }
+    
+    function updateScore() {
+      scoreEl.textContent = score;
+    }
+    
+    function updateCombo() {
+      if (comboCount > 1) {
+        comboEl.textContent = `Combo x${comboCount}`;
+        comboEl.style.display = 'block';
+        comboEl.classList.add('active');
+        setTimeout(() => comboEl.classList.remove('active'), 200);
+        
+        if (comboCount > bestCombo) {
+          bestCombo = comboCount;
+        }
+      } else {
+        comboEl.style.display = 'none';
+      }
+    }
+    
+    function updateTime() {
+      timeEl.textContent = Math.ceil(gameTime) + 's';
+    }
+    
+    function handleTouch(e) {
+      e.preventDefault();
+      if (!gameStarted) {
+        startGame();
+        return;
+      }
+      
+      if (!gameRunning) return;
+      
+      const touches = e.touches || [e];
+      for (let touch of touches) {
+        const rect = canvas.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        
+        for (let i = bubbles.length - 1; i >= 0; i--) {
+          if (bubbles[i].contains(x, y)) {
+            const bubble = bubbles[i];
+            
+            // Award points
+            const points = Math.floor(10 * comboCount);
+            score += points;
+            totalPops++;
+            
+            // Create particles
+            createParticles(bubble.x, bubble.y, bubble.color, 15);
+            
+            // Update combo
+            comboCount++;
+            comboTimer = COMBO_WINDOW;
+            updateCombo();
+            updateScore();
+            
+            // Remove bubble
+            bubbles.splice(i, 1);
+            break;
+          }
+        }
+      }
+    }
+    
+    function update(dt) {
+      if (!gameRunning) return;
+      
+      // Update game time
+      gameTime -= dt / 1000;
+      if (gameTime <= 0) {
+        gameTime = 0;
+        endGame();
+      }
+      updateTime();
+      
+      // Update combo timer
+      if (comboTimer > 0) {
+        comboTimer -= dt;
+        if (comboTimer <= 0) {
+          comboCount = 1;
+          updateCombo();
+        }
+      }
+      
+      // Update bubbles
+      for (let i = bubbles.length - 1; i >= 0; i--) {
+        bubbles[i].update(dt);
+        if (bubbles[i].y + bubbles[i].radius < 0) {
+          bubbles.splice(i, 1);
+        }
+      }
+      
+      // Update particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        particles[i].update();
+        if (particles[i].life <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+    }
+    
+    function draw() {
+      // Clear with gradient background
+      const gradient = ctx.createLinearGradient(0, 0, 0, height);
+      gradient.addColorStop(0, '#667eea');
+      gradient.addColorStop(1, '#764ba2');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+      
+      // Draw bubbles
+      for (let bubble of bubbles) {
+        bubble.draw();
+      }
+      
+      // Draw particles
+      for (let particle of particles) {
+        particle.draw();
+      }
+    }
+    
+    function gameLoop(timestamp) {
+      const dt = timestamp - lastTime;
+      lastTime = timestamp;
+      
+      update(dt);
+      draw();
+      
+      requestAnimationFrame(gameLoop);
+    }
+    
+    // Event listeners
+    canvas.addEventListener('touchstart', handleTouch, { passive: false });
+    canvas.addEventListener('mousedown', handleTouch);
+    
+    restartBtn.addEventListener('click', () => {
+      gameOverEl.classList.remove('show');
+      setTimeout(startGame, 100);
+    });
+    
+    // Spawn bubbles
+    setInterval(spawnBubble, BUBBLE_SPAWN_RATE);
+    
+    // Initialize
+    resize();
+    window.addEventListener('resize', resize);
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>

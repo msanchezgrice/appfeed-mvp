@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import TikTokFeedCard from '@/src/components/TikTokFeedCard';
 import { analytics } from '@/src/lib/analytics';
 
@@ -99,7 +100,7 @@ export default function UserProfilePage() {
           <p style={{ margin: '12px 0 0 0', color: '#ccc', fontSize: 14 }}>{user.bio}</p>
         )}
 
-        {userId !== uid() && (
+        {userId !== uid() ? (
           <button
             onClick={handleFollow}
             style={{
@@ -116,6 +117,25 @@ export default function UserProfilePage() {
           >
             {isFollowing ? 'Following' : 'Follow'}
           </button>
+        ) : (
+          <Link
+            href="/me/analytics"
+            style={{
+              marginTop: 16,
+              padding: '10px 32px',
+              background: '#fe2c55',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 4,
+              fontSize: 16,
+              fontWeight: 'bold',
+              textDecoration: 'none',
+              display: 'inline-block',
+              textAlign: 'center'
+            }}
+          >
+            📊 View Analytics
+          </Link>
         )}
       </div>
 
