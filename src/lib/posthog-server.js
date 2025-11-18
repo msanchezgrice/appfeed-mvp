@@ -1,20 +1,41 @@
 // Server-side PostHog API client for fetching analytics data
-import { PostHog } from 'posthog-node';
+// Uses direct API calls instead of posthog-node SDK (which doesn't support query API)
 
-// Initialize PostHog client (singleton)
-let posthogClient = null;
+const POSTHOG_API_URL = 'https://app.posthog.com/api';
+const POSTHOG_PROJECT_ID = '87369'; // Your PostHog project ID
 
-function getPostHogClient() {
-  if (!posthogClient && process.env.POSTHOG_PROJECT_API_KEY) {
-    posthogClient = new PostHog(
-      process.env.POSTHOG_PROJECT_API_KEY,
-      {
-        host: 'https://app.posthog.com',
-        personalApiKey: process.env.POSTHOG_PERSONAL_API_KEY
-      }
-    );
+/**
+ * Make authenticated request to PostHog API
+ */
+async function posthogAPI(endpoint, body) {
+  const personalApiKey = process.env.POSTHOG_PERSONAL_API_KEY;
+  
+  if (!personalApiKey) {
+    console.warn('[PostHog] Personal API key not configured');
+    return null;
   }
-  return posthogClient;
+
+  try {
+    const response = await fetch(`${POSTHOG_API_URL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${personalApiKey}`
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[PostHog] API error: ${response.status} - ${errorText}`);
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('[PostHog] Request failed:', error.message);
+    return null;
+  }
 }
 
 /**
@@ -23,17 +44,11 @@ function getPostHogClient() {
  * @param {number} days - Number of days to look back
  */
 export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
-  const client = getPostHogClient();
-  if (!client) {
-    console.warn('[PostHog] Client not initialized - check API keys');
-    return null;
-  }
-
   try {
     // Get all events for this creator in parallel
     const [viewsData, triesData, savesData, sharesData, remixesData] = await Promise.all([
       // Views
-      client.query({
+      posthogAPI(`/projects/${POSTHOG_PROJECT_ID}/query/`, {
         query: {
           kind: 'EventsQuery',
           select: ['timestamp', 'properties.app_id', 'properties.app_name', 'distinct_id'],
@@ -41,10 +56,10 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
           where: [`properties.creator_id = '${creatorId}'`],
           after: `-${days}d`
         }
-      }).catch(() => ({ results: [] })),
+      }),
       
       // Tries
-      client.query({
+      posthogAPI(`/projects/${POSTHOG_PROJECT_ID}/query/`, {
         query: {
           kind: 'EventsQuery',
           select: ['timestamp', 'properties.app_id', 'distinct_id'],
@@ -52,10 +67,10 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
           where: [`properties.$current_creator_id = '${creatorId}'`],
           after: `-${days}d`
         }
-      }).catch(() => ({ results: [] })),
+      }),
       
       // Saves
-      client.query({
+      posthogAPI(`/projects/${POSTHOG_PROJECT_ID}/query/`, {
         query: {
           kind: 'EventsQuery',
           select: ['timestamp', 'properties.app_id', 'distinct_id'],
@@ -63,10 +78,10 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
           where: [`properties.creator_id = '${creatorId}'`],
           after: `-${days}d`
         }
-      }).catch(() => ({ results: [] })),
+      }),
       
       // Shares
-      client.query({
+      posthogAPI(`/projects/${POSTHOG_PROJECT_ID}/query/`, {
         query: {
           kind: 'EventsQuery',
           select: ['timestamp', 'properties.app_id', 'distinct_id'],
@@ -74,10 +89,10 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
           where: [`properties.creator_id = '${creatorId}'`],
           after: `-${days}d`
         }
-      }).catch(() => ({ results: [] })),
+      }),
       
       // Remixes
-      client.query({
+      posthogAPI(`/projects/${POSTHOG_PROJECT_ID}/query/`, {
         query: {
           kind: 'EventsQuery',
           select: ['timestamp', 'properties.original_app_id', 'distinct_id'],
@@ -85,7 +100,7 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
           where: [`properties.creator_id = '${creatorId}'`],
           after: `-${days}d`
         }
-      }).catch(() => ({ results: [] }))
+      })
     ]);
 
     return {
@@ -105,11 +120,8 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
  * Get time-series data for a creator (daily breakdown)
  */
 export async function getCreatorTimeSeries(creatorId, days = 30) {
-  const client = getPostHogClient();
-  if (!client) return null;
-
   try {
-    const timeSeries = await client.query({
+    const timeSeries = await posthogAPI(`/projects/${POSTHOG_PROJECT_ID}/query/`, {
       query: {
         kind: 'TrendsQuery',
         series: [
@@ -146,11 +158,8 @@ export async function getCreatorTimeSeries(creatorId, days = 30) {
  * Get traffic source breakdown for a creator
  */
 export async function getTrafficSources(creatorId, days = 30) {
-  const client = getPostHogClient();
-  if (!client) return null;
-
   try {
-    const breakdown = await client.query({
+    const breakdown = await posthogAPI(`/projects/${POSTHOG_PROJECT_ID}/query/`, {
       query: {
         kind: 'TrendsQuery',
         series: [
@@ -188,11 +197,8 @@ export async function getTrafficSources(creatorId, days = 30) {
  * Get conversion funnel for a creator
  */
 export async function getConversionFunnel(creatorId, days = 30) {
-  const client = getPostHogClient();
-  if (!client) return null;
-
   try {
-    const funnel = await client.query({
+    const funnel = await posthogAPI(`/projects/${POSTHOG_PROJECT_ID}/query/`, {
       query: {
         kind: 'FunnelsQuery',
         series: [
