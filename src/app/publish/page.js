@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { analytics } from '@/src/lib/analytics';
+import { analytics, trackEvent } from '@/src/lib/analytics';
 
 export default function PublishPage() {
   const { user, isLoaded, isSignedIn } = useUser();
@@ -43,6 +43,8 @@ export default function PublishPage() {
 
   // Form states for remote URL
   const [externalUrl, setExternalUrl] = useState('');
+  const [autoImporting, setAutoImporting] = useState(false);
+  const [autoImportError, setAutoImportError] = useState(null);
   
   // Form states for HTML bundle
   const [htmlContent, setHtmlContent] = useState('');
@@ -372,6 +374,45 @@ export default function PublishPage() {
     }
   };
 
+  const handleAutoImport = async (url) => {
+    if (!url || !url.startsWith('http')) return;
+    
+    setAutoImporting(true);
+    setAutoImportError(null);
+    
+    try {
+      const response = await fetch('/api/scrape-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ url })
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to import from URL');
+      }
+      
+      // Auto-fill fields from scraped data
+      const data = result.data;
+      if (data.name && !appName) {
+        setAppName(data.name);
+      }
+      if (data.description && !appDescription) {
+        setAppDescription(data.description);
+      }
+      if (data.tags && data.tags.length > 0 && !tags) {
+        setTags(data.tags.join(', '));
+      }
+      
+    } catch (error) {
+      setAutoImportError(error.message);
+    } finally {
+      setAutoImporting(false);
+    }
+  };
+
   const handleSubmitRemoteUrl = async (e) => {
     e.preventDefault();
 
@@ -403,7 +444,7 @@ export default function PublishPage() {
       
       // Track app published event with remote-url mode
       if (result.app) {
-        analytics.trackEvent('app_published', {
+        trackEvent('app_published', {
           app_id: result.app.id,
           app_name: result.app.name,
           tags: tags?.split(',').map(t => t.trim()).filter(Boolean) || [],
@@ -477,7 +518,7 @@ export default function PublishPage() {
       
       // Track app published event with html-bundle mode
       if (result.app) {
-        analytics.trackEvent('app_published', {
+        trackEvent('app_published', {
           app_id: result.app.id,
           app_name: result.app.name,
           tags: tags?.split(',').map(t => t.trim()).filter(Boolean) || [],
@@ -1388,6 +1429,60 @@ POST /run
             </div>
 
             <div className="card" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginTop: 0 }}>Public URL</h3>
+
+              <div style={{ marginBottom: 16 }}>
+                <label className="label">App URL *</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    type="url"
+                    className="input"
+                    placeholder="https://your-app-123.us-west1.run.app"
+                    value={externalUrl}
+                    onChange={(e) => setExternalUrl(e.target.value)}
+                    required
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={() => handleAutoImport(externalUrl)}
+                    disabled={autoImporting || !externalUrl}
+                  >
+                    {autoImporting ? 'Importing...' : '✨ Auto-Import'}
+                  </button>
+                </div>
+                <p className="small" style={{ marginTop: 4 }}>
+                  Paste URL and click Auto-Import to auto-fill details
+                </p>
+              </div>
+
+              {autoImporting && (
+                <div style={{ padding: 12, background: 'var(--bg)', borderRadius: 8, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                      width: 16,
+                      height: 16,
+                      border: '2px solid var(--brand)',
+                      borderTopColor: 'transparent',
+                      borderRadius: '50%',
+                      animation: 'spin 0.8s linear infinite'
+                    }} />
+                    <span className="small">🔍 Analyzing app...</span>
+                  </div>
+                </div>
+              )}
+              
+              {autoImportError && (
+                <div style={{ padding: 12, background: '#ef444422', border: '1px solid #ef4444', borderRadius: 8, marginBottom: 16 }}>
+                  <div className="small" style={{ color: '#ef4444' }}>
+                    <strong>Error:</strong> {autoImportError}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="card" style={{ marginBottom: 16 }}>
               <h3 style={{ marginTop: 0 }}>App Details</h3>
 
               <div style={{ marginBottom: 16 }}>
@@ -1412,21 +1507,6 @@ POST /run
                   rows={3}
                   required
                 />
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <label className="label">Public URL *</label>
-                <input
-                  type="url"
-                  className="input"
-                  placeholder="https://your-app-123.us-west1.run.app"
-                  value={externalUrl}
-                  onChange={(e) => setExternalUrl(e.target.value)}
-                  required
-                />
-                <p className="small" style={{ marginTop: 4 }}>
-                  Must be a publicly accessible URL
-                </p>
               </div>
             </div>
 
