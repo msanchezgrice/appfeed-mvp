@@ -3,7 +3,7 @@
 import { useEffect, Suspense } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { initPostHog, posthog } from '@/src/lib/posthog';
+import { initPostHog, getPostHog } from '@/src/lib/posthog';
 
 function PostHogTracker() {
   const pathname = usePathname();
@@ -12,11 +12,14 @@ function PostHogTracker() {
   // Track pageviews
   useEffect(() => {
     if (pathname && typeof window !== 'undefined') {
+      const posthog = getPostHog();
+      if (!posthog) return;
+      
       let url = window.origin + pathname;
       if (searchParams && searchParams.toString()) {
         url = url + '?' + searchParams.toString();
       }
-      posthog?.capture('$pageview', {
+      posthog.capture('$pageview', {
         $current_url: url,
       });
     }
@@ -35,16 +38,21 @@ export function PostHogProvider({ children }) {
 
   // Identify user when Clerk loads
   useEffect(() => {
-    if (isLoaded && user && typeof window !== 'undefined') {
-      posthog?.identify(user.id, {
-        email: user.emailAddresses?.[0]?.emailAddress,
-        name: user.fullName,
-        username: user.username,
-        created_at: user.createdAt,
-        avatar: user.imageUrl,
-      });
-    } else if (isLoaded && !user) {
-      posthog?.reset(); // Clear user identity on logout
+    if (isLoaded && typeof window !== 'undefined') {
+      const posthog = getPostHog();
+      if (!posthog) return;
+      
+      if (user) {
+        posthog.identify(user.id, {
+          email: user.emailAddresses?.[0]?.emailAddress,
+          name: user.fullName,
+          username: user.username,
+          created_at: user.createdAt,
+          avatar: user.imageUrl,
+        });
+      } else {
+        posthog.reset(); // Clear user identity on logout
+      }
     }
   }, [user, isLoaded]);
 

@@ -1,4 +1,4 @@
-import { posthog } from './posthog';
+import { getPostHog } from './posthog';
 
 /**
  * Track custom events in PostHog
@@ -8,7 +8,10 @@ export function trackEvent(eventName, properties = {}) {
   if (typeof window === 'undefined') return;
   
   try {
-    posthog?.capture(eventName, properties);
+    const posthog = getPostHog();
+    if (posthog) {
+      posthog.capture(eventName, properties);
+    }
   } catch (error) {
     console.warn('[Analytics] Failed to track event:', eventName, error);
   }
@@ -22,7 +25,10 @@ export function updateUserProperties(properties = {}) {
   if (typeof window === 'undefined') return;
   
   try {
-    posthog?.setPersonProperties(properties);
+    const posthog = getPostHog();
+    if (posthog) {
+      posthog.setPersonProperties(properties);
+    }
   } catch (error) {
     console.warn('[Analytics] Failed to update user properties:', error);
   }
