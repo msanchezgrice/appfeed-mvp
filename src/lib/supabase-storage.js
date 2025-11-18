@@ -67,6 +67,49 @@ export async function deleteImageFromStorage(filePath) {
 }
 
 /**
+ * Upload HTML bundle to Supabase Storage
+ * @param {string} htmlContent - Full HTML content
+ * @param {string} appId - App ID for file naming
+ * @returns {Promise<{url: string, path: string, size: number}>}
+ */
+export async function uploadHtmlToStorage(htmlContent, appId) {
+  const supabase = createAdminSupabaseClient();
+  
+  // Convert HTML string to buffer
+  const buffer = Buffer.from(htmlContent, 'utf-8');
+  const filePath = `html-bundles/${appId}.html`;
+  
+  console.log('[Storage] Uploading HTML:', filePath, 'Size:', Math.round(buffer.length / 1024), 'KB');
+  
+  // Upload to Supabase Storage
+  const { data, error } = await supabase.storage
+    .from('app-images') // Use same bucket
+    .upload(filePath, buffer, {
+      contentType: 'text/html; charset=utf-8',
+      upsert: true,
+      cacheControl: '31536000' // Cache for 1 year
+    });
+  
+  if (error) {
+    console.error('[Storage] HTML upload error:', error);
+    throw error;
+  }
+  
+  // Get public URL
+  const { data: { publicUrl } } = supabase.storage
+    .from('app-images')
+    .getPublicUrl(filePath);
+  
+  console.log('[Storage] HTML uploaded successfully:', publicUrl);
+  
+  return {
+    url: publicUrl,
+    path: filePath,
+    size: buffer.length
+  };
+}
+
+/**
  * Upload 360/720/1080 WebP variants for an image buffer
  * Returns canonical 720 URL and all variant URLs following a stable naming
  * @param {Buffer} buffer

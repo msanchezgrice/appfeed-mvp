@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/src/lib/supabase-server';
 import sharp from 'sharp';
 import { getDecryptedSecret } from '@/src/lib/secrets';
 import { logEventServer } from '@/src/lib/metrics';
+import { uploadHtmlToStorage } from '@/src/lib/supabase-storage';
 
 export const maxDuration = 60; // Allow up to 60 seconds for image generation
 
@@ -458,12 +459,23 @@ export async function POST(request) {
         is_published: true
       };
     } else if (mode === 'html-bundle') {
-      // HTML Bundle - store HTML content with usage caps
+      // HTML Bundle - upload to Storage, store URL
       const htmlSize = Buffer.byteLength(appData.htmlContent, 'utf8');
       
       // Size limit: 5MB
       if (htmlSize > 5 * 1024 * 1024) {
         return NextResponse.json({ error: 'HTML content too large. Maximum size is 5MB.' }, { status: 400 });
+      }
+
+      // Upload HTML to Supabase Storage
+      let htmlStorageUrl;
+      try {
+        const storageResult = await uploadHtmlToStorage(appData.htmlContent, appId);
+        htmlStorageUrl = storageResult.url;
+        console.log('[Publish] HTML uploaded to storage:', htmlStorageUrl);
+      } catch (storageError) {
+        console.error('[Publish] Storage upload failed:', storageError);
+        return NextResponse.json({ error: 'Failed to upload HTML to storage' }, { status: 500 });
       }
 
       newApp = {
@@ -482,7 +494,7 @@ export async function POST(request) {
         runtime: {
           engine: 'html-bundle',
           render_type: 'html-bundle',
-          html_content: appData.htmlContent,
+          html_storage_url: htmlStorageUrl, // Store URL instead of content
           usage_count: 0,
           usage_limit: 100 // 100 runs per app
         },

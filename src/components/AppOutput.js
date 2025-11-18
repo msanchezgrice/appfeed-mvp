@@ -652,7 +652,10 @@ function HtmlBundleOutput({ app, run }) {
   const [usageExceeded, setUsageExceeded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const htmlContent = app?.runtime?.html_content;
+  const [htmlContent, setHtmlContent] = useState(null);
+  const [fetchError, setFetchError] = useState(null);
+  
+  const htmlStorageUrl = app?.runtime?.html_storage_url;
   const usageCount = app?.runtime?.usage_count || 0;
   const usageLimit = app?.runtime?.usage_limit || 100;
 
@@ -667,15 +670,30 @@ function HtmlBundleOutput({ app, run }) {
   }, []);
 
   useEffect(() => {
-    // Track usage on mount
-    const trackUsage = async () => {
+    // Fetch HTML from storage and track usage
+    const fetchAndTrack = async () => {
       if (usageCount >= usageLimit) {
         setUsageExceeded(true);
         setLoading(false);
         return;
       }
 
+      if (!htmlStorageUrl) {
+        setFetchError('No HTML storage URL found');
+        setLoading(false);
+        return;
+      }
+
       try {
+        // Fetch HTML from storage
+        console.log('[HTML Bundle] Fetching from storage:', htmlStorageUrl);
+        const htmlResponse = await fetch(htmlStorageUrl);
+        if (!htmlResponse.ok) {
+          throw new Error(`Failed to fetch HTML: ${htmlResponse.status}`);
+        }
+        const html = await htmlResponse.text();
+        setHtmlContent(html);
+
         // Increment usage count
         await fetch('/api/apps/html-bundle/track-usage', {
           method: 'POST',
@@ -694,19 +712,38 @@ function HtmlBundleOutput({ app, run }) {
           });
         }
       } catch (err) {
-        console.error('[HTML Bundle] Failed to track usage:', err);
+        console.error('[HTML Bundle] Failed to load:', err);
+        setFetchError(err.message);
       }
       
       setLoading(false);
     };
 
-    trackUsage();
-  }, [app.id, app.name, usageCount, usageLimit, isMobile]);
+    fetchAndTrack();
+  }, [app.id, app.name, htmlStorageUrl, usageCount, usageLimit, isMobile]);
 
   if (loading) {
     return (
       <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>
-        Loading...
+        Loading HTML bundle...
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div style={{
+        padding: 40,
+        textAlign: 'center',
+        background: '#1a1a1a',
+        borderRadius: 12,
+        border: '2px solid #ef4444'
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+        <h3 style={{ marginTop: 0, marginBottom: 12, color: '#ef4444' }}>Failed to Load HTML</h3>
+        <p style={{ color: '#888', marginBottom: 0 }}>
+          {fetchError}
+        </p>
       </div>
     );
   }
@@ -732,16 +769,20 @@ function HtmlBundleOutput({ app, run }) {
     );
   }
 
-  if (!htmlContent) {
+  if (!htmlContent && !htmlStorageUrl) {
     return <div style={{ padding: 16, textAlign: 'center', color: '#888' }}>No HTML content</div>;
   }
 
+  // For backward compatibility: support old apps with html_content stored inline
+  const legacyHtmlContent = app?.runtime?.html_content;
+  const displayHtml = htmlContent || legacyHtmlContent;
+
   // Create blob URL for sandboxed HTML (moved inside useMemo to avoid recreating on every render)
   const blobUrl = useMemo(() => {
-    if (!htmlContent) return null;
-    const blob = new Blob([htmlContent], { type: 'text/html' });
+    if (!displayHtml) return null;
+    const blob = new Blob([displayHtml], { type: 'text/html' });
     return URL.createObjectURL(blob);
-  }, [htmlContent]);
+  }, [displayHtml]);
 
   // Cleanup blob URL on unmount
   useEffect(() => {
