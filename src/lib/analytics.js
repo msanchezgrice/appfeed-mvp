@@ -239,5 +239,40 @@ export const analytics = {
       trigger: trigger, // 'save_app', 'remix_app', 'publish', 'follow_user'
     });
   },
+
+  // HTML Bundle specific events
+  htmlBundleLoaded: (appId, appName, usageCount, usageLimit) => {
+    trackEvent('html_bundle_loaded', {
+      app_id: appId,
+      app_name: appName,
+      usage_count: usageCount,
+      usage_limit: usageLimit,
+      usage_percentage: Math.round((usageCount / usageLimit) * 100)
+    });
+  },
+
+  htmlBundleLimitReached: (appId, appName) => {
+    trackEvent('html_bundle_limit_reached', {
+      app_id: appId,
+      app_name: appName
+    });
+  },
+
+  // Iframe/Remote URL events
+  iframeAppLoaded: (appId, appName, externalUrl) => {
+    trackEvent('iframe_app_loaded', {
+      app_id: appId,
+      app_name: appName,
+      external_url: externalUrl
+    });
+  },
+
+  // Publishing mode tracking
+  publishModeSelected: (mode) => {
+    // Track which publishing mode users choose
+    trackEvent('publish_mode_selected', {
+      mode: mode // 'ai', 'inline', 'remote', 'github', 'remote-url', 'html-bundle'
+    });
+  },
 };
 

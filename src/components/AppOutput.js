@@ -573,6 +573,160 @@ function WordleOutput({ app, run }) {
   );
 }
 
+function IframeOutput({ app }) {
+  const url = app?.runtime?.url;
+  
+  useEffect(() => {
+    // Track iframe app load
+    if (typeof window !== 'undefined' && window.posthog && url) {
+      window.posthog.capture('iframe_app_loaded', {
+        app_id: app.id,
+        app_name: app.name,
+        external_url: url
+      });
+    }
+  }, [app.id, app.name, url]);
+  
+  if (!url) {
+    return <div style={{ padding: 16, textAlign: 'center', color: '#888' }}>No URL provided</div>;
+  }
+
+  return (
+    <div style={{ borderRadius: 12, overflow: 'hidden', height: '70vh', maxHeight: 700, background: '#000' }}>
+      <iframe 
+        src={url} 
+        title={app.name || 'External App'}
+        style={{ 
+          width: '100%', 
+          height: '100%', 
+          border: 'none',
+          display: 'block'
+        }}
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+        allow="accelerometer; camera; encrypted-media; geolocation; gyroscope; microphone"
+      />
+    </div>
+  );
+}
+
+function HtmlBundleOutput({ app, run }) {
+  const [usageExceeded, setUsageExceeded] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const htmlContent = app?.runtime?.html_content;
+  const usageCount = app?.runtime?.usage_count || 0;
+  const usageLimit = app?.runtime?.usage_limit || 100;
+
+  useEffect(() => {
+    // Track usage on mount
+    const trackUsage = async () => {
+      if (usageCount >= usageLimit) {
+        setUsageExceeded(true);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Increment usage count
+        await fetch('/api/apps/html-bundle/track-usage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appId: app.id })
+        });
+        
+        // Track in PostHog
+        if (typeof window !== 'undefined' && window.posthog) {
+          window.posthog.capture('html_bundle_loaded', {
+            app_id: app.id,
+            app_name: app.name,
+            usage_count: usageCount + 1,
+            usage_limit: usageLimit
+          });
+        }
+      } catch (err) {
+        console.error('[HTML Bundle] Failed to track usage:', err);
+      }
+      
+      setLoading(false);
+    };
+
+    trackUsage();
+  }, [app.id, usageCount, usageLimit]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>
+        Loading...
+      </div>
+    );
+  }
+
+  if (usageExceeded) {
+    return (
+      <div style={{
+        padding: 40,
+        textAlign: 'center',
+        background: '#1a1a1a',
+        borderRadius: 12,
+        border: '2px solid #f59e0b'
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+        <h3 style={{ marginTop: 0, marginBottom: 12, color: '#f59e0b' }}>Usage Limit Reached</h3>
+        <p style={{ color: '#888', marginBottom: 20 }}>
+          This app has reached its limit of {usageLimit} runs.
+        </p>
+        <p className="small" style={{ color: '#666' }}>
+          The creator can upgrade to "Deploy from URL" for unlimited usage.
+        </p>
+      </div>
+    );
+  }
+
+  if (!htmlContent) {
+    return <div style={{ padding: 16, textAlign: 'center', color: '#888' }}>No HTML content</div>;
+  }
+
+  // Create blob URL for sandboxed HTML
+  const blob = new Blob([htmlContent], { type: 'text/html' });
+  const blobUrl = URL.createObjectURL(blob);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => URL.revokeObjectURL(blobUrl);
+  }, [blobUrl]);
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <div style={{
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        zIndex: 10,
+        background: 'rgba(0,0,0,0.7)',
+        padding: '6px 12px',
+        borderRadius: 8,
+        fontSize: 12,
+        color: '#f59e0b'
+      }}>
+        {usageCount + 1}/{usageLimit} runs
+      </div>
+      <div style={{ borderRadius: 12, overflow: 'hidden', height: '70vh', maxHeight: 700, background: '#000' }}>
+        <iframe 
+          src={blobUrl}
+          title={app.name || 'HTML App'}
+          style={{ 
+            width: '100%', 
+            height: '100%', 
+            border: 'none',
+            display: 'block'
+          }}
+          sandbox="allow-scripts allow-forms allow-popups"
+          allow="accelerometer; gyroscope"
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function AppOutput({ run, app }) {
   // Support both full trace runs and lightweight runs (outputs only)
   const hasTrace = Array.isArray(run?.trace) && run.trace.length > 0;
@@ -583,6 +737,12 @@ export default function AppOutput({ run, app }) {
 
   // Route custom UIs FIRST (these don't require LLM output to render)
   const rType = app?.runtime?.render_type;
+  if (rType === 'iframe') {
+    return <IframeOutput app={app} />;
+  }
+  if (rType === 'html-bundle') {
+    return <HtmlBundleOutput app={app} run={run} />;
+  }
   if (rType === 'chat' || app.id === 'chat-encouragement') {
     return <ChatOutput app={app} run={run} />;
   }

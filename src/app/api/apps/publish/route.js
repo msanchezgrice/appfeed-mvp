@@ -434,6 +434,61 @@ export async function POST(request) {
         github_url: appData.githubUrl,
         is_published: true
       };
+    } else if (mode === 'remote-url') {
+      // Deploy from URL - iframe external hosted apps (Cloud Run, Vercel, etc.)
+      newApp = {
+        id: appId,
+        name: appData.name,
+        creator_id: userId,
+        description: appData.description,
+        tags: appData.tags ? appData.tags.split(',').map(t => t.trim()) : [],
+        device_types: appData.isMobile ? ['mobile'] : ['mobile', 'desktop'],
+        preview_type: 'image',
+        preview_url: 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=800&auto=format&fit=crop',
+        preview_gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+        demo: { sampleInputs: {} },
+        inputs: {},
+        outputs: { iframe: { type: 'iframe' } },
+        runtime: {
+          engine: 'iframe',
+          render_type: 'iframe',
+          url: appData.externalUrl
+        },
+        fork_of: null,
+        is_published: true
+      };
+    } else if (mode === 'html-bundle') {
+      // HTML Bundle - store HTML content with usage caps
+      const htmlSize = Buffer.byteLength(appData.htmlContent, 'utf8');
+      
+      // Size limit: 5MB
+      if (htmlSize > 5 * 1024 * 1024) {
+        return NextResponse.json({ error: 'HTML content too large. Maximum size is 5MB.' }, { status: 400 });
+      }
+
+      newApp = {
+        id: appId,
+        name: appData.name,
+        creator_id: userId,
+        description: appData.description,
+        tags: appData.tags ? appData.tags.split(',').map(t => t.trim()) : [],
+        device_types: appData.isMobile ? ['mobile'] : ['mobile', 'desktop'],
+        preview_type: 'image',
+        preview_url: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&auto=format&fit=crop',
+        preview_gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+        demo: { sampleInputs: {} },
+        inputs: {},
+        outputs: { html: { type: 'html' } },
+        runtime: {
+          engine: 'html-bundle',
+          render_type: 'html-bundle',
+          html_content: appData.htmlContent,
+          usage_count: 0,
+          usage_limit: 100 // 100 runs per app
+        },
+        fork_of: null,
+        is_published: true
+      };
     } else {
       return NextResponse.json({ error: 'Invalid mode' }, { status: 400 });
     }

@@ -8,8 +8,8 @@ import { analytics } from '@/src/lib/analytics';
 export default function PublishPage() {
   const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
-  const [step, setStep] = useState('choose-mode'); // choose-mode, inline-form, remote-form, github-form, analyzing, success
-  const [mode, setMode] = useState(null); // 'inline', 'remote', or 'github'
+  const [step, setStep] = useState('choose-mode'); // choose-mode, inline-form, remote-form, github-form, analyzing, success, remote-url-form, html-bundle-form
+  const [mode, setMode] = useState(null); // 'inline', 'remote', 'github', 'remote-url', 'html-bundle'
   // New AI mode states: ai-form, generating
 
   // Form states for inline app
@@ -41,6 +41,13 @@ export default function PublishPage() {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [analysisError, setAnalysisError] = useState(null);
 
+  // Form states for remote URL
+  const [externalUrl, setExternalUrl] = useState('');
+  
+  // Form states for HTML bundle
+  const [htmlContent, setHtmlContent] = useState('');
+  const [htmlFile, setHtmlFile] = useState(null);
+
   useEffect(() => {
     // Redirect to sign-in if not authenticated
     if (isLoaded && !isSignedIn) {
@@ -53,6 +60,10 @@ export default function PublishPage() {
 
   const handleChooseMode = (selectedMode) => {
     setMode(selectedMode);
+    
+    // Track publish mode selection
+    analytics.publishModeSelected(selectedMode);
+    
     if (selectedMode === 'inline') {
       setStep('inline-form');
     } else if (selectedMode === 'remote') {
@@ -61,6 +72,10 @@ export default function PublishPage() {
       setStep('github-form');
     } else if (selectedMode === 'ai') {
       setStep('ai-form');
+    } else if (selectedMode === 'remote-url') {
+      setStep('remote-url-form');
+    } else if (selectedMode === 'html-bundle') {
+      setStep('html-bundle-form');
     }
   };
 
@@ -357,6 +372,126 @@ export default function PublishPage() {
     }
   };
 
+  const handleSubmitRemoteUrl = async (e) => {
+    e.preventDefault();
+
+    try {
+      const response = await fetch('/api/apps/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          mode: 'remote-url',
+          appData: {
+            name: appName,
+            description: appDescription,
+            externalUrl,
+            tags,
+            isMobile
+          }
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to publish');
+      }
+
+      console.log('App published:', result);
+      setCreatedApp(result.app || null);
+      
+      // Track app published event with remote-url mode
+      if (result.app) {
+        analytics.trackEvent('app_published', {
+          app_id: result.app.id,
+          app_name: result.app.name,
+          tags: tags?.split(',').map(t => t.trim()).filter(Boolean) || [],
+          mode: 'remote-url',
+          external_url: externalUrl
+        });
+      }
+      
+      setStep('success');
+    } catch (error) {
+      alert('Error publishing app: ' + error.message);
+    }
+  };
+
+  const handleSubmitHtmlBundle = async (e) => {
+    e.preventDefault();
+
+    // Read HTML file if provided, otherwise use textarea content
+    let finalHtml = htmlContent;
+    if (htmlFile) {
+      try {
+        const reader = new FileReader();
+        finalHtml = await new Promise((resolve, reject) => {
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = reject;
+          reader.readAsText(htmlFile);
+        });
+      } catch (err) {
+        alert('Error reading HTML file: ' + err.message);
+        return;
+      }
+    }
+
+    if (!finalHtml || finalHtml.trim().length === 0) {
+      alert('Please provide HTML content');
+      return;
+    }
+
+    // Check size limit (5MB)
+    const sizeInMB = new Blob([finalHtml]).size / (1024 * 1024);
+    if (sizeInMB > 5) {
+      alert(`HTML file is too large (${sizeInMB.toFixed(2)}MB). Maximum size is 5MB.`);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/apps/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          mode: 'html-bundle',
+          appData: {
+            name: appName,
+            description: appDescription,
+            htmlContent: finalHtml,
+            tags,
+            isMobile
+          }
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to publish');
+      }
+
+      console.log('App published:', result);
+      setCreatedApp(result.app || null);
+      
+      // Track app published event with html-bundle mode
+      if (result.app) {
+        analytics.trackEvent('app_published', {
+          app_id: result.app.id,
+          app_name: result.app.name,
+          tags: tags?.split(',').map(t => t.trim()).filter(Boolean) || [],
+          mode: 'html-bundle',
+          html_size_kb: Math.round(new Blob([finalHtml]).size / 1024)
+        });
+      }
+      
+      setStep('success');
+    } catch (error) {
+      alert('Error publishing app: ' + error.message);
+    }
+  };
+
   // Show loading while checking auth
   if (!isLoaded) {
     return (
@@ -490,7 +625,7 @@ export default function PublishPage() {
               </div>
               <h2 style={{ marginTop: 0, marginBottom: 12 }}>Create App Now (AI)</h2>
               <p className="small" style={{ marginBottom: 20 }}>
-                Describe your idea and we’ll generate a complete app automatically using Sonnet.
+                Describe your idea and we'll generate a complete app automatically using Sonnet.
               </p>
 
               <div style={{ marginBottom: 20 }}>
@@ -508,6 +643,84 @@ export default function PublishPage() {
                 style={{ width: '100%' }}
               >
                 Create App Now →
+              </button>
+            </div>
+
+            {/* Remote URL Option (Google AI Studio, etc.) */}
+            <div className="card" style={{ padding: 32, border: '2px solid #10b981' }}>
+              <div style={{
+                position: 'absolute',
+                top: -12,
+                right: 20,
+                background: '#10b981',
+                color: '#000',
+                padding: '4px 12px',
+                borderRadius: 12,
+                fontSize: 12,
+                fontWeight: 'bold'
+              }}>
+                ✨ New
+              </div>
+              <h2 style={{ marginTop: 0, marginBottom: 12 }}>Deploy from URL</h2>
+              <p className="small" style={{ marginBottom: 20 }}>
+                Share apps deployed to Cloud Run, Vercel, Replit, or any public URL. Perfect for Google AI Studio apps!
+              </p>
+
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontWeight: 'bold', marginBottom: 8, color: 'var(--brand2)' }}>Best for:</div>
+                <ul className="small" style={{ marginLeft: 20, marginBottom: 0 }}>
+                  <li>Google AI Studio apps</li>
+                  <li>Cloud Run deployments</li>
+                  <li>External hosted games</li>
+                  <li>Zero hosting cost (you pay)</li>
+                </ul>
+              </div>
+
+              <button
+                onClick={() => handleChooseMode('remote-url')}
+                className="btn primary"
+                style={{ width: '100%' }}
+              >
+                Deploy from URL →
+              </button>
+            </div>
+
+            {/* HTML Bundle Option */}
+            <div className="card" style={{ padding: 32, border: '2px solid #f59e0b' }}>
+              <div style={{
+                position: 'absolute',
+                top: -12,
+                right: 20,
+                background: '#f59e0b',
+                color: '#000',
+                padding: '4px 12px',
+                borderRadius: 12,
+                fontSize: 12,
+                fontWeight: 'bold'
+              }}>
+                ✨ New
+              </div>
+              <h2 style={{ marginTop: 0, marginBottom: 12 }}>HTML Bundle</h2>
+              <p className="small" style={{ marginBottom: 20 }}>
+                Upload a complete single-file HTML app. We host it for you (100 runs/app limit).
+              </p>
+
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontWeight: 'bold', marginBottom: 8, color: 'var(--brand2)' }}>Best for:</div>
+                <ul className="small" style={{ marginLeft: 20, marginBottom: 0 }}>
+                  <li>Single-file games</li>
+                  <li>Interactive demos</li>
+                  <li>Standalone tools</li>
+                  <li>We handle hosting</li>
+                </ul>
+              </div>
+
+              <button
+                onClick={() => handleChooseMode('html-bundle')}
+                className="btn primary"
+                style={{ width: '100%' }}
+              >
+                Upload HTML →
               </button>
             </div>
           </div>
@@ -1150,6 +1363,219 @@ POST /run
               to { transform: rotate(360deg); }
             }
           `}</style>
+        </div>
+      )}
+
+      {/* Remote URL Form Step */}
+      {step === 'remote-url-form' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <h1 style={{ margin: 0 }}>Deploy from URL</h1>
+            <button onClick={() => setStep('choose-mode')} className="btn ghost">
+              ← Back
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmitRemoteUrl}>
+            <div className="card" style={{ marginBottom: 16, background: '#10b98122', border: '1px solid #10b981' }}>
+              <h3 style={{ marginTop: 0 }}>Perfect for Google AI Studio!</h3>
+              <p className="small" style={{ marginBottom: 12 }}>
+                After deploying your AI Studio app to Cloud Run, paste the public URL here. The user pays for hosting (you pay $0).
+              </p>
+              <p className="small" style={{ marginBottom: 0, opacity: 0.8 }}>
+                Example: <code>https://synthwave-space-123.us-west1.run.app</code>
+              </p>
+            </div>
+
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginTop: 0 }}>App Details</h3>
+
+              <div style={{ marginBottom: 16 }}>
+                <label className="label">App Name *</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Synthwave Space"
+                  value={appName}
+                  onChange={(e) => setAppName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label className="label">Description *</label>
+                <textarea
+                  className="input"
+                  placeholder="A retro synthwave space shooter game"
+                  value={appDescription}
+                  onChange={(e) => setAppDescription(e.target.value)}
+                  rows={3}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label className="label">Public URL *</label>
+                <input
+                  type="url"
+                  className="input"
+                  placeholder="https://your-app-123.us-west1.run.app"
+                  value={externalUrl}
+                  onChange={(e) => setExternalUrl(e.target.value)}
+                  required
+                />
+                <p className="small" style={{ marginTop: 4 }}>
+                  Must be a publicly accessible URL
+                </p>
+              </div>
+            </div>
+
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginTop: 0 }}>Discovery</h3>
+
+              <div style={{ marginBottom: 16 }}>
+                <label className="label">Tags</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="game, synthwave, arcade (comma-separated)"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={isMobile}
+                    onChange={(e) => setIsMobile(e.target.checked)}
+                    style={{ marginRight: 8 }}
+                  />
+                  <span>Mobile-ready (renders well on mobile devices)</span>
+                </label>
+              </div>
+            </div>
+
+            <button type="submit" className="btn primary" style={{ width: '100%', padding: '14px', fontSize: 16 }}>
+              Publish App →
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* HTML Bundle Form Step */}
+      {step === 'html-bundle-form' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <h1 style={{ margin: 0 }}>Upload HTML Bundle</h1>
+            <button onClick={() => setStep('choose-mode')} className="btn ghost">
+              ← Back
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmitHtmlBundle}>
+            <div className="card" style={{ marginBottom: 16, background: '#f59e0b22', border: '1px solid #f59e0b' }}>
+              <h3 style={{ marginTop: 0 }}>⚠️ Usage Limits</h3>
+              <p className="small" style={{ marginBottom: 8 }}>
+                We host HTML bundles for you, but there's a <strong>100 runs per app limit</strong> to control bandwidth costs.
+              </p>
+              <p className="small" style={{ marginBottom: 0, opacity: 0.8 }}>
+                For unlimited usage, use "Deploy from URL" instead and host it yourself on Cloud Run (costs ~$1-5/month).
+              </p>
+            </div>
+
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginTop: 0 }}>App Details</h3>
+
+              <div style={{ marginBottom: 16 }}>
+                <label className="label">App Name *</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="My HTML Game"
+                  value={appName}
+                  onChange={(e) => setAppName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label className="label">Description *</label>
+                <textarea
+                  className="input"
+                  placeholder="A fun interactive HTML game"
+                  value={appDescription}
+                  onChange={(e) => setAppDescription(e.target.value)}
+                  rows={3}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginTop: 0 }}>HTML Content</h3>
+
+              <div style={{ marginBottom: 16 }}>
+                <label className="label">Upload HTML File (max 5MB) *</label>
+                <input
+                  type="file"
+                  className="input"
+                  accept=".html,.htm"
+                  onChange={(e) => setHtmlFile(e.target.files[0])}
+                />
+                <p className="small" style={{ marginTop: 4 }}>
+                  Upload a single HTML file (with inline CSS/JS)
+                </p>
+              </div>
+
+              <div style={{ marginBottom: 0 }}>
+                <label className="label">Or Paste HTML *</label>
+                <textarea
+                  className="input"
+                  placeholder="<!DOCTYPE html><html>...</html>"
+                  value={htmlContent}
+                  onChange={(e) => setHtmlContent(e.target.value)}
+                  rows={12}
+                  style={{ fontFamily: 'monospace', fontSize: 13 }}
+                />
+                <p className="small" style={{ marginTop: 4 }}>
+                  Paste your complete HTML file here (must be self-contained)
+                </p>
+              </div>
+            </div>
+
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginTop: 0 }}>Discovery</h3>
+
+              <div style={{ marginBottom: 16 }}>
+                <label className="label">Tags</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="game, html, interactive (comma-separated)"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={isMobile}
+                    onChange={(e) => setIsMobile(e.target.checked)}
+                    style={{ marginRight: 8 }}
+                  />
+                  <span>Mobile-ready</span>
+                </label>
+              </div>
+            </div>
+
+            <button type="submit" className="btn primary" style={{ width: '100%', padding: '14px', fontSize: 16 }}>
+              Upload & Publish →
+            </button>
+          </form>
         </div>
       )}
 
