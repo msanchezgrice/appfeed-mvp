@@ -21,6 +21,17 @@ export default function AppDetailPage() {
   const [resultSaved, setResultSaved] = useState(false);
   const [overlayRun, setOverlayRun] = useState(null);
   const [overlayOpen, setOverlayOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile on mount (prevents hydration mismatch)
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -397,8 +408,7 @@ export default function AppDetailPage() {
                 zIndex: 2,
                 background: 'var(--panel)',
                 borderBottom: '1px solid #1f2937',
-                display: (typeof window !== 'undefined' && window.innerWidth <= 768 && 
-                         (app?.runtime?.render_type === 'iframe' || app?.runtime?.render_type === 'html-bundle')) 
+                display: (isMobile && (app?.runtime?.render_type === 'iframe' || app?.runtime?.render_type === 'html-bundle')) 
                   ? 'none' 
                   : 'flex',
                 justifyContent: 'space-between',
@@ -438,8 +448,12 @@ export default function AppDetailPage() {
               style={{
                 flex: 1,
                 overflow: 'auto',
-                padding: '16px',
-                paddingBottom: 'calc(16px + env(safe-area-inset-bottom))',
+                padding: (isMobile && (app?.runtime?.render_type === 'iframe' || app?.runtime?.render_type === 'html-bundle')) 
+                  ? '0'
+                  : '16px',
+                paddingBottom: (isMobile && (app?.runtime?.render_type === 'iframe' || app?.runtime?.render_type === 'html-bundle')) 
+                  ? '0'
+                  : 'calc(16px + env(safe-area-inset-bottom))',
                 display: 'flex',
                 justifyContent: 'center'
               }}

@@ -48,6 +48,17 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [resultSaved, setResultSaved] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile on mount (prevents hydration mismatch)
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Ensure Try/Use modals can open even if a previous ?run= is in the URL
   const openTry = async () => {
@@ -1082,8 +1093,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                 zIndex: 2,
                 background: 'var(--panel)',
                 borderBottom: '1px solid #1f2937',
-                display: (typeof window !== 'undefined' && window.innerWidth <= 768 && 
-                         (app?.runtime?.render_type === 'iframe' || app?.runtime?.render_type === 'html-bundle')) 
+                display: (isMobile && (app?.runtime?.render_type === 'iframe' || app?.runtime?.render_type === 'html-bundle')) 
                   ? 'none' 
                   : 'flex',
                 justifyContent: 'space-between',
@@ -1145,12 +1155,10 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
               style={{
                 flex: 1,
                 overflow: 'auto',
-                padding: (typeof window !== 'undefined' && window.innerWidth <= 768 && 
-                         (app?.runtime?.render_type === 'iframe' || app?.runtime?.render_type === 'html-bundle')) 
+                padding: (isMobile && (app?.runtime?.render_type === 'iframe' || app?.runtime?.render_type === 'html-bundle')) 
                   ? '0'
                   : '16px',
-                paddingBottom: (typeof window !== 'undefined' && window.innerWidth <= 768 && 
-                               (app?.runtime?.render_type === 'iframe' || app?.runtime?.render_type === 'html-bundle')) 
+                paddingBottom: (isMobile && (app?.runtime?.render_type === 'iframe' || app?.runtime?.render_type === 'html-bundle')) 
                   ? '0'
                   : 'calc(16px + env(safe-area-inset-bottom))',
                 display: 'flex',
