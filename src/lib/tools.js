@@ -671,21 +671,37 @@ export const ToolRegistry = {
 export function interpolateArgs(args, ctx) {
   if (!args) return {};
   
+  const resolveValue = (path, context) => {
+    // Split by dot to support nested properties like "enhanced_image.image"
+    const keys = path.split('.');
+    let value = context;
+    
+    for (const key of keys) {
+      if (value && typeof value === 'object' && key in value) {
+        value = value[key];
+      } else {
+        return undefined;
+      }
+    }
+    
+    return value;
+  };
+  
   const tplStr = (s) => {
-    // Check if the entire string is a single template variable (e.g., "{{image}}")
+    // Check if the entire string is a single template variable (e.g., "{{image}}" or "{{enhanced_image.image}}")
     const fullMatch = s.match(/^\{\{([^}]+)\}\}$/);
     if (fullMatch) {
       // If it's a pure template variable, return the value as-is (don't stringify)
       const expr = fullMatch[1];
       const [path, fb] = expr.split('||').map(s => s.trim());
-      const val = path.split('.').reduce((acc, k) => (acc && acc[k] !== undefined) ? acc[k] : undefined, ctx);
+      const val = resolveValue(path, ctx);
       return (val === undefined || val === null || val === '') ? (fb ?? '') : val;
     }
     
     // Otherwise, do normal string interpolation
     return String(s || '').replace(/\{\{([^}]+)\}\}/g, (_, expr) => {
       const [path, fb] = expr.split('||').map(s => s.trim());
-      const val = path.split('.').reduce((acc, k) => (acc && acc[k] !== undefined) ? acc[k] : undefined, ctx);
+      const val = resolveValue(path, ctx);
       return (val === undefined || val === null || val === '') ? (fb ?? '') : String(val);
     });
   };
