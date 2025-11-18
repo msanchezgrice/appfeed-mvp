@@ -677,9 +677,10 @@ export function interpolateArgs(args, ctx) {
     let value = context;
     
     for (const key of keys) {
-      if (value && typeof value === 'object' && key in value) {
+      if (value && typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, key)) {
         value = value[key];
       } else {
+        // Value not found at this path
         return undefined;
       }
     }

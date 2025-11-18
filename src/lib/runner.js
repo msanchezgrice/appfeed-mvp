@@ -68,6 +68,11 @@ export async function runApp({ app, inputs, userId, mode='try', supabase, fallba
     console.log(`[Runner] Step ${i} context:`, { hasInputs: !!inputs, inputKeys: Object.keys(inputs), stepOutputKeys: Object.keys(stepOutputs) });
     console.log(`[Runner] Step ${i} RAW template:`, step.args);
     console.log(`[Runner] Step ${i} interpolated args:`, JSON.stringify(args).slice(0, 300));
+    
+    // Debug: Check if image arg is properly resolved
+    if (args.image) {
+      console.log(`[Runner] Step ${i} image arg type:`, typeof args.image, 'isString:', typeof args.image === 'string', 'starts with data:', typeof args.image === 'string' && args.image.startsWith('data:'));
+    }
     trace.push({ i, tool: step.tool, status:'running', args: args });
     try {
       const res = await tool({ ...toolContext, args });
