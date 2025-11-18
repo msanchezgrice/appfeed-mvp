@@ -184,7 +184,13 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to remix app');
+        // Handle validation errors with helpful messages
+        if (result.suggestion) {
+          alert(`❌ ${result.error}\n\n💡 ${result.suggestion}`);
+        } else {
+          alert(`Error remixing app: ${result.error || 'Something went wrong'}`);
+        }
+        return;
       }
 
       // Track app remixed event
@@ -197,7 +203,9 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
       setSuccessMessage('Your remixed app is ready! Check your profile to see it.');
       setShowSuccessModal(true);
     } catch (error) {
-      alert('Error remixing app: ' + error.message);
+      // Network or parsing errors
+      console.error('Remix error:', error);
+      alert('Network error: Could not connect to server. Please try again.');
     } finally {
       setRemixing(false);
     }
@@ -235,7 +243,13 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to remix app');
+        // Handle validation errors with helpful messages
+        if (result.suggestion) {
+          alert(`❌ ${result.error}\n\n💡 ${result.suggestion}`);
+        } else {
+          alert(`Error remixing app: ${result.error || 'Something went wrong'}`);
+        }
+        return;
       }
 
       // Track app remixed event (advanced JSON)
@@ -247,7 +261,13 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
       setSuccessMessage('Your remixed app is ready! Check your profile to see it.');
       setShowSuccessModal(true);
     } catch (error) {
-      alert('Error with JSON: ' + error.message);
+      // JSON parsing or network errors
+      console.error('Remix error:', error);
+      if (error instanceof SyntaxError) {
+        alert('Invalid JSON: Please check your syntax and try again.');
+      } else {
+        alert('Error with remix: ' + error.message);
+      }
     } finally {
       setRemixing(false);
     }
@@ -831,13 +851,64 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
             {/* Quick Tab Content */}
             {remixTab === 'quick' && (
               <div>
-                <p className="small" style={{marginBottom: 16, color: '#888'}}>
-                  Describe how you want to modify this app. AI will remix it for you.
+                <p className="small" style={{marginBottom: 12, color: '#888'}}>
+                  Describe changes in plain English. AI will update the app for you.
                 </p>
+
+                {/* Quick suggestion chips */}
+                <div style={{display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16}}>
+                  <button 
+                    onClick={() => setRemixPrompt('Make it pink')} 
+                    className="btn ghost"
+                    style={{fontSize: 13, padding: '6px 12px'}}
+                  >
+                    💗 Make it pink
+                  </button>
+                  <button 
+                    onClick={() => setRemixPrompt('Add dark theme')} 
+                    className="btn ghost"
+                    style={{fontSize: 13, padding: '6px 12px'}}
+                  >
+                    🌙 Dark theme
+                  </button>
+                  <button 
+                    onClick={() => setRemixPrompt('Change background to blue gradient')} 
+                    className="btn ghost"
+                    style={{fontSize: 13, padding: '6px 12px'}}
+                  >
+                    💙 Blue gradient
+                  </button>
+                </div>
+
+                {/* Collapsible help section */}
+                <details style={{marginBottom: 16, fontSize: 13, background: '#1a1a1a', padding: 12, borderRadius: 8}}>
+                  <summary style={{cursor: 'pointer', color: '#10b981', fontWeight: 600, userSelect: 'none'}}>
+                    ✨ What can I change with Quick Remix?
+                  </summary>
+                  <div style={{marginTop: 12}}>
+                    <div style={{marginBottom: 8}}>
+                      <div style={{fontWeight: 600, color: '#10b981', marginBottom: 4}}>✅ Editable:</div>
+                      <ul style={{margin: 0, paddingLeft: 20, color: '#888', fontSize: 12}}>
+                        <li>Name, description, icon, tags</li>
+                        <li>Colors (background, text, gradients)</li>
+                        <li>Fonts and styling</li>
+                        <li>Preview gradient</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <div style={{fontWeight: 600, color: '#ef4444', marginBottom: 4}}>🔒 Locked (use Advanced Editor):</div>
+                      <ul style={{margin: 0, paddingLeft: 20, color: '#888', fontSize: 12}}>
+                        <li>Input/output fields</li>
+                        <li>Runtime logic and steps</li>
+                        <li>Core functionality</li>
+                      </ul>
+                    </div>
+                  </div>
+                </details>
 
                 <textarea
                   className="input"
-                  placeholder="E.g., 'Make it pink' or 'Add neon style' or 'Change to dark theme'"
+                  placeholder="E.g., 'Make it pink' or 'Add tag: gaming' or 'Change name to MyApp'"
                   value={remixPrompt}
                   onChange={(e) => setRemixPrompt(e.target.value)}
                   rows={4}

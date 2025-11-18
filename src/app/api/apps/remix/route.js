@@ -79,29 +79,63 @@ export async function POST(req) {
           model: 'gpt-4o-mini',
           messages: [{
             role: 'system',
-            content: 'Return ONLY valid JSON with changed fields. Use proper CSS gradients for colors.'
+            content: `You are a remix parser that converts natural language requests into JSON app modifications.
+
+CRITICAL RULES:
+1. Return ONLY valid JSON with changed fields
+2. If user requests LOCKED fields (runtime, steps, core logic, functionality, inputs, outputs, workflow), return: {"error": "Cannot change [field] - use Advanced Editor for complex modifications"}
+3. Use proper CSS gradients and colors
+4. Only include fields that the user wants to change`
           }, {
             role: 'user',
-            content: `Parse: "${remixPrompt}"
+            content: `Parse user request: "${remixPrompt}"
 
-Current app:
+Current app state:
 - Name: ${originalApp.name}
-- Background: ${originalApp.design?.containerColor || 'default gradient'}
+- Description: ${originalApp.description || 'No description'}
+- Icon: ${originalApp.icon || '🎨'}
+- Tags: ${(originalApp.tags || []).join(', ') || 'none'}
+- Background: ${originalApp.design?.containerColor || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}
+- Font color: ${originalApp.design?.fontColor || 'white'}
+- Font family: ${originalApp.design?.fontFamily || 'inherit'}
+- Preview gradient: ${originalApp.preview_gradient || 'none'}
 
-Return JSON with ONLY fields to change:
+EDITABLE FIELDS (you can change these):
 {
-  "name": "new name (only if user wants to rename)",
+  "name": "string - app name",
+  "description": "string - app description",
+  "icon": "string - emoji icon like 🚀",
+  "tags": ["array", "of", "strings"],
   "design": {
-    "containerColor": "linear-gradient(135deg, #color1 0%, #color2 100%)" // or "#hex"
-  }
+    "containerColor": "linear-gradient(135deg, #color1 0%, #color2 100%) or #hex",
+    "fontColor": "#hex or CSS color name",
+    "fontFamily": "CSS font family string",
+    "inputLayout": "vertical or horizontal"
+  },
+  "preview_gradient": "linear-gradient(...) for preview card"
 }
 
-Color mapping:
+LOCKED FIELDS (return error if user requests these):
+- runtime, steps, inputs, outputs, core logic, functionality, workflow, tools, code
+
+Color presets (use these for common color names):
 - pink → linear-gradient(135deg, #ff69b4 0%, #ff1493 100%)
 - blue → linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)
 - green → linear-gradient(135deg, #10b981 0%, #059669 100%)
 - orange → linear-gradient(135deg, #f093fb 0%, #f5576c 100%)
-- dark → #1a1a1a`
+- purple → linear-gradient(135deg, #667eea 0%, #764ba2 100%)
+- red → linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)
+- yellow → linear-gradient(135deg, #f6d365 0%, #fda085 100%)
+- dark → #1a1a1a
+- light → #f5f5f5
+
+Examples:
+User: "Make it pink" → {"design": {"containerColor": "linear-gradient(135deg, #ff69b4 0%, #ff1493 100%)"}}
+User: "Change name to MyApp" → {"name": "MyApp"}
+User: "Add tag gaming" → {"tags": ${JSON.stringify([...(originalApp.tags || []), 'gaming'])}}
+User: "Change the runtime" → {"error": "Cannot change runtime - use Advanced Editor for complex modifications"}
+
+Return ONLY the JSON with changed fields or error:`
           }],
           response_format: { type: 'json_object' },
           temperature: 0.2
@@ -112,9 +146,22 @@ Color mapping:
         const llmData = await llmRes.json();
         changes = JSON.parse(llmData.choices[0].message.content || '{}');
         console.log('[Remix] LLM parsed changes:', changes);
+        
+        // Check if LLM returned an error for locked fields
+        if (changes.error) {
+          console.log('[Remix] LLM detected locked field request:', changes.error);
+          return new Response(JSON.stringify({ 
+            error: changes.error,
+            suggestion: 'Try the Advanced Editor tab for complex modifications like changing inputs, outputs, or runtime logic.'
+          }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
       }
       } catch (err) {
         console.error('[Remix] LLM parse error:', err);
+        // Continue with empty changes if LLM fails
       }
     }
     
