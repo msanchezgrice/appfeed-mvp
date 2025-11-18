@@ -576,6 +576,9 @@ function WordleOutput({ app, run }) {
 function IframeOutput({ app }) {
   const url = app?.runtime?.url;
   const [isMobile, setIsMobile] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showTapToStart, setShowTapToStart] = useState(false);
+  const iframeRef = useRef(null);
   
   useEffect(() => {
     // Detect mobile device
@@ -598,6 +601,66 @@ function IframeOutput({ app }) {
       });
     }
   }, [app.id, app.name, url, isMobile]);
+
+  useEffect(() => {
+    // Hide parent header on mobile when iframe app loads
+    if (isMobile) {
+      const modal = document.querySelector('.modal');
+      const header = modal?.querySelector('div[style*="sticky"]');
+      if (header) {
+        header.style.display = 'none';
+      }
+      
+      // Restore on unmount
+      return () => {
+        if (header) {
+          header.style.display = 'flex';
+        }
+      };
+    }
+  }, [isMobile]);
+
+  const handleIframeLoad = () => {
+    setIsLoading(false);
+    
+    // Show tap-to-start overlay on mobile
+    if (isMobile) {
+      // Wait a bit for iframe to initialize
+      setTimeout(() => {
+        setShowTapToStart(true);
+      }, 1000);
+    }
+  };
+
+  const handleTapToStart = () => {
+    setShowTapToStart(false);
+    
+    // Try to trigger user interaction in iframe
+    if (iframeRef.current) {
+      try {
+        // Focus iframe to enable interactions
+        iframeRef.current.focus();
+        
+        // Post message to iframe
+        iframeRef.current.contentWindow?.postMessage({ 
+          type: 'user_interaction', 
+          action: 'start',
+          timestamp: Date.now()
+        }, '*');
+        
+        // Simulate a click in the iframe center
+        const iframe = iframeRef.current;
+        const clickEvent = new MouseEvent('click', {
+          view: window,
+          bubbles: true,
+          cancelable: true
+        });
+        iframe.dispatchEvent(clickEvent);
+      } catch (e) {
+        console.log('[Iframe] Could not trigger interaction:', e);
+      }
+    }
+  };
   
   if (!url) {
     return <div style={{ padding: 16, textAlign: 'center', color: '#888' }}>No URL provided</div>;
@@ -612,6 +675,7 @@ function IframeOutput({ app }) {
     bottom: 0,
     width: '100vw',
     height: '100vh',
+    height: '100dvh', // Better mobile support
     zIndex: 1000,
     background: '#000'
   } : {
@@ -624,19 +688,87 @@ function IframeOutput({ app }) {
 
   return (
     <div style={containerStyle}>
+      {isLoading && isMobile && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          color: '#fff',
+          fontSize: 16,
+          zIndex: 10
+        }}>
+          Loading game...
+        </div>
+      )}
+      
+      {showTapToStart && (
+        <div 
+          onClick={handleTapToStart}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            cursor: 'pointer'
+          }}
+        >
+          <div style={{
+            fontSize: 64,
+            marginBottom: 24,
+            animation: 'pulse 2s ease-in-out infinite'
+          }}>
+            👆
+          </div>
+          <div style={{
+            fontSize: 24,
+            fontWeight: 'bold',
+            color: '#fff',
+            marginBottom: 12
+          }}>
+            Tap to Start
+          </div>
+          <div style={{
+            fontSize: 14,
+            color: '#aaa',
+            textAlign: 'center',
+            maxWidth: '80%'
+          }}>
+            Tap anywhere to begin the game
+          </div>
+        </div>
+      )}
+      
       <iframe 
+        ref={iframeRef}
         src={url} 
         title={app.name || 'External App'}
+        onLoad={handleIframeLoad}
         style={{ 
           width: '100%', 
           height: '100%', 
           border: 'none',
-          display: 'block'
+          display: 'block',
+          touchAction: 'none' // Prevent default touch behaviors
         }}
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-pointer-lock"
         allow="accelerometer; autoplay; camera; encrypted-media; fullscreen; geolocation; gyroscope; microphone; pointer-lock; touch; xr-spatial-tracking"
         allowFullScreen
       />
+      
+      <style jsx>{`
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.1); opacity: 0.8; }
+        }
+      `}</style>
     </div>
   );
 }
