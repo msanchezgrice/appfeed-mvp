@@ -577,7 +577,8 @@ export default function AppOutput({ run, app }) {
   // Support both full trace runs and lightweight runs (outputs only)
   const hasTrace = Array.isArray(run?.trace) && run.trace.length > 0;
   const lastStep = hasTrace ? run.trace[run.trace.length - 1] : null;
-  const output = hasTrace ? lastStep?.output : (run?.outputs || null);
+  // Use run.outputs for merged multi-step outputs, fallback to lastStep.output for single step
+  const output = run?.outputs || (hasTrace ? lastStep?.output : null);
   const usedStub = hasTrace ? lastStep?.usedStub : false;
 
   // Route custom UIs FIRST (these don't require LLM output to render)
