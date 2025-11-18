@@ -19,8 +19,20 @@ function PostHogTracker() {
       if (searchParams && searchParams.toString()) {
         url = url + '?' + searchParams.toString();
       }
+      
+      // Get current app context from URL if available
+      const appMatch = pathname.match(/\/app\/([^\/]+)/);
+      const appId = appMatch ? appMatch[1] : null;
+      
       posthog.capture('$pageview', {
         $current_url: url,
+        app_id: appId, // Include app_id in pageview if available
+        page_type: pathname.startsWith('/feed') ? 'feed' :
+                   pathname.startsWith('/app/') ? 'app_detail' :
+                   pathname.startsWith('/search') ? 'search' :
+                   pathname.startsWith('/profile') ? 'profile' :
+                   pathname.startsWith('/publish') ? 'publish' :
+                   'other',
       });
     }
   }, [pathname, searchParams]);

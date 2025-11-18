@@ -105,6 +105,17 @@ export const analytics = {
   // App events
   appViewed: (appId, appName, creatorId, source = 'unknown') => {
     const attribution = getAttribution();
+    
+    // Set current app as super property (persists across events)
+    const posthog = getPostHog();
+    if (posthog) {
+      posthog.register({
+        $current_app_id: appId,
+        $current_app_name: appName,
+        $current_creator_id: creatorId,
+      });
+    }
+    
     trackEvent('app_viewed', {
       app_id: appId,
       app_name: appName,
@@ -115,6 +126,15 @@ export const analytics = {
   },
 
   appTried: (appId, appName, source = 'unknown', isAuthenticated = false) => {
+    // Set current app context
+    const posthog = getPostHog();
+    if (posthog) {
+      posthog.register({
+        $current_app_id: appId,
+        $current_app_name: appName,
+      });
+    }
+    
     trackEvent('app_tried', {
       app_id: appId,
       app_name: appName,
