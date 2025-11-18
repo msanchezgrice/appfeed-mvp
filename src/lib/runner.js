@@ -87,7 +87,11 @@ export async function runApp({ app, inputs, userId, mode='try', supabase, fallba
       if (outputs && typeof outputs === 'object' && typeof res.output === 'object') {
         // Merge objects - later steps can override or add to earlier outputs
         outputs = { ...outputs, ...res.output };
-        console.log(`[Runner] Step ${i} merged outputs:`, Object.keys(outputs));
+        console.log(`[Runner] Step ${i} merged outputs keys:`, Object.keys(outputs));
+        console.log(`[Runner] Step ${i} merged output has image:`, !!outputs.image, 'has markdown:', !!outputs.markdown);
+        if (outputs.image) {
+          console.log(`[Runner] Step ${i} image starts with data:`, outputs.image.substring(0, 50));
+        }
       } else {
         outputs = res.output;
       }
