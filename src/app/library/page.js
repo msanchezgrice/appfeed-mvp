@@ -2,448 +2,465 @@
 import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import TikTokFeedCard from '@/src/components/TikTokFeedCard';
-import Image from 'next/image';
+import Link from 'next/link';
+import AssetThumbnail from '@/src/components/AssetThumbnail';
 
 export default function LibraryPage() {
-  const { user, isLoaded, isSignedIn } = useUser();
+  const { user, isLoaded } = useUser();
   const router = useRouter();
-  const [savedApps, setSavedApps] = useState([]);
-  const [createdApps, setCreatedApps] = useState([]);
+  const [tab, setTab] = useState('input'); // 'input' or 'output'
+  const [sortBy, setSortBy] = useState('recent'); // 'recent' or 'favorites'
   const [assets, setAssets] = useState([]);
-  
-  // Individual loading states for progressive loading
-  const [savedLoading, setSavedLoading] = useState(true);
-  const [createdLoading, setCreatedLoading] = useState(true);
-  const [assetsLoading, setAssetsLoading] = useState(true);
-  
-  // Pagination state for each section
-  const [savedVisible, setSavedVisible] = useState(9);
-  const [createdVisible, setCreatedVisible] = useState(9);
-  const [assetsVisible, setAssetsVisible] = useState(9);
+  const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [stats, setStats] = useState({ uploads: 0, generated: 0 });
+  const [viewAsset, setViewAsset] = useState(null);
+
+  const LIMIT = 24;
+
+  // Redirect to sign in if not authenticated
+  useEffect(() => {
+    if (isLoaded && !user) {
+      router.push('/sign-in?redirect_url=/library');
+    }
+  }, [isLoaded, user, router]);
+
+  // Fetch assets and stats
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+
+    loadAssets(true);
+    loadStats();
+  }, [user, isLoaded, tab, sortBy]);
+
+  const loadStats = async () => {
+    try {
+      const [uploadsRes, generatedRes] = await Promise.all([
+        fetch('/api/user-assets?type=input&limit=1'),
+        fetch('/api/user-assets?type=output&limit=1')
+      ]);
+      
+      const uploadsData = await uploadsRes.json();
+      const generatedData = await generatedRes.json();
+      
+      setStats({
+        uploads: uploadsData.total || 0,
+        generated: generatedData.total || 0
+      });
+    } catch (err) {
+      console.error('Error loading stats:', err);
+    }
+  };
+
+  const loadAssets = async (reset = false) => {
+    setLoading(true);
+    try {
+      const offset = reset ? 0 : page * LIMIT;
+      const favFilter = sortBy === 'favorites' ? '&favorites=true' : '';
+      const res = await fetch(`/api/user-assets?type=${tab}&limit=${LIMIT}&offset=${offset}${favFilter}`);
+      
+      if (!res.ok) {
+        throw new Error('Failed to fetch assets');
+      }
+      
+      const data = await res.json();
+      
+      if (reset) {
+        setAssets(data.assets || []);
+        setPage(0);
+      } else {
+        setAssets(prev => [...prev, ...(data.assets || [])]);
+      }
+      
+      setHasMore(data.hasMore);
+    } catch (err) {
+      console.error('Error loading assets:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMore = () => {
+    setPage(prev => prev + 1);
+  };
 
   useEffect(() => {
-    // Redirect to sign-in if not authenticated
-    if (isLoaded && !isSignedIn) {
-      router.push('/sign-in?redirect_url=/library');
+    if (page > 0) {
+      loadAssets(false);
+    }
+  }, [page]);
+
+  const handleDelete = async (assetId, e) => {
+    e.stopPropagation();
+    
+    if (!confirm('Delete this asset? This cannot be undone.')) {
       return;
     }
 
-    if (!user) return;
+    try {
+      const res = await fetch('/api/user-assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', assetId })
+      });
 
-    // Load saved apps first (highest priority)
-    (async () => {
-      try {
-        const res = await fetch('/api/library');
-        if (res.ok) {
-          const data = await res.json();
-          console.log('[Library] Saved data received:', data);
-          setSavedApps(data.items || []);
-        } else {
-          console.error('[Library] API error:', res.status);
-          setSavedApps([]);
-        }
-      } catch (err) {
-        console.error('[Library] Error fetching saved apps:', err);
-        setSavedApps([]);
-      } finally {
-        setSavedLoading(false);
+      if (res.ok) {
+        setAssets(prev => prev.filter(a => a.id !== assetId));
+        loadStats(); // Refresh stats
+      } else {
+        alert('Failed to delete asset');
       }
-    })();
+    } catch (err) {
+      console.error('Error deleting asset:', err);
+      alert('Failed to delete asset');
+    }
+  };
 
-    // Load created apps (second priority)
-    (async () => {
-      try {
-        const appsRes = await fetch(`/api/apps?includeUnpublished=true&userId=${encodeURIComponent(user.id)}`);
-        const appsData = await appsRes.json();
-        const created = (appsData.apps || []).filter(a => a.creator_id === user.id);
-        setCreatedApps(created);
-      } catch (err) {
-        console.error('[Library] Error fetching created apps:', err);
-        setCreatedApps([]);
-      } finally {
-        setCreatedLoading(false);
+  const handleFavorite = async (assetId, currentState, e) => {
+    e.stopPropagation();
+
+    try {
+      const res = await fetch('/api/user-assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: currentState ? 'unfavorite' : 'favorite', 
+          assetId 
+        })
+      });
+
+      if (res.ok) {
+        // Update local state
+        setAssets(prev => prev.map(a => 
+          a.id === assetId ? { ...a, is_favorite: !currentState } : a
+        ));
       }
-    })();
+    } catch (err) {
+      console.error('Error toggling favorite:', err);
+    }
+  };
 
-    // Load library/assets last (third priority)
-    (async () => {
-      try {
-        const assetsRes = await fetch('/api/assets?mine=1', { cache: 'no-store' });
-        if (assetsRes.ok) {
-          const assetsData = await assetsRes.json();
-          setAssets(assetsData.assets || []);
-        } else {
-          // fallback to recent runs if saved-assets table is not available
-          const runsRes = await fetch('/api/runs?mine=1', { cache: 'no-store' });
-          const runsData = await runsRes.json();
-          setAssets(runsData.runs || []);
-        }
-      } catch (err) {
-        console.error('[Library] Error fetching assets:', err);
-        setAssets([]);
-      } finally {
-        setAssetsLoading(false);
-      }
-    })();
-  }, [user, isLoaded, isSignedIn, router]);
+  const handleDownload = (asset, e) => {
+    e.stopPropagation();
+    
+    const url = asset.url_1080 || asset.url;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = asset.original_filename || 'asset.jpg';
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
-  if (!isLoaded) {
+  if (!isLoaded || !user) {
     return (
-      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '16px 0', paddingBottom: '100px', minHeight: 'calc(100vh - 60px)' }}>
-        {/* Header skeleton */}
-        <div className="skeleton" style={{ width: 140, height: 20, borderRadius: 8, marginBottom: 8 }} />
-        <div className="skeleton" style={{ width: 220, height: 14, borderRadius: 8, marginBottom: 24 }} />
-
-        {/* Saved section */}
-        <div className="skeleton" style={{ width: 100, height: 16, borderRadius: 8, marginBottom: 12 }} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 28 }}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={`sk-saved-${i}`} className="skeleton" style={{ aspectRatio: '1', borderRadius: 6 }} />
-          ))}
-        </div>
-
-        {/* Created section */}
-        <div className="skeleton" style={{ width: 120, height: 16, borderRadius: 8, marginBottom: 12 }} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 28 }}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={`sk-created-${i}`} className="skeleton" style={{ aspectRatio: '1', borderRadius: 6 }} />
-          ))}
-        </div>
-
-        {/* Library section */}
-        <div className="skeleton" style={{ width: 110, height: 16, borderRadius: 8, marginBottom: 12 }} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={`sk-assets-${i}`} className="skeleton" style={{ aspectRatio: '1', borderRadius: 6 }} />
-          ))}
-        </div>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 16px', textAlign: 'center' }}>
+        <p>Loading...</p>
       </div>
     );
   }
 
-  if (!isSignedIn) {
-    return null; // Redirect happens in useEffect
-  }
-
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '16px 0', paddingBottom: '100px', minHeight: 'calc(100vh - 60px)' }}>
-      <h1 style={{ marginBottom: 8 }}>Home</h1>
-      <p className="small" style={{ marginBottom: 24, color: '#888' }}>Quick launch your apps</p>
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '20px 16px', paddingBottom: 100 }}>
+      {/* Header */}
+      <div style={{ marginBottom: 32 }}>
+        <Link href="/feed" className="btn ghost" style={{ marginBottom: 16, display: 'inline-block' }}>
+          ← Back to Feed
+        </Link>
+        
+        <h1 style={{ margin: '0 0 8px 0', fontSize: 36 }}>My Asset Library</h1>
+        <p style={{ margin: 0, color: '#888', fontSize: 16 }}>
+          Manage your uploaded images and generated outputs
+        </p>
+      </div>
 
-      {/* Saved Section - Loads first */}
-      <section style={{ marginBottom: 28 }}>
-        <h3 style={{ margin: '0 0 12px 0' }}>Saved</h3>
-        {savedLoading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={`sk-saved-${i}`} className="skeleton" style={{ aspectRatio: '1', borderRadius: 6 }} />
-            ))}
-          </div>
-        ) : savedApps.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 24, color: '#888' }}>No saved apps yet</div>
-        ) : (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-              {savedApps.slice(0, savedVisible).map(app => (
-                <a
-                  key={app.id}
-                  href={`/me/app/${app.id}`}
-                  style={{
-                    aspectRatio: '1',
-                    background: app.preview_gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    borderRadius: 6,
-                    overflow: 'hidden',
-                    position: 'relative',
-                    textDecoration: 'none'
-                  }}
-                >
-                  {app.preview_url && (
-                    <Image
-                      src={app.preview_url}
-                      alt={app.name}
-                      fill
-                      sizes="33vw"
-                      style={{ objectFit: 'cover' }}
-                      placeholder={app.preview_blur ? 'blur' : 'empty'}
-                      blurDataURL={app.preview_blur || undefined}
-                    />
-                  )}
-                  <div style={{
-                    position: 'absolute',
-                    left: 6,
-                    right: 6,
-                    top: 6,
-                    color: 'white',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textShadow: '0 1px 2px rgba(0,0,0,0.5)'
-                  }}>{app.name}</div>
-                </a>
-              ))}
-            </div>
-            {savedVisible < savedApps.length && (
-              <div style={{ textAlign: 'center', marginTop: 12 }}>
-                <button
-                  onClick={() => setSavedVisible(prev => prev + 9)}
-                  className="btn"
-                  style={{ padding: '8px 16px', fontSize: 13 }}
-                >
-                  Show more ({savedApps.length - savedVisible} remaining)
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </section>
+      {/* Stats Cards */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: 16,
+        marginBottom: 32
+      }}>
+        <div style={{
+          background: '#1a1a1a',
+          borderRadius: 12,
+          padding: 20,
+          border: '1px solid #333'
+        }}>
+          <div style={{ fontSize: 14, color: '#888', marginBottom: 4 }}>📤 Uploads</div>
+          <div style={{ fontSize: 32, fontWeight: 'bold' }}>{stats.uploads}</div>
+        </div>
+        <div style={{
+          background: '#1a1a1a',
+          borderRadius: 12,
+          padding: 20,
+          border: '1px solid #333'
+        }}>
+          <div style={{ fontSize: 14, color: '#888', marginBottom: 4 }}>🎨 Generated</div>
+          <div style={{ fontSize: 32, fontWeight: 'bold' }}>{stats.generated}</div>
+        </div>
+        <div style={{
+          background: '#1a1a1a',
+          borderRadius: 12,
+          padding: 20,
+          border: '1px solid #333'
+        }}>
+          <div style={{ fontSize: 14, color: '#888', marginBottom: 4 }}>📊 Total Assets</div>
+          <div style={{ fontSize: 32, fontWeight: 'bold' }}>{stats.uploads + stats.generated}</div>
+        </div>
+      </div>
 
-      {/* Created Section - Loads second */}
-      <section>
-        <h3 style={{ margin: '0 0 12px 0' }}>Created</h3>
-        {createdLoading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={`sk-created-${i}`} className="skeleton" style={{ aspectRatio: '1', borderRadius: 6 }} />
-            ))}
-          </div>
-        ) : createdApps.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 24, color: '#888' }}>No created apps yet</div>
-        ) : (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-              {createdApps.slice(0, createdVisible).map(app => (
-                <a
-                  key={app.id}
-                  href={`/me/app/${app.id}`}
-                  style={{
-                    aspectRatio: '1',
-                    background: app.preview_gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    borderRadius: 6,
-                    overflow: 'hidden',
-                    position: 'relative',
-                    textDecoration: 'none'
-                  }}
-                >
-                  {app.preview_url && (
-                    <Image
-                      src={app.preview_url}
-                      alt={app.name}
-                      fill
-                      sizes="33vw"
-                      style={{ objectFit: 'cover' }}
-                      placeholder={app.preview_blur ? 'blur' : 'empty'}
-                      blurDataURL={app.preview_blur || undefined}
-                    />
-                  )}
-                  <div style={{
-                    position: 'absolute',
-                    left: 6,
-                    right: 6,
-                    top: 6,
-                    color: 'white',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textShadow: '0 1px 2px rgba(0,0,0,0.5)'
-                  }}>{app.name}</div>
-                </a>
-              ))}
-            </div>
-            {createdVisible < createdApps.length && (
-              <div style={{ textAlign: 'center', marginTop: 12 }}>
-                <button
-                  onClick={() => setCreatedVisible(prev => prev + 9)}
-                  className="btn"
-                  style={{ padding: '8px 16px', fontSize: 13 }}
-                >
-                  Show more ({createdApps.length - createdVisible} remaining)
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </section>
+      {/* Controls */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 24,
+        flexWrap: 'wrap',
+        gap: 16
+      }}>
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => setTab('input')}
+            className="btn"
+            style={{
+              background: tab === 'input' ? '#fe2c55' : 'transparent',
+              border: tab === 'input' ? 'none' : '1px solid #333'
+            }}
+          >
+            📤 Uploads
+          </button>
+          <button
+            onClick={() => setTab('output')}
+            className="btn"
+            style={{
+              background: tab === 'output' ? '#fe2c55' : 'transparent',
+              border: tab === 'output' ? 'none' : '1px solid #333'
+            }}
+          >
+            🎨 Generated
+          </button>
+        </div>
 
-      {/* Library Section - Loads last */}
-      <section style={{ marginTop: 28 }}>
-        <h3 style={{ margin: '0 0 12px 0' }}>Library</h3>
-        {assetsLoading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={`sk-assets-${i}`} className="skeleton" style={{ aspectRatio: '1', borderRadius: 6 }} />
-            ))}
+        {/* Sort */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 14, color: '#888' }}>Sort:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="input"
+            style={{ width: 'auto' }}
+          >
+            <option value="recent">Most Recent</option>
+            <option value="favorites">Favorites</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Assets Grid */}
+      {loading && page === 0 ? (
+        <div style={{ 
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+          gap: 16
+        }}>
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div
+              key={i}
+              style={{
+                aspectRatio: '1',
+                background: '#1a1a1a',
+                borderRadius: 8,
+                animation: 'pulse 1.5s ease-in-out infinite'
+              }}
+            />
+          ))}
+        </div>
+      ) : assets.length === 0 ? (
+        <div style={{
+          textAlign: 'center',
+          padding: '80px 20px',
+          background: '#1a1a1a',
+          borderRadius: 12,
+          border: '1px solid #333'
+        }}>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>
+            {tab === 'input' ? '📤' : '🎨'}
           </div>
-        ) : assets.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 24, color: '#888' }}>No assets yet</div>
-        ) : (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-              {assets.slice(0, assetsVisible).map(r => {
-              const href = `/app/${r.app_id}?run=${r.id}`;
-              const isImage = !!r.asset_url;
-              let preview = null;
-              if (isImage) {
-                preview = (
-                  <Image src={r.asset_url} alt={r.id} fill sizes="33vw" style={{ objectFit: 'cover' }} />
-                );
-              } else {
-                // Custom summary for non-image outputs
-                const out = (typeof r.outputs === 'object') ? r.outputs : {};
-                if (out?.kind === 'flappy') {
-                  preview = (
-                    <div style={{
-                      background: 'linear-gradient(135deg, #f5af19 0%, #f12711 100%)',
-                      height: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#fff',
-                      fontWeight: 800,
-                      fontSize: 22,
-                      textShadow: '0 2px 6px rgba(0,0,0,0.45)'
-                    }}>
-                      Score: {out.score ?? 0}
-                    </div>
-                  );
-                } else if (out?.kind === 'wordle') {
-                  const guesses = out.guesses || [];
-                  const length = (guesses[0]?.word || out.target || '').length || 5;
-                  const color = (p) => p==='g' ? '#16a34a' : p==='y' ? '#ca8a04' : '#374151';
-                  preview = (
-                    <div style={{
-                      background: '#111',
-                      color: '#fff',
-                      height: '100%',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      gap: 8
-                    }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${length}, 16px)`, gap: 3 }}>
-                        {Array.from({ length: 6 }).map((_, row) => (
-                          <div key={row} style={{ display: 'contents' }}>
-                            {Array.from({ length }).map((__, col) => {
-                              const p = guesses[row]?.pattern?.[col] || null;
-                              return <div key={col} style={{
-                                width: 16, height: 16, borderRadius: 3,
-                                background: p ? color(p) : 'rgba(255,255,255,0.12)'
-                              }} />;
-                            })}
-                          </div>
-                        ))}
-                      </div>
-                      <div style={{ fontSize: 11, opacity: 0.9 }}>
-                        {out.result === 'win' ? '✅' : '❌'} {guesses.length}/6
-                      </div>
-                    </div>
-                  );
-                } else if (out?.kind === 'chat') {
-                  const msgs = out.messages || [];
-                  const lastTwo = msgs.slice(-2).map(m => (m.role === 'user' ? 'You: ' : 'Agent: ') + String(m.content||'')).join('\\n');
-                  preview = (
-                    <div style={{
-                      padding: 8,
-                      fontSize: 11,
-                      color: '#fff',
-                      background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                      height: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      whiteSpace: 'pre-wrap',
-                      textShadow: '0 1px 2px rgba(0,0,0,0.3)'
-                    }}>
-                      {lastTwo.slice(0, 140)}
-                    </div>
-                  );
-                } else {
-                  const text = typeof r.outputs === 'string'
-                    ? r.outputs
-                    : (r.outputs?.markdown || r.outputs?.text || JSON.stringify(r.outputs || {}).slice(0, 80));
-                  preview = (
-                    <div style={{
-                      padding: 8,
-                      fontSize: 11,
-                      color: '#fff',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      height: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      textShadow: '0 1px 2px rgba(0,0,0,0.3)'
-                    }}>
-                      {String(text || '').slice(0, 120)}
-                    </div>
-                  );
-                }
-              }
-              return (
+          <h3 style={{ marginTop: 0, marginBottom: 8 }}>No {tab === 'input' ? 'uploads' : 'generated images'} yet</h3>
+          <p style={{ color: '#888', marginBottom: 24 }}>
+            {tab === 'input'
+              ? 'Upload an image when using an app to start building your library'
+              : 'Use image generation apps to create AI-powered content'}
+          </p>
+          <Link href="/feed" className="btn primary">
+            Browse Apps →
+          </Link>
+        </div>
+      ) : (
+        <>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+            gap: 16
+          }}>
+            {assets.map((asset) => (
+              <div
+                key={asset.id}
+                style={{
+                  position: 'relative',
+                  aspectRatio: '1'
+                }}
+              >
+                <AssetThumbnail
+                  asset={asset}
+                  size="100%"
+                  showMetadata={true}
+                  onClick={() => setViewAsset(asset)}
+                />
+                
+                {/* Action buttons */}
                 <div
-                  key={r.id}
+                  className="asset-actions"
                   style={{
-                    aspectRatio: '1',
-                    position: 'relative'
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    display: 'flex',
+                    gap: 4,
+                    opacity: 0,
+                    transition: 'opacity 0.2s'
                   }}
                 >
-                  <a
-                    href={href}
-                    style={{
-                      aspectRatio: '1',
-                      background: '#111',
-                      borderRadius: 6,
-                      overflow: 'hidden',
-                      position: 'relative',
-                      textDecoration: 'none',
-                      display: 'block',
-                      width: '100%',
-                      height: '100%'
-                    }}
-                  >
-                    {preview}
-                  </a>
                   <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      // Frontend-only deletion
-                      setAssets(prev => prev.filter(asset => asset.id !== r.id));
-                    }}
+                    onClick={(e) => handleFavorite(asset.id, asset.is_favorite, e)}
                     style={{
-                      position: 'absolute',
-                      top: 4,
-                      right: 4,
-                      background: 'rgba(0,0,0,0.7)',
+                      background: 'rgba(0,0,0,0.8)',
                       border: 'none',
                       borderRadius: 4,
-                      color: 'white',
-                      padding: '4px 8px',
-                      fontSize: 11,
-                      cursor: 'pointer',
-                      zIndex: 10,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
+                      padding: '6px 10px',
+                      fontSize: 16,
+                      cursor: 'pointer'
                     }}
-                    title="Remove from library"
+                    title={asset.is_favorite ? 'Unfavorite' : 'Favorite'}
                   >
-                    ✕
+                    {asset.is_favorite ? '⭐' : '☆'}
+                  </button>
+                  <button
+                    onClick={(e) => handleDownload(asset, e)}
+                    style={{
+                      background: 'rgba(0,0,0,0.8)',
+                      border: 'none',
+                      borderRadius: 4,
+                      padding: '6px 10px',
+                      color: 'white',
+                      fontSize: 14,
+                      cursor: 'pointer'
+                    }}
+                    title="Download"
+                  >
+                    ⬇️
+                  </button>
+                  <button
+                    onClick={(e) => handleDelete(asset.id, e)}
+                    style={{
+                      background: 'rgba(220,38,38,0.9)',
+                      border: 'none',
+                      borderRadius: 4,
+                      padding: '6px 10px',
+                      color: 'white',
+                      fontSize: 14,
+                      cursor: 'pointer'
+                    }}
+                    title="Delete"
+                  >
+                    🗑️
                   </button>
                 </div>
-              );
-            })}
-            </div>
-            {assetsVisible < assets.length && (
-              <div style={{ textAlign: 'center', marginTop: 12 }}>
-                <button
-                  onClick={() => setAssetsVisible(prev => prev + 9)}
-                  className="btn"
-                  style={{ padding: '8px 16px', fontSize: 13 }}
-                >
-                  Show more ({assets.length - assetsVisible} remaining)
-                </button>
               </div>
-            )}
-          </>
-        )}
-      </section>
+            ))}
+          </div>
+
+          {/* Load More */}
+          {hasMore && (
+            <div style={{ textAlign: 'center', marginTop: 32 }}>
+              <button
+                onClick={loadMore}
+                className="btn"
+                disabled={loading}
+                style={{ opacity: loading ? 0.6 : 1 }}
+              >
+                {loading ? 'Loading...' : 'Load More'}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Full-screen image view */}
+      {viewAsset && (
+        <div
+          onClick={() => setViewAsset(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.95)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: 20
+          }}
+        >
+          <img
+            src={viewAsset.url_1080 || viewAsset.url}
+            alt={viewAsset.original_filename}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              objectFit: 'contain',
+              borderRadius: 8
+            }}
+          />
+          <button
+            onClick={() => setViewAsset(null)}
+            style={{
+              position: 'absolute',
+              top: 20,
+              right: 20,
+              background: 'rgba(0,0,0,0.8)',
+              border: 'none',
+              borderRadius: 8,
+              padding: '8px 16px',
+              color: 'white',
+              fontSize: 20,
+              cursor: 'pointer'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 0.5; }
+        }
+        .asset-actions {
+          pointer-events: none;
+        }
+        .asset-actions button {
+          pointer-events: all;
+        }
+        div:hover .asset-actions {
+          opacity: 1;
+        }
+      `}</style>
     </div>
   );
 }

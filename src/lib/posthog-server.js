@@ -56,7 +56,7 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
           properties: [
             {
               type: 'event',
-              key: 'creator_id',
+              key: '$current_creator_id',
               operator: 'exact',
               value: [creatorId]
             }
@@ -74,7 +74,7 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
           properties: [
             {
               type: 'event',
-              key: 'creator_id',
+              key: '$current_creator_id',
               operator: 'exact',
               value: [creatorId]
             }
@@ -92,7 +92,7 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
           properties: [
             {
               type: 'event',
-              key: 'creator_id',
+              key: '$current_creator_id',
               operator: 'exact',
               value: [creatorId]
             }
@@ -110,7 +110,7 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
           properties: [
             {
               type: 'event',
-              key: 'creator_id',
+              key: '$current_creator_id',
               operator: 'exact',
               value: [creatorId]
             }
@@ -128,7 +128,7 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
           properties: [
             {
               type: 'event',
-              key: 'creator_id',
+              key: '$current_creator_id',
               operator: 'exact',
               value: [creatorId]
             }
@@ -172,7 +172,7 @@ export async function getCreatorTimeSeries(creatorId, days = 30) {
         properties: [
           {
             type: 'event',
-            key: 'creator_id',
+            key: '$current_creator_id',
             operator: 'exact',
             value: [creatorId]
           }
@@ -209,7 +209,7 @@ export async function getTrafficSources(creatorId, days = 30) {
         properties: [
           {
             type: 'event',
-            key: 'creator_id',
+            key: '$current_creator_id',
             operator: 'exact',
             value: [creatorId]
           }
@@ -245,7 +245,7 @@ export async function getConversionFunnel(creatorId, days = 30) {
         properties: [
           {
             type: 'event',
-            key: 'creator_id',
+            key: '$current_creator_id',
             operator: 'exact',
             value: [creatorId]
           }

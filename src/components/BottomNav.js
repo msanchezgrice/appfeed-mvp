@@ -8,8 +8,8 @@ export default function BottomNav() {
   const navItems = [
     { label: 'Feed', icon: '🏠', path: '/feed' },
     { label: 'Search', icon: '🔍', path: '/search' },
-    { label: 'Home', icon: '📚', path: '/library' },
-    { label: 'Profile', icon: '👤', path: '/profile' }
+    { label: 'Library', icon: '📚', path: '/library' },
+    { label: 'Profile', icon: '👤', path: '/me' }
   ];
 
   // Hide bottom nav on landing pages

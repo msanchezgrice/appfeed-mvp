@@ -1,5 +1,7 @@
 'use client';
 import { useState } from 'react';
+import AssetPicker from './AssetPicker';
+import AssetLibraryModal from './AssetLibraryModal';
 
 export default function AppForm({ app, onSubmit, defaults={} }) {
   const [values, setValues] = useState(() => {
@@ -10,6 +12,8 @@ export default function AppForm({ app, onSubmit, defaults={} }) {
     return pre;
   });
   const [loading, setLoading] = useState(false);
+  const [showAssetLibrary, setShowAssetLibrary] = useState(false);
+  const [currentImageField, setCurrentImageField] = useState(null);
 
   const set = (k, v) => setValues(s => ({ ...s, [k]: v }));
   
@@ -23,27 +27,62 @@ export default function AppForm({ app, onSubmit, defaults={} }) {
     }
   };
 
+  const handleAssetSelect = (asset, fieldKey) => {
+    // When user selects an asset from library, use its URL directly
+    // We'll convert it back to data URL if needed, or use the URL
+    set(fieldKey, asset.url);
+  };
+
+  const handleFileChange = async (e, fieldKey) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        set(fieldKey, reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit}>
       {Object.entries(app.inputs || {}).map(([k, spec]) => (
         <div key={k} style={{marginBottom:12}}>
           <div className="label">{spec.label || k} {spec.required ? '*' : ''}</div>
           {spec.type === 'image' ? (
-            <input 
-              type="file" 
-              accept={spec.accept || 'image/*'}
-              className="input" 
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    set(k, reader.result);
-                  };
-                  reader.readAsDataURL(file);
-                }
-              }}
-            />
+            <>
+              <input 
+                type="file" 
+                accept={spec.accept || 'image/*'}
+                className="input" 
+                onChange={(e) => handleFileChange(e, k)}
+              />
+              
+              {/* Preview selected image */}
+              {values[k] && (
+                <div style={{ marginTop: 8 }}>
+                  <img
+                    src={values[k]}
+                    alt="Preview"
+                    style={{
+                      maxWidth: 200,
+                      maxHeight: 200,
+                      borderRadius: 8,
+                      objectFit: 'cover'
+                    }}
+                  />
+                </div>
+              )}
+              
+              {/* Asset Picker - shows recent uploads */}
+              <AssetPicker
+                onSelect={(asset) => handleAssetSelect(asset, k)}
+                onViewAll={() => {
+                  setCurrentImageField(k);
+                  setShowAssetLibrary(true);
+                }}
+              />
+            </>
           ) : spec.type === 'select' ? (
             <select className="input" value={values[k] || spec.default || ''} onChange={e => set(k, e.target.value)} style={{width: '100%'}}>
               {spec.options?.map(opt => (
@@ -94,6 +133,20 @@ export default function AppForm({ app, onSubmit, defaults={} }) {
           to { transform: rotate(360deg); }
         }
       `}</style>
+
+      {/* Asset Library Modal */}
+      <AssetLibraryModal
+        show={showAssetLibrary}
+        onClose={() => {
+          setShowAssetLibrary(false);
+          setCurrentImageField(null);
+        }}
+        onSelect={(asset) => {
+          if (currentImageField) {
+            handleAssetSelect(asset, currentImageField);
+          }
+        }}
+      />
     </form>
   );
 }
