@@ -53,7 +53,14 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
           kind: 'EventsQuery',
           select: ['timestamp', 'properties.app_id', 'properties.app_name', 'distinct_id'],
           event: 'app_viewed',
-          where: [`properties.creator_id = '${creatorId}'`],
+          properties: [
+            {
+              type: 'event',
+              key: 'creator_id',
+              operator: 'exact',
+              value: [creatorId]
+            }
+          ],
           after: `-${days}d`
         }
       }),
@@ -64,7 +71,14 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
           kind: 'EventsQuery',
           select: ['timestamp', 'properties.app_id', 'distinct_id'],
           event: 'app_tried',
-          where: [`properties.$current_creator_id = '${creatorId}'`],
+          properties: [
+            {
+              type: 'event',
+              key: 'creator_id',
+              operator: 'exact',
+              value: [creatorId]
+            }
+          ],
           after: `-${days}d`
         }
       }),
@@ -75,7 +89,14 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
           kind: 'EventsQuery',
           select: ['timestamp', 'properties.app_id', 'distinct_id'],
           event: 'app_saved',
-          where: [`properties.creator_id = '${creatorId}'`],
+          properties: [
+            {
+              type: 'event',
+              key: 'creator_id',
+              operator: 'exact',
+              value: [creatorId]
+            }
+          ],
           after: `-${days}d`
         }
       }),
@@ -86,7 +107,14 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
           kind: 'EventsQuery',
           select: ['timestamp', 'properties.app_id', 'distinct_id'],
           event: 'app_shared',
-          where: [`properties.creator_id = '${creatorId}'`],
+          properties: [
+            {
+              type: 'event',
+              key: 'creator_id',
+              operator: 'exact',
+              value: [creatorId]
+            }
+          ],
           after: `-${days}d`
         }
       }),
@@ -97,7 +125,14 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
           kind: 'EventsQuery',
           select: ['timestamp', 'properties.original_app_id', 'distinct_id'],
           event: 'app_remixed',
-          where: [`properties.creator_id = '${creatorId}'`],
+          properties: [
+            {
+              type: 'event',
+              key: 'creator_id',
+              operator: 'exact',
+              value: [creatorId]
+            }
+          ],
           after: `-${days}d`
         }
       })
@@ -134,16 +169,14 @@ export async function getCreatorTimeSeries(creatorId, days = 30) {
           date_from: `-${days}d`,
           date_to: 'now'
         },
-        properties: {
-          type: 'AND',
-          values: [
-            {
-              type: 'event',
-              key: 'creator_id',
-              value: creatorId
-            }
-          ]
-        }
+        properties: [
+          {
+            type: 'event',
+            key: 'creator_id',
+            operator: 'exact',
+            value: [creatorId]
+          }
+        ]
       }
     });
 
@@ -173,16 +206,14 @@ export async function getTrafficSources(creatorId, days = 30) {
           date_from: `-${days}d`,
           date_to: 'now'
         },
-        properties: {
-          type: 'AND',
-          values: [
-            {
-              type: 'event',
-              key: 'creator_id',
-              value: creatorId
-            }
-          ]
-        }
+        properties: [
+          {
+            type: 'event',
+            key: 'creator_id',
+            operator: 'exact',
+            value: [creatorId]
+          }
+        ]
       }
     });
 
@@ -207,22 +238,18 @@ export async function getConversionFunnel(creatorId, days = 30) {
           { event: 'app_saved', name: 'Saved' }
         ],
         filterTestAccounts: true,
-        funnelWindowInterval: 1,
-        funnelWindowIntervalUnit: 'day',
         dateRange: {
           date_from: `-${days}d`,
           date_to: 'now'
         },
-        properties: {
-          type: 'AND',
-          values: [
-            {
-              type: 'event',
-              key: 'creator_id',
-              value: creatorId
-            }
-          ]
-        }
+        properties: [
+          {
+            type: 'event',
+            key: 'creator_id',
+            operator: 'exact',
+            value: [creatorId]
+          }
+        ]
       }
     });
 
