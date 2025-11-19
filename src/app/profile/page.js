@@ -21,6 +21,7 @@ export default function ProfilePage() {
   const [editName, setEditName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('');
   const [generatedImages, setGeneratedImages] = useState([]);
+  const [uploadedImages, setUploadedImages] = useState([]);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [analytics, setAnalytics] = useState({
     totalViews: 0,
@@ -122,15 +123,24 @@ export default function ProfilePage() {
         setSelectedAvatar(userData.avatar);
       }
 
-      // Load generated images for avatar selection
+      // Load generated images and uploads for avatar selection
       try {
-        const assetsRes = await fetch('/api/user-assets?type=output&limit=50');
-        if (assetsRes.ok) {
-          const assetsData = await assetsRes.json();
-          setGeneratedImages(assetsData.assets || []);
+        const [generatedRes, uploadsRes] = await Promise.all([
+          fetch('/api/user-assets?type=output&limit=50'),
+          fetch('/api/user-assets?type=input&limit=50')
+        ]);
+        
+        if (generatedRes.ok) {
+          const generatedData = await generatedRes.json();
+          setGeneratedImages(generatedData.assets || []);
+        }
+        
+        if (uploadsRes.ok) {
+          const uploadsData = await uploadsRes.json();
+          setUploadedImages(uploadsData.assets || []);
         }
       } catch (err) {
-        console.error('[Profile] Error loading generated images:', err);
+        console.error('[Profile] Error loading images:', err);
       }
 
       // Load existing API keys - Note: API returns status, not actual keys for security
@@ -532,7 +542,7 @@ export default function ProfilePage() {
                   onClick={() => setShowAvatarModal(true)}
                   className="btn"
                 >
-                  Choose from Generated Images
+                  Choose Image
                 </button>
               </div>
             </div>
@@ -755,14 +765,88 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Generated Images */}
-            {generatedImages.length > 0 && (
-              <div>
-                <div className="small" style={{ marginBottom: 12, color: '#888' }}>Your Generated Images</div>
+            {/* Upload New Image */}
+            <div style={{ marginBottom: 24 }}>
+              <div className="small" style={{ marginBottom: 12, color: '#888' }}>Upload New Image</div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setSelectedAvatar(reader.result);
+                      setShowAvatarModal(false);
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+                className="input"
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            {/* Uploaded Images */}
+            {uploadedImages.length > 0 && (
+              <div style={{ marginBottom: 24 }}>
+                <div className="small" style={{ marginBottom: 12, color: '#888' }}>Your Uploads ({uploadedImages.length})</div>
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
-                  gap: 12
+                  gap: 12,
+                  maxHeight: 300,
+                  overflowY: 'auto',
+                  padding: 8,
+                  background: '#0a0a0a',
+                  borderRadius: 8
+                }}>
+                  {uploadedImages.map(img => (
+                    <div
+                      key={img.id}
+                      onClick={() => {
+                        setSelectedAvatar(img.url);
+                        setShowAvatarModal(false);
+                      }}
+                      style={{
+                        aspectRatio: '1',
+                        borderRadius: '50%',
+                        cursor: 'pointer',
+                        border: selectedAvatar === img.url ? '3px solid #fe2c55' : '3px solid #333',
+                        overflow: 'hidden',
+                        transition: 'border-color 0.2s',
+                        position: 'relative'
+                      }}
+                    >
+                      <img
+                        src={img.url_360 || img.url}
+                        alt="Upload"
+                        loading="lazy"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Generated Images */}
+            {generatedImages.length > 0 && (
+              <div>
+                <div className="small" style={{ marginBottom: 12, color: '#888' }}>Your Generated Images ({generatedImages.length})</div>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
+                  gap: 12,
+                  maxHeight: 300,
+                  overflowY: 'auto',
+                  padding: 8,
+                  background: '#0a0a0a',
+                  borderRadius: 8
                 }}>
                   {generatedImages.map(img => (
                     <div
@@ -797,10 +881,10 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {generatedImages.length === 0 && (
+            {generatedImages.length === 0 && uploadedImages.length === 0 && (
               <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
-                <p>No generated images yet</p>
-                <p className="small">Use image generation apps to create avatars!</p>
+                <p>No images yet</p>
+                <p className="small">Upload an image or use image generation apps!</p>
               </div>
             )}
           </div>
