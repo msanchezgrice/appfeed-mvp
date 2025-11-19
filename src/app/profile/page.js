@@ -24,6 +24,8 @@ export default function ProfilePage() {
   const [editEmail, setEditEmail] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('');
   const [profileSaveMessage, setProfileSaveMessage] = useState('');
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [generatedImages, setGeneratedImages] = useState([]);
   const [analytics, setAnalytics] = useState({
     totalViews: 0,
     totalTries: 0,
@@ -95,6 +97,17 @@ export default function ProfilePage() {
       setEditName(userData.name);
       setEditEmail(userData.email || '');
       setSelectedAvatar(userData.avatar);
+
+      // Load generated images for avatar picker
+      try {
+        const assetsRes = await fetch('/api/user-assets?type=output&limit=20');
+        if (assetsRes.ok) {
+          const assetsData = await assetsRes.json();
+          setGeneratedImages(assetsData.assets || []);
+        }
+      } catch (err) {
+        console.error('Error loading generated images:', err);
+      }
 
       // Load existing API keys - Note: API returns status, not actual keys for security
       // Keys are stored encrypted and not returned to client
@@ -719,63 +732,164 @@ export default function ProfilePage() {
               <label className="label" style={{ display: 'block', marginBottom: 6 }}>
                 Avatar
               </label>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))',
-                gap: 8,
-                marginTop: 8
-              }}>
-                {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
-                  <div
-                    key={num}
-                    onClick={() => setSelectedAvatar(`/avatars/${num}.svg`)}
-                    style={{
-                      width: 60,
-                      height: 60,
-                      borderRadius: '50%',
-                      cursor: 'pointer',
-                      border: selectedAvatar === `/avatars/${num}.svg` ? '3px solid #fe2c55' : '3px solid transparent',
-                      overflow: 'hidden',
-                      transition: 'border-color 0.2s'
-                    }}
-                  >
-                    <img
-                      src={`/avatars/${num}.svg`}
-                      alt={`Avatar ${num}`}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover'
-                      }}
-                    />
-                  </div>
-                ))}
-                {/* Current Clerk avatar */}
-                {clerkUser?.imageUrl && (
-                  <div
-                    onClick={() => setSelectedAvatar(clerkUser.imageUrl)}
-                    style={{
-                      width: 60,
-                      height: 60,
-                      borderRadius: '50%',
-                      cursor: 'pointer',
-                      border: selectedAvatar === clerkUser.imageUrl ? '3px solid #fe2c55' : '3px solid transparent',
-                      overflow: 'hidden',
-                      transition: 'border-color 0.2s'
-                    }}
-                  >
-                    <img
-                      src={clerkUser.imageUrl}
-                      alt="Your photo"
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover'
-                      }}
-                    />
-                  </div>
-                )}
+              
+              {/* Current avatar preview */}
+              <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <img
+                  src={selectedAvatar || user?.avatar || '/avatars/1.svg'}
+                  alt="Current avatar"
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '3px solid #333'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAvatarPicker(!showAvatarPicker)}
+                  className="btn"
+                >
+                  {showAvatarPicker ? 'Hide Options' : 'Change Avatar'}
+                </button>
               </div>
+
+              {showAvatarPicker && (
+                <>
+                  {/* Default Avatars */}
+                  <div style={{ marginBottom: 16 }}>
+                    <div className="small" style={{ marginBottom: 8, color: '#888' }}>Default Avatars</div>
+                    <div style={{
+                      display: 'flex',
+                      gap: 8,
+                      flexWrap: 'wrap'
+                    }}>
+                      {[1, 2, 3].map(num => (
+                        <div
+                          key={num}
+                          onClick={() => {
+                            setSelectedAvatar(`/avatars/${num}.svg`);
+                            setShowAvatarPicker(false);
+                          }}
+                          style={{
+                            width: 60,
+                            height: 60,
+                            borderRadius: '50%',
+                            cursor: 'pointer',
+                            border: selectedAvatar === `/avatars/${num}.svg` ? '3px solid #fe2c55' : '3px solid #333',
+                            overflow: 'hidden',
+                            transition: 'border-color 0.2s'
+                          }}
+                        >
+                          <img
+                            src={`/avatars/${num}.svg`}
+                            alt={`Avatar ${num}`}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover'
+                            }}
+                          />
+                        </div>
+                      ))}
+                      
+                      {/* Current Clerk avatar */}
+                      {clerkUser?.imageUrl && (
+                        <div
+                          onClick={() => {
+                            setSelectedAvatar(clerkUser.imageUrl);
+                            setShowAvatarPicker(false);
+                          }}
+                          style={{
+                            width: 60,
+                            height: 60,
+                            borderRadius: '50%',
+                            cursor: 'pointer',
+                            border: selectedAvatar === clerkUser.imageUrl ? '3px solid #fe2c55' : '3px solid #333',
+                            overflow: 'hidden',
+                            transition: 'border-color 0.2s'
+                          }}
+                        >
+                          <img
+                            src={clerkUser.imageUrl}
+                            alt="Your photo"
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover'
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Generated Images */}
+                  {generatedImages.length > 0 && (
+                    <div>
+                      <div className="small" style={{ marginBottom: 8, color: '#888' }}>Your Generated Images</div>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))',
+                        gap: 8,
+                        maxHeight: 200,
+                        overflowY: 'auto',
+                        padding: 8,
+                        background: '#0a0a0a',
+                        borderRadius: 8
+                      }}>
+                        {generatedImages.map(img => (
+                          <div
+                            key={img.id}
+                            onClick={() => {
+                              setSelectedAvatar(img.url);
+                              setShowAvatarPicker(false);
+                            }}
+                            style={{
+                              width: 60,
+                              height: 60,
+                              borderRadius: '50%',
+                              cursor: 'pointer',
+                              border: selectedAvatar === img.url ? '3px solid #fe2c55' : '3px solid #333',
+                              overflow: 'hidden',
+                              transition: 'border-color 0.2s',
+                              position: 'relative'
+                            }}
+                          >
+                            {/* Blur placeholder */}
+                            {img.blur_data_url && (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  inset: 0,
+                                  backgroundImage: `url(${img.blur_data_url})`,
+                                  backgroundSize: 'cover',
+                                  backgroundPosition: 'center',
+                                  filter: 'blur(5px)',
+                                  transform: 'scale(1.1)'
+                                }}
+                              />
+                            )}
+                            <img
+                              src={img.url_360 || img.url}
+                              alt="Generated image"
+                              loading="lazy"
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                position: 'relative',
+                                zIndex: 1
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             <button
