@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import { useUser, useClerk } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import TikTokFeedCard from '@/src/components/TikTokFeedCard';
 
 export default function ProfilePage() {
@@ -13,7 +12,6 @@ export default function ProfilePage() {
   const [library, setLibrary] = useState([]);
   const [apps, setApps] = useState([]);
   const [following, setFollowing] = useState([]);
-  const [followers, setFollowers] = useState([]);
   const [activeTab, setActiveTab] = useState('myapps'); // 'myapps', 'followers', 'analytics', 'settings'
   const [socialTab, setSocialTab] = useState('followers'); // 'followers', 'following'
   const [openaiKey, setOpenaiKey] = useState('');
@@ -21,11 +19,9 @@ export default function ProfilePage() {
   const [geminiKey, setGeminiKey] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
   const [editName, setEditName] = useState('');
-  const [editEmail, setEditEmail] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('');
-  const [profileSaveMessage, setProfileSaveMessage] = useState('');
-  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [generatedImages, setGeneratedImages] = useState([]);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [analytics, setAnalytics] = useState({
     totalViews: 0,
     totalTries: 0,
@@ -86,47 +82,55 @@ export default function ProfilePage() {
         setLibrary([]);
       }
 
-      // Get user info from Supabase (source of truth for avatar/name)
-      let userData = {
-        id: clerkUser.id,
-        name: clerkUser.fullName || clerkUser.username || 'User',
-        avatar: clerkUser.imageUrl || '/avatars/2.svg',
-        email: clerkUser.primaryEmailAddress?.emailAddress
-      };
-      
-      // Fetch Supabase profile to get saved avatar/name
+      // Get user info - check Supabase first, then fall back to Clerk
       try {
-        const profileRes = await fetch(`/api/profiles/${userId}`);
+        const profileRes = await fetch('/api/profile');
         if (profileRes.ok) {
-          const profileData = await profileRes.json();
-          if (profileData.profile) {
-            userData = {
-              id: profileData.profile.id,
-              name: profileData.profile.display_name || userData.name,
-              avatar: profileData.profile.avatar_url || userData.avatar,
-              email: profileData.profile.email || userData.email
-            };
-            console.log('[Profile] Using Supabase profile data:', userData);
-          }
+          const { profile } = await profileRes.json();
+          const userData = {
+            id: profile.id,
+            name: profile.display_name || clerkUser.fullName || clerkUser.username || 'User',
+            avatar: profile.avatar_url || clerkUser.imageUrl || '/avatars/2.svg',
+            email: profile.email || clerkUser.primaryEmailAddress?.emailAddress
+          };
+          setUser(userData);
+          setEditName(userData.name);
+          setSelectedAvatar(userData.avatar);
+          console.log('[Profile] Loaded from Supabase:', { name: userData.name, avatar: userData.avatar?.substring(0, 50) });
+        } else {
+          // Fallback to Clerk
+          const userData = {
+            id: clerkUser.id,
+            name: clerkUser.fullName || clerkUser.username || 'User',
+            avatar: clerkUser.imageUrl || '/avatars/2.svg',
+            email: clerkUser.primaryEmailAddress?.emailAddress
+          };
+          setUser(userData);
+          setEditName(userData.name);
+          setSelectedAvatar(userData.avatar);
         }
       } catch (err) {
-        console.error('[Profile] Error fetching Supabase profile:', err);
+        console.error('[Profile] Error loading profile:', err);
+        const userData = {
+          id: clerkUser.id,
+          name: clerkUser.fullName || clerkUser.username || 'User',
+          avatar: clerkUser.imageUrl || '/avatars/2.svg',
+          email: clerkUser.primaryEmailAddress?.emailAddress
+        };
+        setUser(userData);
+        setEditName(userData.name);
+        setSelectedAvatar(userData.avatar);
       }
-      
-      setUser(userData);
-      setEditName(userData.name);
-      setEditEmail(userData.email || '');
-      setSelectedAvatar(userData.avatar);
 
-      // Load generated images for avatar picker
+      // Load generated images for avatar selection
       try {
-        const assetsRes = await fetch('/api/user-assets?type=output&limit=20');
+        const assetsRes = await fetch('/api/user-assets?type=output&limit=50');
         if (assetsRes.ok) {
           const assetsData = await assetsRes.json();
           setGeneratedImages(assetsData.assets || []);
         }
       } catch (err) {
-        console.error('Error loading generated images:', err);
+        console.error('[Profile] Error loading generated images:', err);
       }
 
       // Load existing API keys - Note: API returns status, not actual keys for security
@@ -151,15 +155,13 @@ export default function ProfilePage() {
       const totalRemixes = userApps.reduce((sum, app) => sum + (app.remix_count || 0), 0);
 
       // Get real follower count and following list from database
-      let followersCount = 0;
+      let followers = 0;
       try {
         const followRes = await fetch('/api/follow');
         const followData = await followRes.json();
-        followersCount = followData.followers?.length || 0;
-        setFollowers(followData.followers || []);
+        followers = followData.followers?.length || 0;
         setFollowing(followData.following || []);
       } catch {
-        setFollowers([]);
         setFollowing([]);
       }
 
@@ -169,7 +171,7 @@ export default function ProfilePage() {
         totalUses,
         totalSaves,
         totalRemixes,
-        followers: followersCount
+        followers
       });
       setLoading(false);
     })().catch(() => setLoading(false));
@@ -196,27 +198,13 @@ export default function ProfilePage() {
 
   const saveProfile = async () => {
     try {
-      console.log('[Profile] Saving profile:', { 
-        name: editName, 
-        avatar: selectedAvatar?.substring(0, 80) 
+      console.log('[Profile] Saving profile...', {
+        name: editName,
+        avatar: selectedAvatar?.substring(0, 60)
       });
 
-      // Update Clerk profile name only
-      if (editName !== user?.name) {
-        try {
-          await clerkUser.update({
-            firstName: editName.split(' ')[0],
-            lastName: editName.split(' ').slice(1).join(' ') || undefined
-          });
-          console.log('[Profile] Clerk name updated');
-        } catch (clerkErr) {
-          console.error('[Profile] Clerk update error:', clerkErr);
-          // Continue anyway - Supabase is source of truth
-        }
-      }
-
-      // Update Supabase profile directly using dedicated endpoint
-      const updateRes = await fetch('/api/profile/update', {
+      // Update profile via API - wait for completion
+      const response = await fetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -225,30 +213,30 @@ export default function ProfilePage() {
         })
       });
 
-      const updateData = await updateRes.json();
-      console.log('[Profile] Update response:', updateData);
+      const result = await response.json();
 
-      if (!updateData.success) {
-        throw new Error(updateData.error || 'Failed to update profile');
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to update profile');
       }
 
-      // Update local state immediately
+      console.log('[Profile] ✓ Save successful');
+
+      // Update local state
       setUser({
         ...user,
         name: editName,
-        email: editEmail,
         avatar: selectedAvatar
       });
 
-      setProfileSaveMessage('✓ Profile updated successfully!');
-      setTimeout(() => setProfileSaveMessage(''), 3000);
-      
-      // Reload the page header avatar
-      window.location.reload();
+      setSaveMessage('✓ Profile updated!');
+      setTimeout(() => setSaveMessage(''), 3000);
+
+      // NO automatic reload - let user see success message
+      // They can refresh manually if needed
     } catch (err) {
-      console.error('Error saving profile:', err);
-      setProfileSaveMessage('✗ Failed to update profile: ' + err.message);
-      setTimeout(() => setProfileSaveMessage(''), 5000);
+      console.error('[Profile] Save error:', err);
+      setSaveMessage(`✗ Error: ${err.message}`);
+      setTimeout(() => setSaveMessage(''), 5000);
     }
   };
 
@@ -291,11 +279,8 @@ export default function ProfilePage() {
       }
 
       setSaveMessage('✅ API keys saved successfully!');
-      setTimeout(() => {
-        setSaveMessage('');
-        // Reload to show placeholder
-        window.location.reload();
-      }, 2000);
+      setTimeout(() => setSaveMessage(''), 3000);
+      // Don't auto-reload - let user see the success message
     } catch (error) {
       console.error('[Profile] Error saving keys:', error);
       setSaveMessage(`❌ Error: ${error.message}`);
@@ -404,224 +389,7 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      {activeTab === 'myapps' ? (
-        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h3 style={{ margin: 0 }}>My Created Apps</h3>
-            <Link
-              href="/profile/myapps"
-              className="btn primary"
-              style={{ textDecoration: 'none', fontSize: 14 }}
-            >
-              📱 Manage Apps →
-            </Link>
-          </div>
-          {apps.filter(app => app.creator_id === clerkUser?.id).length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: 40 }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>📱</div>
-              <p style={{ color: '#888' }}>You haven't created any apps yet</p>
-              <Link href="/publish" className="btn primary" style={{ marginTop: 16, display: 'inline-block' }}>
-                Create Your First App →
-              </Link>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {apps.filter(app => app.creator_id === clerkUser?.id).slice(0, 5).map(app => (
-                <Link
-                  key={app.id}
-                  href={`/app/${app.id}`}
-                  style={{
-                    textDecoration: 'none',
-                    color: 'inherit'
-                  }}
-                >
-                  <div className="card" style={{ cursor: 'pointer' }}>
-                    <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 12 }}>
-                      <div
-                        style={{
-                          width: 60,
-                          height: 60,
-                          borderRadius: 8,
-                          background: app.preview_gradient || '#333',
-                          flexShrink: 0,
-                          overflow: 'hidden'
-                        }}
-                      >
-                        {app.preview_url && (
-                          <img
-                            src={app.preview_url}
-                            alt={app.name}
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover'
-                            }}
-                          />
-                        )}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <h4 style={{ margin: '0 0 4px 0' }}>{app.name}</h4>
-                        <p className="small" style={{ margin: 0, color: '#888' }}>
-                          {app.is_published ? '✓ Published' : '⏳ Draft'}
-                        </p>
-                      </div>
-                    </div>
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))',
-                      gap: 12
-                    }}>
-                      <div>
-                        <div className="small">Views</div>
-                        <div style={{ fontWeight: 'bold' }}>{(app.view_count || 0).toLocaleString()}</div>
-                      </div>
-                      <div>
-                        <div className="small">Tries</div>
-                        <div style={{ fontWeight: 'bold' }}>{(app.try_count || 0).toLocaleString()}</div>
-                      </div>
-                      <div>
-                        <div className="small">Saves</div>
-                        <div style={{ fontWeight: 'bold' }}>{(app.save_count || 0).toLocaleString()}</div>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-              {apps.filter(app => app.creator_id === clerkUser?.id).length > 5 && (
-                <Link
-                  href="/profile/myapps"
-                  className="btn ghost"
-                  style={{ textDecoration: 'none', textAlign: 'center', marginTop: 8 }}
-                >
-                  View All Apps ({apps.filter(app => app.creator_id === clerkUser?.id).length}) →
-                </Link>
-              )}
-            </div>
-          )}
-        </div>
-      ) : activeTab === 'followers' ? (
-        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-          {/* Sub-tabs for Followers/Following */}
-          <div style={{
-            display: 'flex',
-            gap: 8,
-            marginBottom: 20,
-            borderBottom: '1px solid #222',
-            paddingBottom: 12
-          }}>
-            <button
-              onClick={() => setSocialTab('followers')}
-              className="btn"
-              style={{
-                background: socialTab === 'followers' ? '#fe2c55' : 'transparent',
-                border: socialTab === 'followers' ? 'none' : '1px solid #333'
-              }}
-            >
-              Followers ({followers.length})
-            </button>
-            <button
-              onClick={() => setSocialTab('following')}
-              className="btn"
-              style={{
-                background: socialTab === 'following' ? '#fe2c55' : 'transparent',
-                border: socialTab === 'following' ? 'none' : '1px solid #333'
-              }}
-            >
-              Following ({following.length})
-            </button>
-          </div>
-
-          {/* Followers List */}
-          {socialTab === 'followers' ? (
-            followers.length === 0 ? (
-              <div className="card" style={{ textAlign: 'center', padding: 40 }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>👥</div>
-                <p style={{ color: '#888' }}>No followers yet</p>
-                <p className="small" style={{ color: '#666', marginTop: 8 }}>
-                  Share your apps to grow your audience!
-                </p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {followers.map(follower => (
-                  <Link
-                    key={follower.id}
-                    href={`/profile/${follower.id}`}
-                    className="card"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      textDecoration: 'none',
-                      color: 'inherit',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <img
-                      src={follower.avatar_url || '/avatars/1.svg'}
-                      alt={follower.display_name}
-                      style={{
-                        width: 50,
-                        height: 50,
-                        borderRadius: '50%',
-                        objectFit: 'cover'
-                      }}
-                    />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 'bold' }}>{follower.display_name || follower.username}</div>
-                      <div className="small" style={{ color: '#888' }}>@{follower.username}</div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )
-          ) : (
-            /* Following List */
-            following.length === 0 ? (
-              <div className="card" style={{ textAlign: 'center', padding: 40 }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
-                <p style={{ color: '#888' }}>Not following anyone yet</p>
-                <p className="small" style={{ color: '#666', marginTop: 8 }}>
-                  Discover creators in the feed!
-                </p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {following.map(user => (
-                  <Link
-                    key={user.id}
-                    href={`/profile/${user.id}`}
-                    className="card"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      textDecoration: 'none',
-                      color: 'inherit',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <img
-                      src={user.avatar_url || '/avatars/1.svg'}
-                      alt={user.display_name}
-                      style={{
-                        width: 50,
-                        height: 50,
-                        borderRadius: '50%',
-                        objectFit: 'cover'
-                      }}
-                    />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 'bold' }}>{user.display_name || user.username}</div>
-                      <div className="small" style={{ color: '#888' }}>@{user.username}</div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )
-          )}
-        </div>
-      ) : activeTab === 'analytics' ? (
+      {activeTab === 'analytics' ? (
         <div style={{ maxWidth: '600px', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h3 style={{ margin: 0 }}>Your Performance</h3>
@@ -727,210 +495,46 @@ export default function ProfilePage() {
         </div>
       ) : activeTab === 'settings' ? (
         <div style={{ maxWidth: '500px', margin: '0 auto' }}>
-          {/* Profile Settings */}
+          {/* Profile Settings Section */}
           <div className="card" style={{ marginBottom: 24 }}>
             <h3 style={{ marginTop: 0 }}>Profile Settings</h3>
-            <p className="small" style={{ marginBottom: 20, color: '#888' }}>
-              Update your profile information
-            </p>
-
-            {/* Display Name */}
+            
+            {/* Name */}
             <div style={{ marginBottom: 20 }}>
-              <label className="label" style={{ display: 'block', marginBottom: 6 }}>
-                Display Name
-              </label>
+              <label className="label" style={{ display: 'block', marginBottom: 6 }}>Display Name</label>
               <input
                 type="text"
                 className="input"
-                placeholder="Your Name"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
+                placeholder="Your name"
                 style={{ width: '100%' }}
               />
             </div>
 
-            {/* Email (read-only from Clerk) */}
+            {/* Avatar */}
             <div style={{ marginBottom: 20 }}>
-              <label className="label" style={{ display: 'block', marginBottom: 6 }}>
-                Email
-              </label>
-              <input
-                type="email"
-                className="input"
-                placeholder="your@email.com"
-                value={editEmail}
-                readOnly
-                disabled
-                style={{ width: '100%', opacity: 0.6, cursor: 'not-allowed' }}
-              />
-              <p className="small" style={{ marginTop: 4, color: '#666' }}>
-                Email is managed by your account provider
-              </p>
-            </div>
-
-            {/* Avatar Selection */}
-            <div style={{ marginBottom: 20 }}>
-              <label className="label" style={{ display: 'block', marginBottom: 6 }}>
-                Avatar
-              </label>
-              
-              {/* Current avatar preview */}
-              <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <label className="label" style={{ display: 'block', marginBottom: 6 }}>Avatar</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                 <img
-                  src={selectedAvatar || user?.avatar || '/avatars/1.svg'}
-                  alt="Current avatar"
+                  src={selectedAvatar || '/avatars/1.svg'}
+                  alt="Avatar"
                   style={{
                     width: 80,
                     height: 80,
                     borderRadius: '50%',
                     objectFit: 'cover',
-                    border: '3px solid #333'
+                    border: '2px solid #333'
                   }}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowAvatarPicker(!showAvatarPicker)}
+                  onClick={() => setShowAvatarModal(true)}
                   className="btn"
                 >
-                  {showAvatarPicker ? 'Hide Options' : 'Change Avatar'}
+                  Choose from Generated Images
                 </button>
               </div>
-
-              {showAvatarPicker && (
-                <>
-                  {/* Default Avatars */}
-                  <div style={{ marginBottom: 16 }}>
-                    <div className="small" style={{ marginBottom: 8, color: '#888' }}>Default Avatars</div>
-                    <div style={{
-                      display: 'flex',
-                      gap: 8,
-                      flexWrap: 'wrap'
-                    }}>
-                      {[1, 2, 3].map(num => (
-                        <div
-                          key={num}
-                          onClick={() => {
-                            setSelectedAvatar(`/avatars/${num}.svg`);
-                            setShowAvatarPicker(false);
-                          }}
-                          style={{
-                            width: 60,
-                            height: 60,
-                            borderRadius: '50%',
-                            cursor: 'pointer',
-                            border: selectedAvatar === `/avatars/${num}.svg` ? '3px solid #fe2c55' : '3px solid #333',
-                            overflow: 'hidden',
-                            transition: 'border-color 0.2s'
-                          }}
-                        >
-                          <img
-                            src={`/avatars/${num}.svg`}
-                            alt={`Avatar ${num}`}
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover'
-                            }}
-                          />
-                        </div>
-                      ))}
-                      
-                      {/* Current Clerk avatar */}
-                      {clerkUser?.imageUrl && (
-                        <div
-                          onClick={() => {
-                            setSelectedAvatar(clerkUser.imageUrl);
-                            setShowAvatarPicker(false);
-                          }}
-                          style={{
-                            width: 60,
-                            height: 60,
-                            borderRadius: '50%',
-                            cursor: 'pointer',
-                            border: selectedAvatar === clerkUser.imageUrl ? '3px solid #fe2c55' : '3px solid #333',
-                            overflow: 'hidden',
-                            transition: 'border-color 0.2s'
-                          }}
-                        >
-                          <img
-                            src={clerkUser.imageUrl}
-                            alt="Your photo"
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover'
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Generated Images */}
-                  {generatedImages.length > 0 && (
-                    <div>
-                      <div className="small" style={{ marginBottom: 8, color: '#888' }}>Your Generated Images</div>
-                      <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))',
-                        gap: 8,
-                        maxHeight: 200,
-                        overflowY: 'auto',
-                        padding: 8,
-                        background: '#0a0a0a',
-                        borderRadius: 8
-                      }}>
-                        {generatedImages.map(img => (
-                          <div
-                            key={img.id}
-                            onClick={() => {
-                              setSelectedAvatar(img.url);
-                              setShowAvatarPicker(false);
-                            }}
-                            style={{
-                              width: 60,
-                              height: 60,
-                              borderRadius: '50%',
-                              cursor: 'pointer',
-                              border: selectedAvatar === img.url ? '3px solid #fe2c55' : '3px solid #333',
-                              overflow: 'hidden',
-                              transition: 'border-color 0.2s',
-                              position: 'relative'
-                            }}
-                          >
-                            {/* Blur placeholder */}
-                            {img.blur_data_url && (
-                              <div
-                                style={{
-                                  position: 'absolute',
-                                  inset: 0,
-                                  backgroundImage: `url(${img.blur_data_url})`,
-                                  backgroundSize: 'cover',
-                                  backgroundPosition: 'center',
-                                  filter: 'blur(5px)',
-                                  transform: 'scale(1.1)'
-                                }}
-                              />
-                            )}
-                            <img
-                              src={img.url_360 || img.url}
-                              alt="Generated image"
-                              loading="lazy"
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'cover',
-                                position: 'relative',
-                                zIndex: 1
-                              }}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
             </div>
 
             <button
@@ -940,24 +544,11 @@ export default function ProfilePage() {
             >
               Save Profile
             </button>
-
-            {profileSaveMessage && (
-              <div style={{
-                marginTop: 16,
-                padding: 12,
-                background: profileSaveMessage.includes('success') ? '#10b981' : '#ef4444',
-                borderRadius: 8,
-                textAlign: 'center',
-                fontWeight: 'bold'
-              }}>
-                {profileSaveMessage}
-              </div>
-            )}
           </div>
 
           {/* API Keys Section */}
           <div className="card">
-          <h3 style={{ marginTop: 0 }}>API Keys</h3>
+            <h3 style={{ marginTop: 0 }}>API Keys</h3>
           <p className="small" style={{ marginBottom: 20 }}>
             Your API keys are encrypted and stored securely. They're used to power apps that require AI capabilities.
           </p>
@@ -1047,12 +638,9 @@ export default function ProfilePage() {
           >
             Sign Out
           </button>
+          </div>
         </div>
-        </div>
-      ) : null}
-      
-      {/* Old following tab - can be removed */}
-      {false && activeTab === 'following' ? (
+      ) : activeTab === 'following' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {following.length > 0 ? (
             following.map(follow => (
@@ -1096,6 +684,128 @@ export default function ProfilePage() {
           )}
         </div>
       ) : null}
+
+      {/* Avatar Selection Modal */}
+      {showAvatarModal && (
+        <div
+          onClick={() => setShowAvatarModal(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 20
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#1a1a1a',
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 600,
+              width: '100%',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              border: '1px solid #333'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0 }}>Choose Avatar</h3>
+              <button
+                onClick={() => setShowAvatarModal(false)}
+                className="btn ghost"
+                style={{ fontSize: 20 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Default Avatars */}
+            <div style={{ marginBottom: 24 }}>
+              <div className="small" style={{ marginBottom: 12, color: '#888' }}>Default Avatars</div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                {[1, 2, 3].map(num => (
+                  <div
+                    key={num}
+                    onClick={() => {
+                      setSelectedAvatar(`/avatars/${num}.svg`);
+                      setShowAvatarModal(false);
+                    }}
+                    style={{
+                      width: 80,
+                      height: 80,
+                      borderRadius: '50%',
+                      cursor: 'pointer',
+                      border: selectedAvatar === `/avatars/${num}.svg` ? '3px solid #fe2c55' : '3px solid #333',
+                      overflow: 'hidden',
+                      transition: 'border-color 0.2s'
+                    }}
+                  >
+                    <img
+                      src={`/avatars/${num}.svg`}
+                      alt={`Avatar ${num}`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Generated Images */}
+            {generatedImages.length > 0 && (
+              <div>
+                <div className="small" style={{ marginBottom: 12, color: '#888' }}>Your Generated Images</div>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
+                  gap: 12
+                }}>
+                  {generatedImages.map(img => (
+                    <div
+                      key={img.id}
+                      onClick={() => {
+                        setSelectedAvatar(img.url);
+                        setShowAvatarModal(false);
+                      }}
+                      style={{
+                        aspectRatio: '1',
+                        borderRadius: '50%',
+                        cursor: 'pointer',
+                        border: selectedAvatar === img.url ? '3px solid #fe2c55' : '3px solid #333',
+                        overflow: 'hidden',
+                        transition: 'border-color 0.2s',
+                        position: 'relative'
+                      }}
+                    >
+                      <img
+                        src={img.url_360 || img.url}
+                        alt="Generated"
+                        loading="lazy"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {generatedImages.length === 0 && (
+              <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+                <p>No generated images yet</p>
+                <p className="small">Use image generation apps to create avatars!</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

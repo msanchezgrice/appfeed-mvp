@@ -1,179 +1,150 @@
 import { createServerSupabaseClient } from '@/src/lib/supabase-server';
-import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/follow?userId=xxx - Get followers/following for a user
-export async function GET(req) {
+export async function GET() {
   try {
-    const { supabase, userId: currentUserId } = await createServerSupabaseClient();
-    const { searchParams } = new URL(req.url);
-    const targetUserId = searchParams.get('userId') || currentUserId;
-    const type = searchParams.get('type'); // 'followers' or 'following'
-
-    if (!targetUserId) {
-      return NextResponse.json({ error: 'userId required' }, { status: 400 });
-    }
-
-    if (type === 'followers') {
-      // Get users who follow the target user
-      const { data: followers, error } = await supabase
-        .from('follows')
-        .select(`
-          follower_id,
-          created_at,
-          follower:profiles!follows_follower_id_fkey(
-            id,
-            username,
-            display_name,
-            avatar_url
-          )
-        `)
-        .eq('following_id', targetUserId)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('[API /follow] Error fetching followers:', error);
-        return NextResponse.json({ error: 'Failed to fetch followers' }, { status: 500 });
-      }
-
-      const formattedFollowers = (followers || []).map(f => f.follower).filter(Boolean);
-
-      return NextResponse.json({
-        followers: formattedFollowers,
-        count: formattedFollowers.length
-      });
-    } else if (type === 'following') {
-      // Get users that the target user follows
-      const { data: following, error } = await supabase
-        .from('follows')
-        .select(`
-          following_id,
-          created_at,
-          following:profiles!follows_following_id_fkey(
-            id,
-            username,
-            display_name,
-            avatar_url
-          )
-        `)
-        .eq('follower_id', targetUserId)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('[API /follow] Error fetching following:', error);
-        return NextResponse.json({ error: 'Failed to fetch following' }, { status: 500 });
-      }
-
-      const formattedFollowing = (following || []).map(f => f.following).filter(Boolean);
-
-      return NextResponse.json({
-        following: formattedFollowing,
-        count: formattedFollowing.length
-      });
-    } else {
-      // Get both
-      const [followersRes, followingRes] = await Promise.all([
-        supabase
-          .from('follows')
-          .select('follower_id, follower:profiles!follows_follower_id_fkey(id, username, display_name, avatar_url)')
-          .eq('following_id', targetUserId),
-        supabase
-          .from('follows')
-          .select('following_id, following:profiles!follows_following_id_fkey(id, username, display_name, avatar_url)')
-          .eq('follower_id', targetUserId)
-      ]);
-
-      const followers = (followersRes.data || []).map(f => f.follower).filter(Boolean);
-      const following = (followingRes.data || []).map(f => f.following).filter(Boolean);
-
-      return NextResponse.json({
-        followers,
-        following,
-        followersCount: followers.length,
-        followingCount: following.length
+    const { supabase, userId } = await createServerSupabaseClient();
+    
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
       });
     }
+    
+    // Get followers (people following this user)
+    const { data: followers, error: followersError } = await supabase
+      .from('follows')
+      .select(`
+        follower_id,
+        profiles!follows_follower_id_fkey (
+          id,
+          username,
+          display_name,
+          avatar_url
+        )
+      `)
+      .eq('following_id', userId);
+    
+    // Get following (people this user follows)
+    const { data: following, error: followingError } = await supabase
+      .from('follows')
+      .select(`
+        following_id,
+        profiles!follows_following_id_fkey (
+          id,
+          username,
+          display_name,
+          avatar_url
+        )
+      `)
+      .eq('follower_id', userId);
+    
+    if (followersError || followingError) {
+      console.error('Error fetching follows:', followersError || followingError);
+      return new Response(JSON.stringify({ error: 'Failed to fetch follows' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // Transform the data to flatten the nested profile objects
+    const followersData = followers?.map(f => ({
+      follower_id: f.follower_id,
+      username: f.profiles?.username,
+      display_name: f.profiles?.display_name,
+      avatar_url: f.profiles?.avatar_url
+    })) || [];
+    
+    const followingData = following?.map(f => ({
+      following_id: f.following_id,
+      username: f.profiles?.username,
+      display_name: f.profiles?.display_name,
+      avatar_url: f.profiles?.avatar_url
+    })) || [];
+    
+    return new Response(JSON.stringify({
+      followers: followersData,
+      following: followingData
+    }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
   } catch (e) {
-    console.error('[API /follow] GET exception:', e);
-    return NextResponse.json({ error: String(e?.message || e) }, { status: 500 });
+    console.error('Follow GET error:', e);
+    return new Response(JSON.stringify({ error: String(e?.message || e) }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
 
-// POST /api/follow - Follow/unfollow a user
 export async function POST(req) {
   try {
     const { supabase, userId } = await createServerSupabaseClient();
-
+    
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
-
-    const body = await req.json();
-    const { action, targetUserId } = body;
-
-    if (!targetUserId) {
-      return NextResponse.json({ error: 'targetUserId required' }, { status: 400 });
+    
+    const { creatorId, action } = await req.json();
+    
+    if (!creatorId) {
+      return new Response(JSON.stringify({ error: 'creatorId required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
-
-    if (targetUserId === userId) {
-      return NextResponse.json({ error: 'Cannot follow yourself' }, { status: 400 });
-    }
-
+    
     if (action === 'follow') {
-      // Create follow relationship
-      const { error: followError } = await supabase
+      // Insert follow
+      const { error } = await supabase
         .from('follows')
         .insert({
           follower_id: userId,
-          following_id: targetUserId
+          following_id: creatorId
         });
-
-      if (followError) {
-        // Ignore if already following (unique constraint violation)
-        if (followError.code === '23505') {
-          return NextResponse.json({ success: true, alreadyFollowing: true });
-        }
-        console.error('[API /follow] Follow error:', followError);
-        return NextResponse.json({ error: 'Failed to follow user' }, { status: 500 });
+      
+      if (error && error.code !== '23505') { // Ignore duplicate key error
+        console.error('Error following user:', error);
+        return new Response(JSON.stringify({ error: 'Failed to follow user' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
       }
-
-      // Update follower counts
-      await Promise.all([
-        // Increment following count for current user
-        supabase.rpc('increment_following_count', { user_id: userId }),
-        // Increment follower count for target user
-        supabase.rpc('increment_follower_count', { user_id: targetUserId })
-      ]).catch(err => console.error('[API /follow] Count update error:', err));
-
-      return NextResponse.json({ success: true, following: true });
     } else if (action === 'unfollow') {
-      // Remove follow relationship
-      const { error: unfollowError } = await supabase
+      // Delete follow
+      const { error } = await supabase
         .from('follows')
         .delete()
         .eq('follower_id', userId)
-        .eq('following_id', targetUserId);
-
-      if (unfollowError) {
-        console.error('[API /follow] Unfollow error:', unfollowError);
-        return NextResponse.json({ error: 'Failed to unfollow user' }, { status: 500 });
+        .eq('following_id', creatorId);
+      
+      if (error) {
+        console.error('Error unfollowing user:', error);
+        return new Response(JSON.stringify({ error: 'Failed to unfollow user' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
       }
-
-      // Update follower counts
-      await Promise.all([
-        // Decrement following count for current user
-        supabase.rpc('decrement_following_count', { user_id: userId }),
-        // Decrement follower count for target user
-        supabase.rpc('decrement_follower_count', { user_id: targetUserId })
-      ]).catch(err => console.error('[API /follow] Count update error:', err));
-
-      return NextResponse.json({ success: true, following: false });
     } else {
-      return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+      return new Response(JSON.stringify({ error: 'Invalid action' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
+    
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
   } catch (e) {
-    console.error('[API /follow] POST exception:', e);
-    return NextResponse.json({ error: String(e?.message || e) }, { status: 500 });
+    console.error('Follow POST error:', e);
+    return new Response(JSON.stringify({ error: String(e?.message || e) }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
