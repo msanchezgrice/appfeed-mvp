@@ -51,7 +51,7 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
       posthogAPI(`/projects/${POSTHOG_PROJECT_ID}/query/`, {
         query: {
           kind: 'EventsQuery',
-          select: ['timestamp', 'properties.app_id', 'properties.app_name', 'distinct_id'],
+          select: ['timestamp', 'properties.app_id', 'distinct_id'],
           event: 'app_viewed',
           properties: [
             {
@@ -61,7 +61,8 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
               value: [creatorId]
             }
           ],
-          after: `-${days}d`
+          after: `-${days}d`,
+          limit: 1000
         }
       }),
       
@@ -138,12 +139,24 @@ export async function getCreatorPortfolioAnalytics(creatorId, days = 30) {
       })
     ]);
 
+    // PostHog returns results as arrays: [[timestamp, app_id, distinct_id], ...]
+    // We need to transform them into objects for easier access
+    const parseResults = (data, columns) => {
+      if (!data?.results || !data?.columns) return [];
+      const appIdIndex = data.columns.indexOf('properties.app_id');
+      if (appIdIndex === -1) return [];
+      
+      return data.results.map(row => ({
+        app_id: row[appIdIndex]
+      })).filter(r => r.app_id);
+    };
+
     return {
-      views: viewsData?.results || [],
-      tries: triesData?.results || [],
-      saves: savesData?.results || [],
-      shares: sharesData?.results || [],
-      remixes: remixesData?.results || []
+      views: parseResults(viewsData, ['timestamp', 'properties.app_id', 'distinct_id']),
+      tries: parseResults(triesData, ['timestamp', 'properties.app_id', 'distinct_id']),
+      saves: parseResults(savesData, ['timestamp', 'properties.app_id', 'distinct_id']),
+      shares: parseResults(sharesData, ['timestamp', 'properties.app_id', 'distinct_id']),
+      remixes: parseResults(remixesData, ['timestamp', 'properties.original_app_id', 'distinct_id'])
     };
   } catch (error) {
     console.error('[PostHog] Error fetching portfolio analytics:', error);

@@ -67,19 +67,19 @@ export async function GET(req) {
       totalShares = posthogData.shares.length;
       totalRemixes = posthogData.remixes.length;
 
-      // Count per app
+      // Count per app (PostHog data is already parsed in posthog-server.js)
       posthogData.views.forEach(event => {
-        const appId = event.properties?.app_id;
+        const appId = event.app_id;
         if (appId) appViewsMap[appId] = (appViewsMap[appId] || 0) + 1;
       });
 
       posthogData.tries.forEach(event => {
-        const appId = event.properties?.app_id;
+        const appId = event.app_id;
         if (appId) appTriesMap[appId] = (appTriesMap[appId] || 0) + 1;
       });
 
       posthogData.saves.forEach(event => {
-        const appId = event.properties?.app_id;
+        const appId = event.app_id;
         if (appId) appSavesMap[appId] = (appSavesMap[appId] || 0) + 1;
       });
     }
