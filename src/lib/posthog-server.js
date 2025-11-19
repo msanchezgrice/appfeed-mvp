@@ -2,7 +2,7 @@
 // Uses direct API calls instead of posthog-node SDK (which doesn't support query API)
 
 const POSTHOG_API_URL = 'https://app.posthog.com/api';
-const POSTHOG_PROJECT_ID = '87369'; // Your PostHog project ID
+const POSTHOG_PROJECT_ID = '251302'; // Your PostHog project ID
 
 /**
  * Make authenticated request to PostHog API
