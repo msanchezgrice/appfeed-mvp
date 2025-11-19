@@ -526,7 +526,16 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
             Try
           </button>
           <button
-            onClick={() => setShowRemix(true)}
+            onClick={() => {
+              if (!user) {
+                setSignInAction('remix apps and build your own versions');
+                setShowSignInModal(true);
+                analytics.anonymousUserBlocked('remix', app.id, app.name);
+                analytics.signupPrompted('remix_app');
+                return;
+              }
+              setShowRemix(true);
+            }}
             style={{
               padding: '8px 16px',
               background: '#fe2c55',
