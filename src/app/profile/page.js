@@ -12,7 +12,8 @@ export default function ProfilePage() {
   const [library, setLibrary] = useState([]);
   const [apps, setApps] = useState([]);
   const [following, setFollowing] = useState([]);
-  const [activeTab, setActiveTab] = useState('analytics'); // 'following', 'analytics', 'settings'
+  const [activeTab, setActiveTab] = useState('myapps'); // 'myapps', 'followers', 'analytics', 'settings'
+  const [socialTab, setSocialTab] = useState('followers'); // 'followers', 'following'
   const [openaiKey, setOpenaiKey] = useState('');
   const [anthropicKey, setAnthropicKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
@@ -227,23 +228,42 @@ export default function ProfilePage() {
       <div style={{
         display: 'flex',
         borderBottom: '1px solid #333',
-        marginBottom: 24
+        marginBottom: 24,
+        overflowX: 'auto'
       }}>
         <button
-          onClick={() => setActiveTab('following')}
+          onClick={() => setActiveTab('myapps')}
           style={{
             flex: 1,
             padding: '12px',
             background: 'none',
             border: 'none',
-            borderBottom: activeTab === 'following' ? '2px solid #fe2c55' : '2px solid transparent',
-            color: activeTab === 'following' ? '#fff' : '#888',
+            borderBottom: activeTab === 'myapps' ? '2px solid #fe2c55' : '2px solid transparent',
+            color: activeTab === 'myapps' ? '#fff' : '#888',
             fontSize: 16,
             fontWeight: 'bold',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            minWidth: 'fit-content'
           }}
         >
-          Following ({following.length})
+          My Apps
+        </button>
+        <button
+          onClick={() => setActiveTab('followers')}
+          style={{
+            flex: 1,
+            padding: '12px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'followers' ? '2px solid #fe2c55' : '2px solid transparent',
+            color: activeTab === 'followers' ? '#fff' : '#888',
+            fontSize: 16,
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            minWidth: 'fit-content'
+          }}
+        >
+          Social
         </button>
         <button
           onClick={() => setActiveTab('analytics')}
@@ -256,7 +276,8 @@ export default function ProfilePage() {
             color: activeTab === 'analytics' ? '#fff' : '#888',
             fontSize: 16,
             fontWeight: 'bold',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            minWidth: 'fit-content'
           }}
         >
           Analytics
@@ -272,7 +293,8 @@ export default function ProfilePage() {
             color: activeTab === 'settings' ? '#fff' : '#888',
             fontSize: 16,
             fontWeight: 'bold',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            minWidth: 'fit-content'
           }}
         >
           Settings

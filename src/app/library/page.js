@@ -8,7 +8,7 @@ import AssetThumbnail from '@/src/components/AssetThumbnail';
 export default function LibraryPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const [tab, setTab] = useState('input'); // 'input' or 'output'
+  const [tab, setTab] = useState('output'); // 'input' or 'output'
   const [sortBy, setSortBy] = useState('recent'); // 'recent' or 'favorites'
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -224,16 +224,6 @@ export default function LibraryPage() {
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 8 }}>
           <button
-            onClick={() => setTab('input')}
-            className="btn"
-            style={{
-              background: tab === 'input' ? '#fe2c55' : 'transparent',
-              border: tab === 'input' ? 'none' : '1px solid #333'
-            }}
-          >
-            📤 Uploads
-          </button>
-          <button
             onClick={() => setTab('output')}
             className="btn"
             style={{
@@ -242,6 +232,16 @@ export default function LibraryPage() {
             }}
           >
             🎨 Generated
+          </button>
+          <button
+            onClick={() => setTab('input')}
+            className="btn"
+            style={{
+              background: tab === 'input' ? '#fe2c55' : 'transparent',
+              border: tab === 'input' ? 'none' : '1px solid #333'
+            }}
+          >
+            📤 Uploads
           </button>
         </div>
 
@@ -409,6 +409,7 @@ export default function LibraryPage() {
             inset: 0,
             background: 'rgba(0,0,0,0.95)',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 10000,
@@ -421,11 +422,89 @@ export default function LibraryPage() {
             onClick={(e) => e.stopPropagation()}
             style={{
               maxWidth: '90vw',
-              maxHeight: '90vh',
+              maxHeight: '70vh',
               objectFit: 'contain',
-              borderRadius: 8
+              borderRadius: 8,
+              marginBottom: 20
             }}
           />
+          
+          {/* CTAs for generated images */}
+          {viewAsset.asset_type === 'output' && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                display: 'flex',
+                gap: 12,
+                flexWrap: 'wrap',
+                justifyContent: 'center'
+              }}
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDownload(viewAsset, e);
+                }}
+                className="btn primary"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8
+                }}
+              >
+                ⬇️ Download
+              </button>
+              
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const imageUrl = viewAsset.url_1080 || viewAsset.url;
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({
+                        title: 'Check out this generated image',
+                        text: 'Created with Clipcade',
+                        url: imageUrl
+                      });
+                    } catch (err) {
+                      if (err.name !== 'AbortError') {
+                        console.error('Share failed:', err);
+                      }
+                    }
+                  } else {
+                    navigator.clipboard.writeText(imageUrl);
+                    alert('Link copied to clipboard!');
+                  }
+                }}
+                className="btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8
+                }}
+              >
+                🔗 Share
+              </button>
+              
+              {viewAsset.source_app_id && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.location.href = `/app/${viewAsset.source_app_id}`;
+                  }}
+                  className="btn"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8
+                  }}
+                >
+                  🎯 Visit App
+                </button>
+              )}
+            </div>
+          )}
+          
           <button
             onClick={() => setViewAsset(null)}
             style={{
