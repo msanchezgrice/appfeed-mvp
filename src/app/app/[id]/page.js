@@ -96,6 +96,21 @@ export default function AppDetailPage() {
       setOverlayRun(null);
       return;
     }
+    
+    // For iframe/html-bundle apps, create a dummy run (no server-side run needed)
+    if (app && (app.runtime?.render_type === 'iframe' || app.runtime?.render_type === 'html-bundle')) {
+      const dummyRun = {
+        id: runId,
+        app_id: app.id,
+        inputs: {},
+        outputs: {},
+        mode: 'try'
+      };
+      setOverlayRun(dummyRun);
+      setOverlayOpen(true);
+      return;
+    }
+    
     (async () => {
       try {
         const res = await fetch(`/api/runs?id=${encodeURIComponent(runId)}`, { cache: 'no-store' });
@@ -110,7 +125,7 @@ export default function AppDetailPage() {
         setOverlayOpen(false);
       }
     })();
-  }, [searchParams]);
+  }, [searchParams, app]);
 
   const saveResult = async () => {
     try {
