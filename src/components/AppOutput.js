@@ -763,16 +763,29 @@ function HtmlBundleOutput({ app, run }) {
     return <div style={{ padding: 16, textAlign: 'center', color: '#888' }}>No HTML content</div>;
   }
 
-  // Container style - no special mobile handling, use parent's space
-  const containerStyle = {
-    width: '100%',
-    height: '100%',
+  // Mobile: Fixed positioning to fill viewport. Desktop: Fill parent container
+  const containerStyle = isMobile ? {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100vw',
+    height: '100vh',
     background: '#000',
-    position: 'relative'
+    zIndex: 1
+  } : {
+    width: '100%',
+    height: '70vh',
+    maxHeight: 700,
+    background: '#000',
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden'
   };
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div style={{
         position: 'absolute',
         top: 8,
@@ -794,7 +807,8 @@ function HtmlBundleOutput({ app, run }) {
             width: '100%', 
             height: '100%', 
             border: 'none',
-            display: 'block'
+            display: 'block',
+            touchAction: 'manipulation'
           }}
           sandbox="allow-scripts allow-forms allow-popups allow-pointer-lock"
           allow="accelerometer; autoplay; fullscreen; gyroscope; pointer-lock; touch; xr-spatial-tracking"
