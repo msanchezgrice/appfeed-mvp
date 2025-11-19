@@ -86,13 +86,33 @@ export default function ProfilePage() {
         setLibrary([]);
       }
 
-      // Get user info from Clerk
-      const userData = {
+      // Get user info from Supabase (source of truth for avatar/name)
+      let userData = {
         id: clerkUser.id,
         name: clerkUser.fullName || clerkUser.username || 'User',
         avatar: clerkUser.imageUrl || '/avatars/2.svg',
         email: clerkUser.primaryEmailAddress?.emailAddress
       };
+      
+      // Fetch Supabase profile to get saved avatar/name
+      try {
+        const profileRes = await fetch(`/api/profiles/${userId}`);
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          if (profileData.profile) {
+            userData = {
+              id: profileData.profile.id,
+              name: profileData.profile.display_name || userData.name,
+              avatar: profileData.profile.avatar_url || userData.avatar,
+              email: profileData.profile.email || userData.email
+            };
+            console.log('[Profile] Using Supabase profile data:', userData);
+          }
+        }
+      } catch (err) {
+        console.error('[Profile] Error fetching Supabase profile:', err);
+      }
+      
       setUser(userData);
       setEditName(userData.name);
       setEditEmail(userData.email || '');
@@ -176,25 +196,43 @@ export default function ProfilePage() {
 
   const saveProfile = async () => {
     try {
-      // Update Clerk profile
-      await clerkUser.update({
-        firstName: editName.split(' ')[0],
-        lastName: editName.split(' ').slice(1).join(' ') || undefined
+      console.log('[Profile] Saving profile:', { 
+        name: editName, 
+        avatar: selectedAvatar?.substring(0, 80) 
       });
 
-      // Also update in Supabase
-      await fetch('/api/sync-profile', {
+      // Update Clerk profile name only
+      if (editName !== user?.name) {
+        try {
+          await clerkUser.update({
+            firstName: editName.split(' ')[0],
+            lastName: editName.split(' ').slice(1).join(' ') || undefined
+          });
+          console.log('[Profile] Clerk name updated');
+        } catch (clerkErr) {
+          console.error('[Profile] Clerk update error:', clerkErr);
+          // Continue anyway - Supabase is source of truth
+        }
+      }
+
+      // Update Supabase profile directly using dedicated endpoint
+      const updateRes = await fetch('/api/profile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: clerkUser.id,
-          username: clerkUser.username,
-          email: editEmail,
           displayName: editName,
           avatarUrl: selectedAvatar
         })
       });
 
+      const updateData = await updateRes.json();
+      console.log('[Profile] Update response:', updateData);
+
+      if (!updateData.success) {
+        throw new Error(updateData.error || 'Failed to update profile');
+      }
+
+      // Update local state immediately
       setUser({
         ...user,
         name: editName,
@@ -204,10 +242,13 @@ export default function ProfilePage() {
 
       setProfileSaveMessage('✓ Profile updated successfully!');
       setTimeout(() => setProfileSaveMessage(''), 3000);
+      
+      // Reload the page header avatar
+      window.location.reload();
     } catch (err) {
       console.error('Error saving profile:', err);
-      setProfileSaveMessage('✗ Failed to update profile');
-      setTimeout(() => setProfileSaveMessage(''), 3000);
+      setProfileSaveMessage('✗ Failed to update profile: ' + err.message);
+      setTimeout(() => setProfileSaveMessage(''), 5000);
     }
   };
 
