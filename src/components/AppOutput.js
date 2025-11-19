@@ -810,7 +810,7 @@ function HtmlBundleOutput({ app, run }) {
             display: 'block',
             touchAction: 'manipulation'
           }}
-          sandbox="allow-scripts allow-forms allow-popups allow-pointer-lock"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-pointer-lock"
           allow="accelerometer; autoplay; fullscreen; gyroscope; pointer-lock; touch; xr-spatial-tracking"
           allowFullScreen
         />
