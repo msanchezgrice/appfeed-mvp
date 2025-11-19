@@ -77,16 +77,16 @@ export async function uploadHtmlToStorage(htmlContent, appId) {
   
   // Convert HTML string to buffer
   const buffer = Buffer.from(htmlContent, 'utf-8');
-  // Use .txt extension to avoid MIME type restrictions
-  const filePath = `html-bundles/${appId}.txt`;
+  // Use generic extension - Supabase is very restrictive with MIME types
+  const filePath = `html-bundles/${appId}`;
   
   console.log('[Storage] Uploading HTML:', filePath, 'Size:', Math.round(buffer.length / 1024), 'KB');
   
-  // Upload to Supabase Storage as text/plain (Supabase doesn't support text/html)
+  // Upload to Supabase Storage as application/octet-stream (generic binary, always supported)
   const { data, error } = await supabase.storage
     .from('app-images') // Use same bucket
     .upload(filePath, buffer, {
-      contentType: 'text/plain',
+      contentType: 'application/octet-stream',
       upsert: true,
       cacheControl: '31536000' // Cache for 1 year
     });
