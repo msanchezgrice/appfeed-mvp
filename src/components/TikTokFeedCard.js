@@ -69,7 +69,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
     } catch {}
     
     // Track app tried event (works for both anonymous and logged-in users)
-    analytics.appTried(app.id, app.name, 'feed', !!user);
+    analytics.appTried(app.id, app.name, app.creator_id, 'feed', !!user);
     
     // For iframe/html-bundle apps, skip the form and open directly
     if (app?.runtime?.render_type === 'iframe' || app?.runtime?.render_type === 'html-bundle') {
@@ -198,7 +198,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
     setSaved(add);
     // Track app saved event
     if (add) {
-      analytics.appSaved(app.id, app.name);
+      analytics.appSaved(app.id, app.name, app.creator_id);
     }
   };
 
@@ -244,7 +244,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
 
       // Track app remixed event
       if (result.app?.id) {
-        analytics.appRemixed(app.id, result.app.id, app.name);
+        analytics.appRemixed(app.id, result.app.id, app.name, app.creator_id);
       }
 
       setShowRemix(false);
@@ -303,7 +303,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
 
       // Track app remixed event (advanced JSON)
       if (result.app?.id) {
-        analytics.appRemixed(app.id, result.app.id, app.name);
+        analytics.appRemixed(app.id, result.app.id, app.name, app.creator_id);
       }
 
       setShowRemix(false);
@@ -402,7 +402,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
             const appUrl = `${window.location.origin}/app/${app.id}${run?.id ? `?run=${run.id}` : ''}`;
             
             // Track share event
-            analytics.appShared(app.id, app.name, navigator.share ? 'native_share' : 'copy_link');
+            analytics.appShared(app.id, app.name, app.creator_id, navigator.share ? 'native_share' : 'copy_link');
             
             // For native share (mobile), include title and description
             if (navigator.share) {

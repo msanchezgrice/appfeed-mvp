@@ -356,7 +356,7 @@ export default function AppDetailPage() {
             onClick={() => {
               navigator.clipboard.writeText(window.location.href);
               alert('Link copied to clipboard!');
-              analytics.appShared(app.id, app.name, 'copy_link');
+              analytics.appShared(app.id, app.name, app.creator_id, 'copy_link');
             }}
             className="btn primary"
           >
@@ -370,7 +370,7 @@ export default function AppDetailPage() {
                   text: app.description,
                   url: window.location.href
                 });
-                analytics.appShared(app.id, app.name, 'native_share');
+                analytics.appShared(app.id, app.name, app.creator_id, 'native_share');
               }
             }}
             className="btn"

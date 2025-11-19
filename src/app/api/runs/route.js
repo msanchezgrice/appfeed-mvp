@@ -159,6 +159,42 @@ export async function POST(req) {
       console.error('[API /runs] Asset upload error (non-fatal):', err);
     }
     
+    // Save assets to user library (for authenticated users)
+    if (userId && (assetUrl || inputAssetUrl)) {
+      try {
+        // Save output image to user assets library
+        if (assetUrl) {
+          await supabase.from('user_assets').insert({
+            user_id: userId,
+            asset_type: 'output',
+            source_type: 'generated',
+            mime_type: assetType || 'image/jpeg',
+            url: assetUrl,
+            source_run_id: run.id,
+            source_app_id: app.id
+          }).select().single();
+          console.log('[API /runs] Saved output to user assets library');
+        }
+        
+        // Save input image to user assets library
+        if (inputAssetUrl) {
+          await supabase.from('user_assets').insert({
+            user_id: userId,
+            asset_type: 'input',
+            source_type: 'upload',
+            mime_type: inputAssetMime || 'image/jpeg',
+            url: inputAssetUrl,
+            source_run_id: run.id,
+            source_app_id: app.id
+          }).select().single();
+          console.log('[API /runs] Saved input to user assets library');
+        }
+      } catch (err) {
+        // Non-fatal - don't break the run if asset saving fails
+        console.error('[API /runs] User assets save error (non-fatal):', err);
+      }
+    }
+    
     // Increment try/use counters on apps table
     try {
       if (mode === 'try') {

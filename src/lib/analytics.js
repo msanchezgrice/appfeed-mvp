@@ -125,19 +125,21 @@ export const analytics = {
     });
   },
 
-  appTried: (appId, appName, source = 'unknown', isAuthenticated = false) => {
+  appTried: (appId, appName, creatorId, source = 'unknown', isAuthenticated = false) => {
     // Set current app context
     const posthog = getPostHog();
     if (posthog) {
       posthog.register({
         $current_app_id: appId,
         $current_app_name: appName,
+        $current_creator_id: creatorId,
       });
     }
     
     trackEvent('app_tried', {
       app_id: appId,
       app_name: appName,
+      creator_id: creatorId, // Add creator_id for analytics filtering
       try_source: source, // 'feed', 'detail'
       is_authenticated: isAuthenticated,
       user_type: isAuthenticated ? 'signed_in' : 'anonymous',
@@ -162,25 +164,28 @@ export const analytics = {
     });
   },
 
-  appRemixed: (originalAppId, newAppId, originalAppName) => {
+  appRemixed: (originalAppId, newAppId, originalAppName, creatorId) => {
     trackEvent('app_remixed', {
       original_app_id: originalAppId,
       new_app_id: newAppId,
       original_app_name: originalAppName,
+      creator_id: creatorId, // Add creator_id for analytics filtering
     });
   },
 
-  appSaved: (appId, appName) => {
+  appSaved: (appId, appName, creatorId) => {
     trackEvent('app_saved', {
       app_id: appId,
       app_name: appName,
+      creator_id: creatorId, // Add creator_id for analytics filtering
     });
   },
 
-  appShared: (appId, appName, shareMethod = 'link') => {
+  appShared: (appId, appName, creatorId, shareMethod = 'link') => {
     trackEvent('app_shared', {
       app_id: appId,
       app_name: appName,
+      creator_id: creatorId, // Add creator_id for analytics filtering
       share_method: shareMethod, // 'link', 'twitter', etc.
     });
   },
