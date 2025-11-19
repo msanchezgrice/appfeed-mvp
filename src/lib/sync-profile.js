@@ -18,8 +18,28 @@ export async function syncProfileFromClerk(clerkUserId, clerkUserData = {}) {
       .single();
     
     if (existing) {
-      console.log('[Sync Profile] Profile already exists, skipping');
-      return { success: true, created: false };
+      console.log('[Sync Profile] Profile exists, updating...');
+      
+      // Build update object with only provided fields
+      const updates = {};
+      if (clerkUserData.username) updates.username = clerkUserData.username;
+      if (clerkUserData.email !== undefined) updates.email = clerkUserData.email;
+      if (clerkUserData.displayName) updates.display_name = clerkUserData.displayName;
+      if (clerkUserData.avatarUrl) updates.avatar_url = clerkUserData.avatarUrl;
+      updates.updated_at = new Date().toISOString();
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', clerkUserId);
+      
+      if (error) {
+        console.error('[Sync Profile] Error updating profile:', error);
+        return { success: false, error: error.message };
+      }
+      
+      console.log('[Sync Profile] Profile updated successfully:', updates);
+      return { success: true, created: false, updated: true };
     }
     
     // Create profile
