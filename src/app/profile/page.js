@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useUser, useClerk } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import TikTokFeedCard from '@/src/components/TikTokFeedCard';
 
 export default function ProfilePage() {
@@ -12,12 +13,17 @@ export default function ProfilePage() {
   const [library, setLibrary] = useState([]);
   const [apps, setApps] = useState([]);
   const [following, setFollowing] = useState([]);
+  const [followers, setFollowers] = useState([]);
   const [activeTab, setActiveTab] = useState('myapps'); // 'myapps', 'followers', 'analytics', 'settings'
   const [socialTab, setSocialTab] = useState('followers'); // 'followers', 'following'
   const [openaiKey, setOpenaiKey] = useState('');
   const [anthropicKey, setAnthropicKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [selectedAvatar, setSelectedAvatar] = useState('');
+  const [profileSaveMessage, setProfileSaveMessage] = useState('');
   const [analytics, setAnalytics] = useState({
     totalViews: 0,
     totalTries: 0,
@@ -79,12 +85,16 @@ export default function ProfilePage() {
       }
 
       // Get user info from Clerk
-      setUser({
+      const userData = {
         id: clerkUser.id,
         name: clerkUser.fullName || clerkUser.username || 'User',
         avatar: clerkUser.imageUrl || '/avatars/2.svg',
         email: clerkUser.primaryEmailAddress?.emailAddress
-      });
+      };
+      setUser(userData);
+      setEditName(userData.name);
+      setEditEmail(userData.email || '');
+      setSelectedAvatar(userData.avatar);
 
       // Load existing API keys - Note: API returns status, not actual keys for security
       // Keys are stored encrypted and not returned to client
@@ -108,13 +118,15 @@ export default function ProfilePage() {
       const totalRemixes = userApps.reduce((sum, app) => sum + (app.remix_count || 0), 0);
 
       // Get real follower count and following list from database
-      let followers = 0;
+      let followersCount = 0;
       try {
         const followRes = await fetch('/api/follow');
         const followData = await followRes.json();
-        followers = followData.followers?.length || 0;
+        followersCount = followData.followers?.length || 0;
+        setFollowers(followData.followers || []);
         setFollowing(followData.following || []);
       } catch {
+        setFollowers([]);
         setFollowing([]);
       }
 
@@ -124,7 +136,7 @@ export default function ProfilePage() {
         totalUses,
         totalSaves,
         totalRemixes,
-        followers
+        followers: followersCount
       });
       setLoading(false);
     })().catch(() => setLoading(false));
@@ -148,6 +160,43 @@ export default function ProfilePage() {
       </>
     );
   }
+
+  const saveProfile = async () => {
+    try {
+      // Update Clerk profile
+      await clerkUser.update({
+        firstName: editName.split(' ')[0],
+        lastName: editName.split(' ').slice(1).join(' ') || undefined
+      });
+
+      // Also update in Supabase
+      await fetch('/api/sync-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: clerkUser.id,
+          username: clerkUser.username,
+          email: editEmail,
+          displayName: editName,
+          avatarUrl: selectedAvatar
+        })
+      });
+
+      setUser({
+        ...user,
+        name: editName,
+        email: editEmail,
+        avatar: selectedAvatar
+      });
+
+      setProfileSaveMessage('✓ Profile updated successfully!');
+      setTimeout(() => setProfileSaveMessage(''), 3000);
+    } catch (err) {
+      console.error('Error saving profile:', err);
+      setProfileSaveMessage('✗ Failed to update profile');
+      setTimeout(() => setProfileSaveMessage(''), 3000);
+    }
+  };
 
   const saveApiKeys = async () => {
     try {
@@ -301,7 +350,224 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      {activeTab === 'analytics' ? (
+      {activeTab === 'myapps' ? (
+        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h3 style={{ margin: 0 }}>My Created Apps</h3>
+            <Link
+              href="/profile/myapps"
+              className="btn primary"
+              style={{ textDecoration: 'none', fontSize: 14 }}
+            >
+              📱 Manage Apps →
+            </Link>
+          </div>
+          {apps.filter(app => app.creator_id === clerkUser?.id).length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', padding: 40 }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📱</div>
+              <p style={{ color: '#888' }}>You haven't created any apps yet</p>
+              <Link href="/publish" className="btn primary" style={{ marginTop: 16, display: 'inline-block' }}>
+                Create Your First App →
+              </Link>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {apps.filter(app => app.creator_id === clerkUser?.id).slice(0, 5).map(app => (
+                <Link
+                  key={app.id}
+                  href={`/app/${app.id}`}
+                  style={{
+                    textDecoration: 'none',
+                    color: 'inherit'
+                  }}
+                >
+                  <div className="card" style={{ cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 12 }}>
+                      <div
+                        style={{
+                          width: 60,
+                          height: 60,
+                          borderRadius: 8,
+                          background: app.preview_gradient || '#333',
+                          flexShrink: 0,
+                          overflow: 'hidden'
+                        }}
+                      >
+                        {app.preview_url && (
+                          <img
+                            src={app.preview_url}
+                            alt={app.name}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover'
+                            }}
+                          />
+                        )}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <h4 style={{ margin: '0 0 4px 0' }}>{app.name}</h4>
+                        <p className="small" style={{ margin: 0, color: '#888' }}>
+                          {app.is_published ? '✓ Published' : '⏳ Draft'}
+                        </p>
+                      </div>
+                    </div>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))',
+                      gap: 12
+                    }}>
+                      <div>
+                        <div className="small">Views</div>
+                        <div style={{ fontWeight: 'bold' }}>{(app.view_count || 0).toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <div className="small">Tries</div>
+                        <div style={{ fontWeight: 'bold' }}>{(app.try_count || 0).toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <div className="small">Saves</div>
+                        <div style={{ fontWeight: 'bold' }}>{(app.save_count || 0).toLocaleString()}</div>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+              {apps.filter(app => app.creator_id === clerkUser?.id).length > 5 && (
+                <Link
+                  href="/profile/myapps"
+                  className="btn ghost"
+                  style={{ textDecoration: 'none', textAlign: 'center', marginTop: 8 }}
+                >
+                  View All Apps ({apps.filter(app => app.creator_id === clerkUser?.id).length}) →
+                </Link>
+              )}
+            </div>
+          )}
+        </div>
+      ) : activeTab === 'followers' ? (
+        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+          {/* Sub-tabs for Followers/Following */}
+          <div style={{
+            display: 'flex',
+            gap: 8,
+            marginBottom: 20,
+            borderBottom: '1px solid #222',
+            paddingBottom: 12
+          }}>
+            <button
+              onClick={() => setSocialTab('followers')}
+              className="btn"
+              style={{
+                background: socialTab === 'followers' ? '#fe2c55' : 'transparent',
+                border: socialTab === 'followers' ? 'none' : '1px solid #333'
+              }}
+            >
+              Followers ({followers.length})
+            </button>
+            <button
+              onClick={() => setSocialTab('following')}
+              className="btn"
+              style={{
+                background: socialTab === 'following' ? '#fe2c55' : 'transparent',
+                border: socialTab === 'following' ? 'none' : '1px solid #333'
+              }}
+            >
+              Following ({following.length})
+            </button>
+          </div>
+
+          {/* Followers List */}
+          {socialTab === 'followers' ? (
+            followers.length === 0 ? (
+              <div className="card" style={{ textAlign: 'center', padding: 40 }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>👥</div>
+                <p style={{ color: '#888' }}>No followers yet</p>
+                <p className="small" style={{ color: '#666', marginTop: 8 }}>
+                  Share your apps to grow your audience!
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {followers.map(follower => (
+                  <Link
+                    key={follower.id}
+                    href={`/profile/${follower.id}`}
+                    className="card"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <img
+                      src={follower.avatar_url || '/avatars/1.svg'}
+                      alt={follower.display_name}
+                      style={{
+                        width: 50,
+                        height: 50,
+                        borderRadius: '50%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 'bold' }}>{follower.display_name || follower.username}</div>
+                      <div className="small" style={{ color: '#888' }}>@{follower.username}</div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )
+          ) : (
+            /* Following List */
+            following.length === 0 ? (
+              <div className="card" style={{ textAlign: 'center', padding: 40 }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
+                <p style={{ color: '#888' }}>Not following anyone yet</p>
+                <p className="small" style={{ color: '#666', marginTop: 8 }}>
+                  Discover creators in the feed!
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {following.map(user => (
+                  <Link
+                    key={user.id}
+                    href={`/profile/${user.id}`}
+                    className="card"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <img
+                      src={user.avatar_url || '/avatars/1.svg'}
+                      alt={user.display_name}
+                      style={{
+                        width: 50,
+                        height: 50,
+                        borderRadius: '50%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 'bold' }}>{user.display_name || user.username}</div>
+                      <div className="small" style={{ color: '#888' }}>@{user.username}</div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )
+          )}
+        </div>
+      ) : activeTab === 'analytics' ? (
         <div style={{ maxWidth: '600px', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h3 style={{ margin: 0 }}>Your Performance</h3>
@@ -406,7 +672,136 @@ export default function ProfilePage() {
           </div>
         </div>
       ) : activeTab === 'settings' ? (
-        <div className="card" style={{ maxWidth: '500px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+          {/* Profile Settings */}
+          <div className="card" style={{ marginBottom: 24 }}>
+            <h3 style={{ marginTop: 0 }}>Profile Settings</h3>
+            <p className="small" style={{ marginBottom: 20, color: '#888' }}>
+              Update your profile information
+            </p>
+
+            {/* Display Name */}
+            <div style={{ marginBottom: 20 }}>
+              <label className="label" style={{ display: 'block', marginBottom: 6 }}>
+                Display Name
+              </label>
+              <input
+                type="text"
+                className="input"
+                placeholder="Your Name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            {/* Email (read-only from Clerk) */}
+            <div style={{ marginBottom: 20 }}>
+              <label className="label" style={{ display: 'block', marginBottom: 6 }}>
+                Email
+              </label>
+              <input
+                type="email"
+                className="input"
+                placeholder="your@email.com"
+                value={editEmail}
+                readOnly
+                disabled
+                style={{ width: '100%', opacity: 0.6, cursor: 'not-allowed' }}
+              />
+              <p className="small" style={{ marginTop: 4, color: '#666' }}>
+                Email is managed by your account provider
+              </p>
+            </div>
+
+            {/* Avatar Selection */}
+            <div style={{ marginBottom: 20 }}>
+              <label className="label" style={{ display: 'block', marginBottom: 6 }}>
+                Avatar
+              </label>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))',
+                gap: 8,
+                marginTop: 8
+              }}>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                  <div
+                    key={num}
+                    onClick={() => setSelectedAvatar(`/avatars/${num}.svg`)}
+                    style={{
+                      width: 60,
+                      height: 60,
+                      borderRadius: '50%',
+                      cursor: 'pointer',
+                      border: selectedAvatar === `/avatars/${num}.svg` ? '3px solid #fe2c55' : '3px solid transparent',
+                      overflow: 'hidden',
+                      transition: 'border-color 0.2s'
+                    }}
+                  >
+                    <img
+                      src={`/avatars/${num}.svg`}
+                      alt={`Avatar ${num}`}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  </div>
+                ))}
+                {/* Current Clerk avatar */}
+                {clerkUser?.imageUrl && (
+                  <div
+                    onClick={() => setSelectedAvatar(clerkUser.imageUrl)}
+                    style={{
+                      width: 60,
+                      height: 60,
+                      borderRadius: '50%',
+                      cursor: 'pointer',
+                      border: selectedAvatar === clerkUser.imageUrl ? '3px solid #fe2c55' : '3px solid transparent',
+                      overflow: 'hidden',
+                      transition: 'border-color 0.2s'
+                    }}
+                  >
+                    <img
+                      src={clerkUser.imageUrl}
+                      alt="Your photo"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={saveProfile}
+              className="btn primary"
+              style={{ width: '100%' }}
+            >
+              Save Profile
+            </button>
+
+            {profileSaveMessage && (
+              <div style={{
+                marginTop: 16,
+                padding: 12,
+                background: profileSaveMessage.includes('success') ? '#10b981' : '#ef4444',
+                borderRadius: 8,
+                textAlign: 'center',
+                fontWeight: 'bold'
+              }}>
+                {profileSaveMessage}
+              </div>
+            )}
+          </div>
+
+          {/* API Keys Section */}
+          <div className="card">
           <h3 style={{ marginTop: 0 }}>API Keys</h3>
           <p className="small" style={{ marginBottom: 20 }}>
             Your API keys are encrypted and stored securely. They're used to power apps that require AI capabilities.
@@ -498,7 +893,11 @@ export default function ProfilePage() {
             Sign Out
           </button>
         </div>
-      ) : activeTab === 'following' ? (
+        </div>
+      ) : null}
+      
+      {/* Old following tab - can be removed */}
+      {false && activeTab === 'following' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {following.length > 0 ? (
             following.map(follow => (
