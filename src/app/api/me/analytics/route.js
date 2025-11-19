@@ -98,8 +98,10 @@ export async function GET(req) {
       : 0;
 
     // Build top apps with engagement metrics
+    // Show ALL creator's apps, not just top 10
     const topApps = (apps || [])
       .map(app => {
+        // PostHog data for selected period
         const views = appViewsMap[app.id] || 0;
         const tries = appTriesMap[app.id] || 0;
         const saves = appSavesMap[app.id] || 0;
@@ -107,6 +109,7 @@ export async function GET(req) {
         return {
           id: app.id,
           name: app.name,
+          // Selected period (from PostHog)
           views,
           tries,
           saves,
@@ -114,14 +117,14 @@ export async function GET(req) {
           remixes: app.remix_count || 0,
           viewToTryRate: views > 0 ? ((tries / views) * 100).toFixed(1) : 0,
           tryToSaveRate: tries > 0 ? ((saves / tries) * 100).toFixed(1) : 0,
-          // All-time stats from Supabase
+          // All-time stats from Supabase (always shown as fallback)
           allTimeViews: app.view_count || 0,
           allTimeTries: app.try_count || 0,
           allTimeSaves: app.save_count || 0
         };
       })
-      .sort((a, b) => b.views - a.views)
-      .slice(0, 10);
+      // Sort by period views if available, otherwise all-time views
+      .sort((a, b) => (b.views || b.allTimeViews) - (a.views || a.allTimeViews));
 
     // Format time series data for charts
     let formattedTimeSeries = [];
