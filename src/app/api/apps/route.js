@@ -35,6 +35,7 @@ export async function GET(req) {
       .from('apps')
       .select(`
         *,
+        html_content,
         creator:profiles!apps_creator_id_fkey (
           id,
           username,
@@ -105,6 +106,7 @@ export async function GET(req) {
         .from('apps')
         .select(`
           *,
+          html_content,
           creator:profiles!apps_creator_id_fkey (
             id,
             username,

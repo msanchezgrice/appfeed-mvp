@@ -13,6 +13,7 @@ export async function GET(req, { params }) {
       .from('apps')
       .select(`
         *,
+        html_content,
         creator:profiles!apps_creator_id_fkey (
           id,
           clerk_user_id,
