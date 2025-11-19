@@ -649,17 +649,30 @@ function IframeOutput({ app }) {
 }
 
 function HtmlBundleOutput({ app, run }) {
+  // ALL hooks declared first - no conditional logic before hooks
   const [usageExceeded, setUsageExceeded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   
-  // HTML is now stored in app.html_content column (not runtime.html_storage_url)
-  const htmlContent = app?.html_content || app?.runtime?.html_content; // Support both old and new
+  // Get values (not hooks, just variables)
+  const htmlContent = app?.html_content || app?.runtime?.html_content || '';
   const usageCount = app?.runtime?.usage_count || 0;
   const usageLimit = app?.runtime?.usage_limit || 100;
 
+  // Hook 1: Create blob URL
+  const blobUrl = useMemo(() => {
+    if (!htmlContent) return null;
+    try {
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      return URL.createObjectURL(blob);
+    } catch (e) {
+      console.error('[HTML Bundle] Failed to create blob URL:', e);
+      return null;
+    }
+  }, [htmlContent]);
+
+  // Hook 2: Mobile detection
   useEffect(() => {
-    // Detect mobile device
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
     };
@@ -668,8 +681,8 @@ function HtmlBundleOutput({ app, run }) {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Hook 3: Track usage
   useEffect(() => {
-    // Track usage on mount
     const trackUsage = async () => {
       if (usageCount >= usageLimit) {
         setUsageExceeded(true);
@@ -678,14 +691,12 @@ function HtmlBundleOutput({ app, run }) {
       }
 
       try {
-        // Increment usage count
         await fetch('/api/apps/html-bundle/track-usage', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ appId: app.id })
         });
         
-        // Track in PostHog
         if (typeof window !== 'undefined' && window.posthog) {
           window.posthog.capture('html_bundle_loaded', {
             app_id: app.id,
@@ -705,6 +716,20 @@ function HtmlBundleOutput({ app, run }) {
     trackUsage();
   }, [app.id, app.name, usageCount, usageLimit, isMobile]);
 
+  // Hook 4: Cleanup
+  useEffect(() => {
+    return () => {
+      if (blobUrl) {
+        try {
+          URL.revokeObjectURL(blobUrl);
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
+    };
+  }, [blobUrl]);
+
+  // Now do conditional returns AFTER all hooks
   if (loading) {
     return (
       <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>
@@ -737,22 +762,6 @@ function HtmlBundleOutput({ app, run }) {
   if (!htmlContent) {
     return <div style={{ padding: 16, textAlign: 'center', color: '#888' }}>No HTML content</div>;
   }
-
-  // Create blob URL for sandboxed HTML (moved inside useMemo to avoid recreating on every render)
-  const blobUrl = useMemo(() => {
-    if (!htmlContent) return null;
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    return URL.createObjectURL(blob);
-  }, [htmlContent]);
-
-  // Cleanup blob URL on unmount
-  useEffect(() => {
-    return () => {
-      if (blobUrl) {
-        URL.revokeObjectURL(blobUrl);
-      }
-    };
-  }, [blobUrl]);
 
   // Container style - no special mobile handling, use parent's space
   const containerStyle = {
