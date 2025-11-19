@@ -460,11 +460,45 @@ export async function tool_image_process({ userId, args, mode, supabase }) {
       let base64Data = imageData;
       let mimeType = 'image/jpeg';
       
+      // Handle data URL format
       if (imageData.startsWith('data:')) {
         const matches = imageData.match(/^data:(image\/[^;]+);base64,(.+)$/);
         if (matches) {
           mimeType = matches[1];
           base64Data = matches[2];
+        }
+      } 
+      // Handle URL format (from asset library or storage)
+      else if (imageData.startsWith('http://') || imageData.startsWith('https://')) {
+        console.log('[Image Process] Fetching image from URL:', imageData.substring(0, 80) + '...');
+        try {
+          const imageResponse = await fetch(imageData);
+          if (!imageResponse.ok) {
+            throw new Error(`Failed to fetch image: ${imageResponse.statusText}`);
+          }
+          const imageBuffer = await imageResponse.arrayBuffer();
+          base64Data = Buffer.from(imageBuffer).toString('base64');
+          
+          // Try to detect mime type from response headers or URL
+          const contentType = imageResponse.headers.get('content-type');
+          if (contentType && contentType.startsWith('image/')) {
+            mimeType = contentType;
+          } else if (imageData.toLowerCase().endsWith('.png')) {
+            mimeType = 'image/png';
+          } else if (imageData.toLowerCase().endsWith('.webp')) {
+            mimeType = 'image/webp';
+          }
+          
+          console.log('[Image Process] Image fetched and converted to base64:', {
+            size: imageBuffer.byteLength,
+            mimeType
+          });
+        } catch (fetchError) {
+          console.error('[Image Process] Error fetching image from URL:', fetchError);
+          return {
+            output: { markdown: `❌ Failed to load image from URL: ${fetchError.message}` },
+            error: 'IMAGE_FETCH_ERROR'
+          };
         }
       }
       
