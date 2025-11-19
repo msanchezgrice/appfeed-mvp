@@ -459,7 +459,7 @@ export async function POST(request) {
         is_published: true
       };
     } else if (mode === 'html-bundle') {
-      // HTML Bundle - upload to Storage, store URL
+      // HTML Bundle - store directly in database TEXT column
       const htmlSize = Buffer.byteLength(appData.htmlContent, 'utf8');
       
       // Size limit: 5MB
@@ -467,16 +467,9 @@ export async function POST(request) {
         return NextResponse.json({ error: 'HTML content too large. Maximum size is 5MB.' }, { status: 400 });
       }
 
-      // Upload HTML to Supabase Storage
-      let htmlStorageUrl;
-      try {
-        const storageResult = await uploadHtmlToStorage(appData.htmlContent, appId);
-        htmlStorageUrl = storageResult.url;
-        console.log('[Publish] HTML uploaded to storage:', htmlStorageUrl);
-      } catch (storageError) {
-        console.error('[Publish] Storage upload failed:', storageError);
-        return NextResponse.json({ error: 'Failed to upload HTML to storage' }, { status: 500 });
-      }
+      // Note: Supabase Storage is too restrictive (only allows image/video MIME types)
+      // We'll store HTML in a dedicated TEXT column instead
+      console.log('[Publish] Storing HTML in database (size:', Math.round(htmlSize / 1024), 'KB)');
 
       newApp = {
         id: appId,
@@ -494,10 +487,10 @@ export async function POST(request) {
         runtime: {
           engine: 'html-bundle',
           render_type: 'html-bundle',
-          html_storage_url: htmlStorageUrl, // Store URL instead of content
           usage_count: 0,
           usage_limit: 100 // 100 runs per app
         },
+        html_content: appData.htmlContent, // Store in dedicated TEXT column
         fork_of: null,
         is_published: true
       };
