@@ -1,15 +1,17 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import TikTokFeedCard from '@/src/components/TikTokFeedCard';
+import SignInModal from '@/src/components/SignInModal';
 import { analytics } from '@/src/lib/analytics';
 
 function uid() {
   return (typeof localStorage !== 'undefined' && localStorage.getItem('uid')) || 'u_jamie';
 }
 
-async function api(path, method='GET', body) {
+async function api(path, method = 'GET', body) {
   const res = await fetch(path, {
     method,
     headers: { 'Content-Type': 'application/json', 'x-user-id': uid() },
@@ -19,13 +21,15 @@ async function api(path, method='GET', body) {
 }
 
 export default function UserProfilePage() {
+  const { user } = useUser();
   const params = useParams();
   const userId = params.id;
 
-  const [user, setUser] = useState(null);
+  const [profileUser, setProfileUser] = useState(null);
   const [apps, setApps] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [activeTab, setActiveTab] = useState('apps');
+  const [showSignInModal, setShowSignInModal] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -38,7 +42,7 @@ export default function UserProfilePage() {
 
       // Get creator info from first app's creator object
       if (creatorApps.length > 0 && creatorApps[0].creator) {
-        setUser({
+        setProfileUser({
           name: creatorApps[0].creator.display_name || creatorApps[0].creator.username,
           avatar: creatorApps[0].creator.avatar_url,
           bio: creatorApps[0].creator.bio
@@ -49,7 +53,7 @@ export default function UserProfilePage() {
           const userRes = await fetch(`/api/profile/${userId}`);
           if (userRes.ok) {
             const userData = await userRes.json();
-            setUser({
+            setProfileUser({
               name: userData.display_name || userData.username,
               avatar: userData.avatar_url,
               bio: userData.bio
@@ -68,16 +72,20 @@ export default function UserProfilePage() {
   }, [userId]);
 
   const handleFollow = async () => {
+    if (!user) {
+      setShowSignInModal(true);
+      return;
+    }
     const action = isFollowing ? 'unfollow' : 'follow';
     await api('/api/follow', 'POST', { creatorId: userId, action });
-    
+
     // Track follow/unfollow event
     if (action === 'follow') {
-      analytics.userFollowed(userId, user?.name || userId);
+      analytics.userFollowed(userId, profileUser?.name || userId);
     } else {
       analytics.userUnfollowed(userId);
     }
-    
+
     setIsFollowing(!isFollowing);
   };
 
@@ -85,8 +93,8 @@ export default function UserProfilePage() {
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px 0' }}>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <img
-          src={user?.avatar || '/avatars/1.svg'}
-          alt={user?.name}
+          src={profileUser?.avatar || '/avatars/1.svg'}
+          alt={profileUser?.name}
           style={{
             width: 80,
             height: 80,
@@ -94,10 +102,10 @@ export default function UserProfilePage() {
             marginBottom: 12
           }}
         />
-        <h2 style={{ margin: '0 0 4px 0' }}>{user?.name || userId}</h2>
+        <h2 style={{ margin: '0 0 4px 0' }}>{profileUser?.name || userId}</h2>
         <p style={{ margin: 0, color: '#888', fontSize: 14 }}>@{userId}</p>
-        {user?.bio && (
-          <p style={{ margin: '12px 0 0 0', color: '#ccc', fontSize: 14 }}>{user.bio}</p>
+        {profileUser?.bio && (
+          <p style={{ margin: '12px 0 0 0', color: '#ccc', fontSize: 14 }}>{profileUser.bio}</p>
         )}
 
         {userId !== uid() ? (
@@ -171,6 +179,12 @@ export default function UserProfilePage() {
           </div>
         )}
       </div>
-    </div>
+
+      <SignInModal
+        show={showSignInModal}
+        onClose={() => setShowSignInModal(false)}
+        message="Sign in to follow creators"
+      />
+    </div >
   );
 }
