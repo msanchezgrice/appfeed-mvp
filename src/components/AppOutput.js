@@ -627,23 +627,81 @@ function IframeOutput({ app }) {
     overflow: 'hidden'
   };
 
+  // Close handler (for mobile only)
+  const handleClose = () => {
+    if (typeof window !== 'undefined') {
+      // Try to go back first (preserves navigation history)
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        // Fallback: navigate to feed
+        window.location.href = '/feed';
+      }
+    }
+  };
+
   return (
-    <div ref={containerRef} style={containerStyle}>
-      <iframe 
-        ref={iframeRef}
-        src={url} 
-        title={app.name || 'External App'}
-        style={{ 
-          width: '100%', 
-          height: '100%', 
-          border: 'none',
-          display: 'block',
-          touchAction: 'manipulation' // Allow touch but prevent zoom
-        }}
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-pointer-lock"
-        allow="accelerometer; autoplay; camera; encrypted-media; fullscreen; geolocation; gyroscope; microphone; pointer-lock; touch; xr-spatial-tracking"
-        allowFullScreen
-      />
+    <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
+      {/* Mobile close button (top-left, semi-transparent) */}
+      {isMobile && (
+        <button
+          onClick={handleClose}
+          style={{
+            position: 'absolute',
+            top: 'max(env(safe-area-inset-top), 12px)',
+            left: 12,
+            zIndex: 100,
+            background: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(10px)',
+            border: 'none',
+            borderRadius: '50%',
+            width: 40,
+            height: 40,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: 'white',
+            fontSize: 20,
+            fontWeight: 'bold',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+            transition: 'all 0.2s ease',
+            WebkitTapHighlightColor: 'transparent'
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = 'scale(0.9)';
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+          onTouchStart={(e) => {
+            e.currentTarget.style.transform = 'scale(0.9)';
+          }}
+          onTouchEnd={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          ✕
+        </button>
+      )}
+      
+      <div style={containerStyle}>
+        <iframe 
+          ref={iframeRef}
+          src={url} 
+          title={app.name || 'External App'}
+          style={{ 
+            width: '100%', 
+            height: '100%', 
+            border: 'none',
+            display: 'block',
+            touchAction: 'manipulation' // Allow touch but prevent zoom
+          }}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-pointer-lock"
+          allow="accelerometer; autoplay; camera; encrypted-media; fullscreen; geolocation; gyroscope; microphone; pointer-lock; touch; xr-spatial-tracking"
+          allowFullScreen
+        />
+      </div>
     </div>
   );
 }
@@ -784,21 +842,82 @@ function HtmlBundleOutput({ app, run }) {
     overflow: 'hidden'
   };
 
+  // Close handler (for mobile only)
+  const handleClose = () => {
+    if (typeof window !== 'undefined') {
+      // Try to go back first (preserves navigation history)
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        // Fallback: navigate to feed
+        window.location.href = '/feed';
+      }
+    }
+  };
+
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      {/* Mobile close button (top-left, semi-transparent) */}
+      {isMobile && (
+        <button
+          onClick={handleClose}
+          style={{
+            position: 'absolute',
+            top: 'max(env(safe-area-inset-top), 12px)',
+            left: 12,
+            zIndex: 100,
+            background: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(10px)',
+            border: 'none',
+            borderRadius: '50%',
+            width: 40,
+            height: 40,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: 'white',
+            fontSize: 20,
+            fontWeight: 'bold',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+            transition: 'all 0.2s ease',
+            WebkitTapHighlightColor: 'transparent'
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = 'scale(0.9)';
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+          onTouchStart={(e) => {
+            e.currentTarget.style.transform = 'scale(0.9)';
+          }}
+          onTouchEnd={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          ✕
+        </button>
+      )}
+      
+      {/* Usage counter badge (top-right) */}
       <div style={{
         position: 'absolute',
-        top: 8,
-        right: 8,
+        top: isMobile ? 'max(env(safe-area-inset-top), 12px)' : 8,
+        right: 12,
         zIndex: 10,
-        background: 'rgba(0,0,0,0.7)',
+        background: 'rgba(0,0,0,0.6)',
+        backdropFilter: 'blur(10px)',
         padding: '6px 12px',
-        borderRadius: 8,
+        borderRadius: 16,
         fontSize: 12,
-        color: '#f59e0b'
+        color: '#f59e0b',
+        fontWeight: 'bold',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
       }}>
         {usageCount + 1}/{usageLimit} runs
       </div>
+      
       <div style={containerStyle}>
         <iframe 
           src={blobUrl}
