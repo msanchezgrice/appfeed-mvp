@@ -155,7 +155,13 @@ export default function AppDetailPage() {
         router.push(`/sign-in?redirect_url=${encodeURIComponent(`/app/${appId}?run=${overlayRun?.id || ''}`)}`);
         return;
       }
-      if (res.ok) setResultSaved(true);
+      if (res.ok) {
+        setResultSaved(true);
+        // Track save event
+        if (app) {
+          analytics.appSaved(app.id, app.name, app.creator_id);
+        }
+      }
     } catch {
       // ignore
     }

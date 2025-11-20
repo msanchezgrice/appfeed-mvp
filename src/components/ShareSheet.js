@@ -46,8 +46,8 @@ export default function ShareSheet({
     setSharing(true);
     
     try {
-      // Track analytics
-      analytics.appShared(app.id, app.name, platformId);
+      // Track analytics with creator_id
+      analytics.appShared(app.id, app.name, app.creator_id, platformId);
       
       // Execute share
       const result = await executeShare(platformId, app, run, assetUrl);
@@ -80,7 +80,7 @@ export default function ShareSheet({
     setSharing(true);
     
     try {
-      analytics.appShared(app.id, app.name, 'native_share');
+      analytics.appShared(app.id, app.name, app.creator_id, 'native_share');
       await shareHandlers.nativeShare(app, run, assetUrl);
       onClose();
     } catch (error) {
