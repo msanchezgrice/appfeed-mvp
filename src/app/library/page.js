@@ -4,6 +4,7 @@ import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AssetThumbnail from '@/src/components/AssetThumbnail';
+import ShareSheet from '@/src/components/ShareSheet';
 
 export default function LibraryPage() {
   const { user, isLoaded } = useUser();
@@ -16,6 +17,7 @@ export default function LibraryPage() {
   const [page, setPage] = useState(0);
   const [stats, setStats] = useState({ uploads: 0, generated: 0 });
   const [viewAsset, setViewAsset] = useState(null);
+  const [showShareSheet, setShowShareSheet] = useState(false);
 
   const LIMIT = 24;
 
@@ -456,25 +458,9 @@ export default function LibraryPage() {
               </button>
               
               <button
-                onClick={async (e) => {
+                onClick={(e) => {
                   e.stopPropagation();
-                  const imageUrl = viewAsset.url_1080 || viewAsset.url;
-                  if (navigator.share) {
-                    try {
-                      await navigator.share({
-                        title: 'Check out this generated image',
-                        text: 'Created with Clipcade',
-                        url: imageUrl
-                      });
-                    } catch (err) {
-                      if (err.name !== 'AbortError') {
-                        console.error('Share failed:', err);
-                      }
-                    }
-                  } else {
-                    navigator.clipboard.writeText(imageUrl);
-                    alert('Link copied to clipboard!');
-                  }
+                  setShowShareSheet(true);
                 }}
                 className="btn"
                 style={{
@@ -523,6 +509,25 @@ export default function LibraryPage() {
             ✕
           </button>
         </div>
+      )}
+
+      {/* Share Sheet */}
+      {viewAsset && (
+        <ShareSheet
+          show={showShareSheet}
+          onClose={() => setShowShareSheet(false)}
+          app={{
+            id: viewAsset.source_app_id || 'library',
+            name: viewAsset.original_filename || 'My Asset',
+            description: 'Shared from my Clipcade library',
+            creator_id: user?.id
+          }}
+          run={{
+            id: viewAsset.id,
+            asset_url: viewAsset.url_1080 || viewAsset.url
+          }}
+          assetUrl={viewAsset.url_1080 || viewAsset.url}
+        />
       )}
 
       <style jsx>{`
