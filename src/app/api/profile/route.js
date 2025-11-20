@@ -58,11 +58,39 @@ export async function POST(req) {
   }
 }
 
-// GET /api/profile - Get current user's profile
+// GET /api/profile - Get user profile (by identifier or current user)
 export async function GET(req) {
   try {
     const { supabase, userId } = await createServerSupabaseClient();
-
+    const { searchParams } = new URL(req.url);
+    const identifier = searchParams.get('identifier'); // Can be username or user ID
+    
+    // If identifier provided, lookup by username or ID (for public profile viewing)
+    if (identifier) {
+      // Try username first (more user-friendly)
+      let { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('username', identifier)
+        .single();
+      
+      // If not found by username, try by ID (backward compatibility)
+      if (error || !profile) {
+        ({ data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', identifier)
+          .single());
+      }
+      
+      if (error || !profile) {
+        return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+      }
+      
+      return NextResponse.json({ profile });
+    }
+    
+    // No identifier - return current user's profile
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
