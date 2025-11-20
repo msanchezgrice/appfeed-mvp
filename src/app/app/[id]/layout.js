@@ -16,84 +16,90 @@ export async function generateMetadata({ params, searchParams }) {
     const app = appData.app;
     const creator = appData.creator;
     
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.clipcade.com';
+    
     // Check if this is a run share (has ?run= parameter)
     const runId = searchParams?.run;
     
     if (runId) {
-      // Fetch run data for run-specific OG metadata
-      try {
-        const runRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.clipcade.com'}/api/runs?id=${runId}`, {
-          cache: 'no-store'
-        });
-        
-        if (runRes.ok) {
-          const runData = await runRes.json();
-          const run = runData.run;
-          
-          // Use the run's output image if available
-          const runImage = run?.asset_url || 
-                          (app.preview_url && app.preview_url.includes('supabase.co/storage') 
-                            ? app.preview_url 
-                            : `https://lobodzhfgojceqfvgcit.supabase.co/storage/v1/object/public/app-images/app-previews/${app.id}.png`);
-          
-          return {
-            title: `Check out my ${app.name} result! | Clipcade`,
-            description: `See my creation from ${app.name}. ${app.description}`,
-            openGraph: {
-              title: `Check out my ${app.name} result!`,
-              description: `See my creation from ${app.name}`,
-              images: [{
-                url: runImage,
-                width: 1200,
-                height: 630,
-                alt: `${app.name} result`
-              }],
-              type: 'website',
-              siteName: 'Clipcade',
-              url: `https://www.clipcade.com/app/${app.id}?run=${runId}`
-            },
-            twitter: {
-              card: 'summary_large_image',
-              title: `Check out my ${app.name} result!`,
-              description: `See my creation from ${app.name}`,
-              images: [runImage],
-              creator: creator?.display_name ? `@${creator.display_name}` : '@clipcade'
-            }
-          };
+      // Run share - use OG API with run data
+      const ogImageUrl = `${baseUrl}/api/og?app=${app.id}&run=${runId}&type=result`;
+      const shareUrl = `${baseUrl}/app/${app.id}?run=${runId}`;
+      
+      return {
+        title: `Check out my ${app.name} result! | Clipcade`,
+        description: `See my creation from ${app.name}. ${app.description}`,
+        metadataBase: new URL(baseUrl),
+        openGraph: {
+          title: `Check out my ${app.name} result!`,
+          description: `See my creation from ${app.name}`,
+          images: [{
+            url: ogImageUrl,
+            width: 1200,
+            height: 630,
+            alt: `${app.name} result`,
+            type: 'image/png',
+          }],
+          type: 'website',
+          siteName: 'Clipcade',
+          url: shareUrl,
+        },
+        twitter: {
+          card: 'summary_large_image',
+          site: '@clipcade',
+          title: `Check out my ${app.name} result!`,
+          description: `See my creation from ${app.name}`,
+          images: [{
+            url: ogImageUrl,
+            alt: `${app.name} result`,
+          }],
+          creator: creator?.username ? `@${creator.username}` : '@clipcade',
+        },
+        other: {
+          // Apple-specific for iMessage rich links
+          'apple-mobile-web-app-capable': 'yes',
+          'apple-mobile-web-app-title': 'Clipcade',
         }
-      } catch (runError) {
-        console.error('Error fetching run for metadata:', runError);
-        // Fall through to app metadata if run fetch fails
-      }
+      };
     }
     
-    // Default: Use app's Nano Banana generated image
-    const appImage = (app.preview_url && app.preview_url.includes('supabase.co/storage')) 
-      ? app.preview_url 
-      : `https://lobodzhfgojceqfvgcit.supabase.co/storage/v1/object/public/app-images/app-previews/${app.id}.png`;
+    // App-only share - use OG API without run
+    const ogImageUrl = `${baseUrl}/api/og?app=${app.id}&type=app`;
+    const shareUrl = `${baseUrl}/app/${app.id}`;
     
     return {
       title: `${app.name} | Try on Clipcade`,
       description: app.description || `Try ${app.name} - a mini-app on Clipcade`,
+      metadataBase: new URL(baseUrl),
       openGraph: {
         title: app.name,
         description: app.description,
         images: [{
-          url: appImage,
+          url: ogImageUrl,
           width: 1200,
           height: 630,
-          alt: app.name
+          alt: app.name,
+          type: 'image/png',
         }],
         type: 'website',
         siteName: 'Clipcade',
-        url: `https://www.clipcade.com/app/${app.id}`
+        url: shareUrl,
       },
       twitter: {
         card: 'summary_large_image',
+        site: '@clipcade',
         title: app.name,
         description: app.description,
-        images: [appImage],
-        creator: creator?.display_name ? `@${creator.display_name}` : '@clipcade'
+        images: [{
+          url: ogImageUrl,
+          alt: app.name,
+        }],
+        creator: creator?.username ? `@${creator.username}` : '@clipcade',
+      },
+      other: {
+        // Apple-specific for iMessage rich links
+        'apple-mobile-web-app-capable': 'yes',
+        'apple-mobile-web-app-title': 'Clipcade',
       }
     };
   } catch (error) {

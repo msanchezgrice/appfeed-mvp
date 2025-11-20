@@ -7,6 +7,7 @@ import AppForm from './AppForm';
 import AppOutput from './AppOutput';
 import SignInModal from './SignInModal';
 import SuccessModal from './SuccessModal';
+import ShareSheet from './ShareSheet';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { analytics } from '@/src/lib/analytics';
@@ -49,6 +50,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
   const [successMessage, setSuccessMessage] = useState('');
   const [resultSaved, setResultSaved] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [showShareSheet, setShowShareSheet] = useState(false);
 
   // Detect mobile on mount (prevents hydration mismatch)
   useEffect(() => {
@@ -398,48 +400,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
 
         {/* Share Button */}
         <button
-          onClick={async () => {
-            const appUrl = `${window.location.origin}/app/${app.id}${run?.id ? `?run=${run.id}` : ''}`;
-            
-            // Track share event
-            analytics.appShared(app.id, app.name, app.creator_id, navigator.share ? 'native_share' : 'copy_link');
-            
-            // For native share (mobile), include title and description
-            if (navigator.share) {
-              const cleanDescription = app.description?.split('\n\nRemixed with:')[0] || app.description;
-              try {
-                // Prefer sharing with image file if available and supported
-                if (run?.asset_url) {
-                  const res = await fetch(run.asset_url);
-                  const blob = await res.blob();
-                  const file = new File([blob], `${app.id}-${run.id}.jpg`, { type: blob.type || 'image/jpeg' });
-                  if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                      title: app.name,
-                      text: cleanDescription,
-                      url: appUrl,
-                      files: [file]
-                    });
-                    return;
-                  }
-                }
-                await navigator.share({ 
-                  title: app.name, 
-                  text: cleanDescription + (run?.asset_url ? `\n${run.asset_url}` : ''),
-                  url: appUrl 
-                });
-              } catch (err) {
-                if (err.name !== 'AbortError') {
-                  console.error('Share failed:', err);
-                }
-              }
-            } else {
-              // For clipboard (desktop), only copy URL
-              const toCopy = run?.asset_url ? `${appUrl}\n${run.asset_url}` : appUrl;
-              navigator.clipboard.writeText(toCopy);
-              alert('App link copied to clipboard!');
-            }
-          }}
+          onClick={() => setShowShareSheet(true)}
           style={{
             background: 'none',
             border: 'none',
@@ -1205,6 +1166,15 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
         actionText="View on Profile"
         onAction={() => window.location.href = '/profile'}
         onClose={() => setShowSuccessModal(false)}
+      />
+      
+      {/* Share Sheet */}
+      <ShareSheet
+        show={showShareSheet}
+        onClose={() => setShowShareSheet(false)}
+        app={app}
+        run={run}
+        assetUrl={run?.asset_url}
       />
     </div>
   );
