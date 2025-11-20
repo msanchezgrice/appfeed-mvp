@@ -1087,17 +1087,28 @@ export default function AppOutput({ run, app }) {
   const fontColor = design.fontColor || 'white';
   const fontFamily = design.fontFamily || 'inherit';
   
-  // Extract text content
-  let textContent;
-  if (typeof output === 'string') {
+  // Extract text content (but SKIP if output only contains image data)
+  let textContent = null;
+  if (hasImage) {
+    // If output has an image, only show text if there's meaningful markdown/message
+    if (output?.markdown && output.markdown.trim().length > 0) {
+      textContent = output.markdown;
+    } else if (output?.message && output.message.trim().length > 0) {
+      textContent = output.message;
+    }
+    // Otherwise, show ONLY the image, no JSON dump
+  } else if (typeof output === 'string') {
     textContent = output;
   } else if (output?.markdown) {
     textContent = output.markdown;
+  } else if (output?.message) {
+    textContent = output.message;
   } else {
+    // Last resort: stringify, but this should rarely happen
     textContent = JSON.stringify(output, null, 2);
   }
 
-  const cleanText = textContent.replace(/\\n\\n/g, '\n\n').replace(/\\n/g, '\n');
+  const cleanText = textContent ? textContent.replace(/\\n\\n/g, '\n\n').replace(/\\n/g, '\n') : '';
 
   return (
     <div style={{ 
@@ -1109,7 +1120,7 @@ export default function AppOutput({ run, app }) {
       minHeight: 100
     }}>
       {hasImage && (
-        <div style={{ marginBottom: 20, textAlign: 'center' }}>
+        <div style={{ marginBottom: textContent ? 20 : 0, textAlign: 'center' }}>
           <img 
             src={output.image} 
             alt="Generated image" 
@@ -1121,15 +1132,17 @@ export default function AppOutput({ run, app }) {
           />
         </div>
       )}
-      <div 
-        style={{ 
-          whiteSpace: 'normal', 
-          fontFamily: 'inherit',
-          fontSize: 16,
-          lineHeight: 1.6
-        }}
-        dangerouslySetInnerHTML={{ __html: renderSimpleMarkdown(cleanText) }}
-      />
+      {textContent && textContent.trim().length > 0 && (
+        <div 
+          style={{ 
+            whiteSpace: 'normal', 
+            fontFamily: 'inherit',
+            fontSize: 16,
+            lineHeight: 1.6
+          }}
+          dangerouslySetInnerHTML={{ __html: renderSimpleMarkdown(cleanText) }}
+        />
+      )}
     </div>
   );
 }
