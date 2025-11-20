@@ -553,8 +553,7 @@ export async function tool_image_process({ userId, args, mode, supabase }) {
       
       return {
         output: { 
-          image: `data:${imageMime};base64,${imageBase64}`,
-          markdown: '✨ **Image transformed successfully!**\n\nYour artistic image is ready!'
+          image: `data:${imageMime};base64,${imageBase64}`
         },
         metadata: {
           model: 'gemini-2.5-flash-image',

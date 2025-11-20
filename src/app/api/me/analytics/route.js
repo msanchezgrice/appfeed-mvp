@@ -59,6 +59,7 @@ export async function GET(req) {
     let appViewsMap = {};
     let appTriesMap = {};
     let appSavesMap = {};
+    let appSharesMap = {};
 
     if (posthogData) {
       totalViews = posthogData.views.length;
@@ -81,6 +82,11 @@ export async function GET(req) {
       posthogData.saves.forEach(event => {
         const appId = event.app_id;
         if (appId) appSavesMap[appId] = (appSavesMap[appId] || 0) + 1;
+      });
+
+      posthogData.shares.forEach(event => {
+        const appId = event.app_id;
+        if (appId) appSharesMap[appId] = (appSharesMap[appId] || 0) + 1;
       });
     }
 
@@ -105,6 +111,7 @@ export async function GET(req) {
         const views = appViewsMap[app.id] || 0;
         const tries = appTriesMap[app.id] || 0;
         const saves = appSavesMap[app.id] || 0;
+        const shares = appSharesMap[app.id] || 0;
         
         return {
           id: app.id,
@@ -113,7 +120,7 @@ export async function GET(req) {
           views,
           tries,
           saves,
-          shares: app.share_count || 0,
+          shares,
           remixes: app.remix_count || 0,
           viewToTryRate: views > 0 ? ((tries / views) * 100).toFixed(1) : 0,
           tryToSaveRate: tries > 0 ? ((saves / tries) * 100).toFixed(1) : 0,

@@ -23,53 +23,52 @@ async function api(path, method = 'GET', body) {
 export default function UserProfilePage() {
   const { user } = useUser();
   const params = useParams();
-  const userId = params.id;
+  const usernameOrId = params.id; // Can be username or clerk user ID
 
   const [profileUser, setProfileUser] = useState(null);
   const [apps, setApps] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [activeTab, setActiveTab] = useState('apps');
   const [showSignInModal, setShowSignInModal] = useState(false);
+  const [actualUserId, setActualUserId] = useState(null);
 
   useEffect(() => {
     (async () => {
-      const appsRes = await api('/api/apps');
-      const allApps = appsRes.apps;
-
-      // Fix: Use creator_id instead of creatorId
-      const creatorApps = allApps.filter(app => app.creator_id === userId);
-      setApps(creatorApps);
-
-      // Get creator info from first app's creator object
-      if (creatorApps.length > 0 && creatorApps[0].creator) {
-        setProfileUser({
-          name: creatorApps[0].creator.display_name || creatorApps[0].creator.username,
-          avatar: creatorApps[0].creator.avatar_url,
-          bio: creatorApps[0].creator.bio
-        });
-      } else {
-        // Fetch user info from profiles if no apps
-        try {
-          const userRes = await fetch(`/api/profile/${userId}`);
-          if (userRes.ok) {
-            const userData = await userRes.json();
-            setProfileUser({
-              name: userData.display_name || userData.username,
-              avatar: userData.avatar_url,
-              bio: userData.bio
-            });
-          }
-        } catch (err) {
-          console.error('Error loading user:', err);
+      // First, fetch profile to get actual user ID (supports username lookup)
+      try {
+        const profileRes = await fetch(`/api/profile?identifier=${encodeURIComponent(usernameOrId)}`);
+        if (!profileRes.ok) {
+          console.error('Profile not found');
+          return;
         }
-      }
+        
+        const { profile } = await profileRes.json();
+        setActualUserId(profile.id);
+        setProfileUser({
+          name: profile.display_name || profile.username,
+          avatar: profile.avatar_url,
+          bio: profile.bio,
+          username: profile.username
+        });
 
-      // Check if following
-      const followRes = await api('/api/follow');
-      const following = followRes.following || [];
-      setIsFollowing(following.some(f => f.following_id === userId));
+        // Fetch apps for this creator
+        const appsRes = await api('/api/apps');
+        const allApps = appsRes.apps;
+        const creatorApps = allApps.filter(app => app.creator_id === profile.id);
+        setApps(creatorApps);
+
+        // Check if following
+        const followRes = await api('/api/follow');
+        const following = followRes.following || [];
+        setIsFollowing(following.some(f => f.following_id === profile.id));
+
+        // Track profile view
+        analytics.profileViewed(profile.id);
+      } catch (err) {
+        console.error('Error loading profile:', err);
+      }
     })();
-  }, [userId]);
+  }, [usernameOrId]);
 
   const handleFollow = async () => {
     if (!user) {

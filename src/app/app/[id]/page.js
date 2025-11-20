@@ -459,6 +459,38 @@ export default function AppDetailPage() {
             >
               <div style={{ width: '100%', maxWidth: '800px' }}>
                 <AppOutput run={overlayRun} app={app} />
+                
+                {/* CTA for shared link viewers - especially for image outputs */}
+                {overlayRun?.outputs?.image && (
+                  <div style={{
+                    marginTop: 24,
+                    padding: 20,
+                    background: 'var(--panel)',
+                    border: '1px solid #333',
+                    borderRadius: 12,
+                    textAlign: 'center'
+                  }}>
+                    <h3 style={{ marginTop: 0, marginBottom: 8, fontSize: 18 }}>
+                      Want to create your own?
+                    </h3>
+                    <p style={{ color: '#888', fontSize: 14, marginBottom: 16 }}>
+                      Try {app?.name} and generate something unique
+                    </p>
+                    <button 
+                      className="btn primary"
+                      onClick={closeOverlay}
+                      style={{
+                        fontSize: 16,
+                        padding: '12px 32px',
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        border: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Generate Your Own
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -349,7 +349,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
         zIndex: 10
       }}>
         {/* Creator Avatar */}
-        <Link href={`/profile/${app.creator?.id || app.creator_id}`} style={{
+        <Link href={`/profile/${app.creator?.username || app.creator?.id || app.creator_id}`} style={{
           width: 48,
           height: 48,
           borderRadius: '50%',
@@ -434,7 +434,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
         color: 'white',
         zIndex: 5
       }}>
-        <Link href={`/profile/${app.creator?.id || app.creator_id}`} style={{
+        <Link href={`/profile/${app.creator?.username || app.creator?.id || app.creator_id}`} style={{
           display: 'flex',
           alignItems: 'center',
           gap: 8,
