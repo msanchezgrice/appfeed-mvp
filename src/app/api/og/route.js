@@ -35,18 +35,27 @@ export async function GET(request) {
     if (runId && type === 'result') {
       try {
         const runRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.clipcade.com'}/api/runs?id=${runId}`, {
-          cache: 'no-store'
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
         });
         
         if (runRes.ok) {
           const runData = await runRes.json();
           const run = runData.run;
           
+          console.log('[OG] Run data:', { runId, hasAssetUrl: !!run?.asset_url, assetUrl: run?.asset_url });
+          
           if (run?.asset_url) {
             runImageUrl = run.asset_url;
             title = `Check out my ${app.name} result!`;
             subtitle = `Created with ${app.name} on Clipcade`;
+          } else {
+            console.log('[OG] No asset_url found for run:', runId);
           }
+        } else {
+          console.error('[OG] Run fetch failed:', runRes.status);
         }
       } catch (err) {
         console.error('[OG] Error fetching run:', err);

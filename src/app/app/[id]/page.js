@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Head from 'next/head';
 import TikTokFeedCard from '@/src/components/TikTokFeedCard';
 import AppOutput from '@/src/components/AppOutput';
+import ShareSheet from '@/src/components/ShareSheet';
 import { analytics } from '@/src/lib/analytics';
 
 export default function AppDetailPage() {
@@ -22,6 +23,7 @@ export default function AppDetailPage() {
   const [overlayRun, setOverlayRun] = useState(null);
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [showShareSheet, setShowShareSheet] = useState(false);
 
   // Detect mobile on mount (prevents hydration mismatch)
   useEffect(() => {
@@ -45,14 +47,29 @@ export default function AppDetailPage() {
           const fetchedApp = appData.app || appData;
           setApp(fetchedApp);
           
-          // Track app view in PostHog
+          // Track app view in PostHog - including shared link clicks
           if (fetchedApp) {
+            const runId = searchParams.get('run');
+            const viewSource = runId ? 'shared_link' : 'detail';
+            
             analytics.appViewed(
               fetchedApp.id,
               fetchedApp.name,
               fetchedApp.creator_id,
-              'detail' // view source
+              viewSource
             );
+            
+            // Track shared link click specifically for viral metrics
+            if (runId && typeof window !== 'undefined' && window.posthog) {
+              window.posthog.capture('shared_link_clicked', {
+                app_id: fetchedApp.id,
+                app_name: fetchedApp.name,
+                run_id: runId,
+                creator_id: fetchedApp.creator_id,
+                referrer: document.referrer || 'direct',
+                is_anonymous: !window.posthog.get_distinct_id().startsWith('user_')
+              });
+            }
           }
         }
 
@@ -368,29 +385,10 @@ export default function AppDetailPage() {
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button
-            onClick={() => {
-              navigator.clipboard.writeText(window.location.href);
-              alert('Link copied to clipboard!');
-              analytics.appShared(app.id, app.name, app.creator_id, 'copy_link');
-            }}
+            onClick={() => setShowShareSheet(true)}
             className="btn primary"
           >
-            📋 Copy Link
-          </button>
-          <button
-            onClick={() => {
-              if (navigator.share) {
-                navigator.share({
-                  title: app.name,
-                  text: app.description,
-                  url: window.location.href
-                });
-                analytics.appShared(app.id, app.name, app.creator_id, 'native_share');
-              }
-            }}
-            className="btn"
-          >
-            🔗 Share
+            🔗 Share App
           </button>
         </div>
       </div>
@@ -438,19 +436,7 @@ export default function AppDetailPage() {
                   </button>
                   <button
                     className="btn"
-                    onClick={async () => {
-                      const appUrl = `${window.location.origin}/app/${appId}?run=${overlayRun.id}`;
-                      if (navigator.share) {
-                        try {
-                          await navigator.share({ title: app.name, text: app.description, url: appUrl });
-                        } catch (err) {
-                          if (err.name !== 'AbortError') console.error('Share failed:', err);
-                        }
-                      } else {
-                        navigator.clipboard.writeText(appUrl);
-                        alert('Link copied to clipboard!');
-                      }
-                    }}
+                    onClick={() => setShowShareSheet(true)}
                   >
                     Share
                   </button>
@@ -480,6 +466,15 @@ export default function AppDetailPage() {
           </div>
         </div>
       )}
+      
+      {/* Share Sheet */}
+      <ShareSheet
+        show={showShareSheet}
+        onClose={() => setShowShareSheet(false)}
+        app={app}
+        run={overlayRun}
+        assetUrl={overlayRun?.asset_url}
+      />
     </div>
   );
 }

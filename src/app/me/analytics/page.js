@@ -231,6 +231,9 @@ export default function AnalyticsPage() {
                       Saves
                     </th>
                     <th style={{ textAlign: 'right', padding: 12, color: '#888', fontWeight: 600, fontSize: 14 }}>
+                      Shares
+                    </th>
+                    <th style={{ textAlign: 'right', padding: 12, color: '#888', fontWeight: 600, fontSize: 14 }}>
                       Try Rate
                     </th>
                     <th style={{ textAlign: 'right', padding: 12, color: '#888', fontWeight: 600, fontSize: 14 }}>
@@ -249,6 +252,7 @@ export default function AnalyticsPage() {
                       <td style={{ textAlign: 'right', padding: 12 }}>{app.views.toLocaleString()}</td>
                       <td style={{ textAlign: 'right', padding: 12 }}>{app.tries.toLocaleString()}</td>
                       <td style={{ textAlign: 'right', padding: 12 }}>{app.saves.toLocaleString()}</td>
+                      <td style={{ textAlign: 'right', padding: 12, color: '#fe2c55' }}>{app.shares.toLocaleString()}</td>
                       <td style={{ 
                         textAlign: 'right', 
                         padding: 12,
