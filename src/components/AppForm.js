@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import AssetPicker from './AssetPicker';
 import AssetLibraryModal from './AssetLibraryModal';
+import GeneratingAnimation from './GeneratingAnimation';
 
 export default function AppForm({ app, onSubmit, defaults={} }) {
   const [values, setValues] = useState(() => {
@@ -133,6 +134,9 @@ export default function AppForm({ app, onSubmit, defaults={} }) {
           to { transform: rotate(360deg); }
         }
       `}</style>
+
+      {/* Generating Animation Overlay */}
+      <GeneratingAnimation show={loading} />
 
       {/* Asset Library Modal */}
       <AssetLibraryModal

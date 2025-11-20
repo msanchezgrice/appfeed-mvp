@@ -11,6 +11,8 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [days, setDays] = useState(1); // Default to today
+  const [sortColumn, setSortColumn] = useState('views'); // Default sort by views
+  const [sortDirection, setSortDirection] = useState('desc'); // desc or asc
 
   useEffect(() => {
     if (isLoaded && !user) {
@@ -39,6 +41,38 @@ export default function AnalyticsPage() {
         setLoading(false);
       });
   }, [user, days]);
+
+  const handleSort = (column) => {
+    if (sortColumn === column) {
+      // Toggle direction if same column
+      setSortDirection(sortDirection === 'desc' ? 'asc' : 'desc');
+    } else {
+      // New column, default to descending
+      setSortColumn(column);
+      setSortDirection('desc');
+    }
+  };
+
+  const getSortedApps = () => {
+    if (!analytics?.topApps) return [];
+    
+    const sorted = [...analytics.topApps].sort((a, b) => {
+      let aVal = a[sortColumn];
+      let bVal = b[sortColumn];
+      
+      // Handle string sorting for name
+      if (sortColumn === 'name') {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+        return sortDirection === 'desc' ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
+      }
+      
+      // Numeric sorting
+      return sortDirection === 'desc' ? bVal - aVal : aVal - bVal;
+    });
+    
+    return sorted;
+  };
 
   if (!isLoaded || !user) {
     return (
@@ -218,31 +252,52 @@ export default function AnalyticsPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #333' }}>
-                    <th style={{ textAlign: 'left', padding: 12, color: '#888', fontWeight: 600, fontSize: 14 }}>
-                      App
+                    <th 
+                      onClick={() => handleSort('name')}
+                      style={{ textAlign: 'left', padding: 12, color: '#888', fontWeight: 600, fontSize: 14, cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      App {sortColumn === 'name' && (sortDirection === 'desc' ? '▼' : '▲')}
                     </th>
-                    <th style={{ textAlign: 'right', padding: 12, color: '#888', fontWeight: 600, fontSize: 14 }}>
-                      Views
+                    <th 
+                      onClick={() => handleSort('views')}
+                      style={{ textAlign: 'right', padding: 12, color: '#888', fontWeight: 600, fontSize: 14, cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      Views {sortColumn === 'views' && (sortDirection === 'desc' ? '▼' : '▲')}
                     </th>
-                    <th style={{ textAlign: 'right', padding: 12, color: '#888', fontWeight: 600, fontSize: 14 }}>
-                      Tries
+                    <th 
+                      onClick={() => handleSort('tries')}
+                      style={{ textAlign: 'right', padding: 12, color: '#888', fontWeight: 600, fontSize: 14, cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      Tries {sortColumn === 'tries' && (sortDirection === 'desc' ? '▼' : '▲')}
                     </th>
-                    <th style={{ textAlign: 'right', padding: 12, color: '#888', fontWeight: 600, fontSize: 14 }}>
-                      Saves
+                    <th 
+                      onClick={() => handleSort('saves')}
+                      style={{ textAlign: 'right', padding: 12, color: '#888', fontWeight: 600, fontSize: 14, cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      Saves {sortColumn === 'saves' && (sortDirection === 'desc' ? '▼' : '▲')}
                     </th>
-                    <th style={{ textAlign: 'right', padding: 12, color: '#888', fontWeight: 600, fontSize: 14 }}>
-                      Shares
+                    <th 
+                      onClick={() => handleSort('shares')}
+                      style={{ textAlign: 'right', padding: 12, color: '#888', fontWeight: 600, fontSize: 14, cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      Shares {sortColumn === 'shares' && (sortDirection === 'desc' ? '▼' : '▲')}
                     </th>
-                    <th style={{ textAlign: 'right', padding: 12, color: '#888', fontWeight: 600, fontSize: 14 }}>
-                      Try Rate
+                    <th 
+                      onClick={() => handleSort('viewToTryRate')}
+                      style={{ textAlign: 'right', padding: 12, color: '#888', fontWeight: 600, fontSize: 14, cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      Try Rate {sortColumn === 'viewToTryRate' && (sortDirection === 'desc' ? '▼' : '▲')}
                     </th>
-                    <th style={{ textAlign: 'right', padding: 12, color: '#888', fontWeight: 600, fontSize: 14 }}>
-                      Save Rate
+                    <th 
+                      onClick={() => handleSort('tryToSaveRate')}
+                      style={{ textAlign: 'right', padding: 12, color: '#888', fontWeight: 600, fontSize: 14, cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      Save Rate {sortColumn === 'tryToSaveRate' && (sortDirection === 'desc' ? '▼' : '▲')}
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {analytics.topApps.map(app => (
+                  {getSortedApps().map(app => (
                     <tr key={app.id} style={{ borderBottom: '1px solid #222' }}>
                       <td style={{ padding: 12 }}>
                         <Link href={`/app/${app.id}`} style={{ color: 'white', textDecoration: 'none' }}>

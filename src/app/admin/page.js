@@ -6,7 +6,13 @@ import { useEffect, useState } from 'react';
 export default function AdminDashboard() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'apps', 'creators', 'viral', 'growth'
+  const [activeTab, setActiveTab] = useState(() => {
+    // Restore last active tab from localStorage
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('adminActiveTab') || 'overview';
+    }
+    return 'overview';
+  }); // 'overview', 'apps', 'creators', 'viral', 'growth'
   const [stats, setStats] = useState(null);
   const [topApps, setTopApps] = useState([]);
   const [manageApps, setManageApps] = useState([]); // dedicated list for Manage tab
@@ -56,6 +62,13 @@ export default function AdminDashboard() {
     };
     loadOverview();
   }, [user]);
+
+  // Persist active tab to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('adminActiveTab', activeTab);
+    }
+  }, [activeTab]);
 
   // Lazily fetch tab-specific data only when that tab is active
   useEffect(() => {
