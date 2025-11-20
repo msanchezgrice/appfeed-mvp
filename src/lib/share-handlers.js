@@ -48,6 +48,8 @@ export const shareHandlers = {
     
     // Try to use native share with image if available (works better for SMS)
     if (navigator.share && assetUrl && isResult) {
+      console.log('[Share] Attempting SMS with image via native share', { assetUrl });
+      
       try {
         const shareData = {
           title,
@@ -55,33 +57,85 @@ export const shareHandlers = {
           url,
         };
         
-        // Try to include image file
+        // Try to include image file with improved error handling
         try {
-          const response = await fetch(assetUrl);
+          console.log('[Share] Fetching image from:', assetUrl);
+          
+          // Fetch with no-cors mode if needed
+          const response = await fetch(assetUrl, {
+            mode: 'cors',
+            credentials: 'omit',
+            cache: 'no-cache'
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
           const blob = await response.blob();
-          const file = new File([blob], `${app.id}-${run.id}.jpg`, { type: blob.type || 'image/jpeg' });
+          console.log('[Share] Image fetched:', { size: blob.size, type: blob.type });
+          
+          // Ensure proper MIME type
+          const mimeType = blob.type || 'image/jpeg';
+          const imageBlob = new Blob([blob], { type: mimeType });
+          
+          // Create file with explicit type
+          const fileName = `${app.name.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.jpg`;
+          const file = new File([imageBlob], fileName, { 
+            type: 'image/jpeg',
+            lastModified: Date.now()
+          });
+          
+          console.log('[Share] File created:', { name: file.name, size: file.size, type: file.type });
           
           // Check if files can be shared
-          if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            shareData.files = [file];
-            console.log('[Share] SMS with image file via native share');
+          if (navigator.canShare) {
+            const canShareWithFile = navigator.canShare({ files: [file] });
+            console.log('[Share] Can share with file:', canShareWithFile);
+            
+            if (canShareWithFile) {
+              shareData.files = [file];
+              console.log('[Share] ✓ Image file added to share data');
+            } else {
+              console.warn('[Share] ⚠️ Device does not support file sharing');
+            }
+          } else {
+            console.warn('[Share] ⚠️ navigator.canShare not available');
           }
         } catch (imgError) {
-          console.warn('[Share] Could not fetch image for SMS, sharing URL only:', imgError);
+          console.error('[Share] ❌ Image fetch failed:', imgError);
+          console.error('[Share] Error details:', {
+            message: imgError.message,
+            name: imgError.name,
+            stack: imgError.stack
+          });
+          // Continue without image
         }
         
+        console.log('[Share] Triggering native share:', shareData);
         await navigator.share(shareData);
+        console.log('[Share] ✓ Native share completed');
+        
         return { platform: 'sms', url, withImage: !!shareData.files };
       } catch (shareError) {
         // If native share fails or is cancelled, fall back to SMS protocol
         if (shareError.name === 'AbortError') {
+          console.log('[Share] User cancelled share');
           throw shareError; // User cancelled, bubble up
         }
-        console.warn('[Share] Native share failed, falling back to SMS protocol:', shareError);
+        console.error('[Share] Native share failed:', shareError);
+        console.warn('[Share] Falling back to SMS protocol (no image support)');
       }
+    } else {
+      console.log('[Share] Native share not available or no image', {
+        hasNavigatorShare: !!navigator.share,
+        hasAssetUrl: !!assetUrl,
+        isResult
+      });
     }
     
     // Fallback: SMS protocol (works on iOS and Android, but no image)
+    console.log('[Share] Using SMS protocol fallback');
     const smsText = isResult
       ? `Check out what I made with ${app.name}! ${url}`
       : `Try ${app.name} on Clipcade! ${url}`;
@@ -239,6 +293,8 @@ export const shareHandlers = {
       throw new Error('Native share not supported');
     }
     
+    console.log('[Share] Native share triggered', { assetUrl, hasRun: !!run });
+    
     const isResult = !!run;
     const url = run 
       ? `${SITE_URL}/app/${app.id}?run=${run.id}`
@@ -261,23 +317,64 @@ export const shareHandlers = {
     // Try to include image file if available
     if (assetUrl && run) {
       try {
-        const response = await fetch(assetUrl);
+        console.log('[Share] Fetching image for native share:', assetUrl);
+        
+        const response = await fetch(assetUrl, {
+          mode: 'cors',
+          credentials: 'omit',
+          cache: 'no-cache'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const blob = await response.blob();
-        const file = new File([blob], `${app.id}-${run.id}.jpg`, { type: blob.type || 'image/jpeg' });
+        console.log('[Share] Image fetched:', { size: blob.size, type: blob.type });
+        
+        // Ensure proper MIME type
+        const mimeType = blob.type || 'image/jpeg';
+        const imageBlob = new Blob([blob], { type: mimeType });
+        
+        // Create file with explicit type
+        const fileName = `${app.name.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.jpg`;
+        const file = new File([imageBlob], fileName, { 
+          type: 'image/jpeg',
+          lastModified: Date.now()
+        });
+        
+        console.log('[Share] File created:', { name: file.name, size: file.size, type: file.type });
         
         // Check if files can be shared
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          shareData.files = [file];
+        if (navigator.canShare) {
+          const canShareWithFile = navigator.canShare({ files: [file] });
+          console.log('[Share] Can share with file:', canShareWithFile);
+          
+          if (canShareWithFile) {
+            shareData.files = [file];
+            console.log('[Share] ✓ Image file added to native share');
+          } else {
+            console.warn('[Share] ⚠️ Device does not support file sharing');
+          }
+        } else {
+          console.warn('[Share] ⚠️ navigator.canShare not available');
         }
       } catch (error) {
-        console.error('Error adding file to share:', error);
+        console.error('[Share] ❌ Error adding file to share:', error);
+        console.error('[Share] Error details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        });
         // Continue without file
       }
     }
     
+    console.log('[Share] Triggering native share sheet:', shareData);
     await navigator.share(shareData);
+    console.log('[Share] ✓ Native share completed');
     
-    return { platform: 'native', url };
+    return { platform: 'native', url, withImage: !!shareData.files };
   }
 };
 
