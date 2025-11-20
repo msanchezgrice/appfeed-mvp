@@ -79,8 +79,9 @@ export const shareHandlers = {
           const mimeType = blob.type || 'image/jpeg';
           const imageBlob = new Blob([blob], { type: mimeType });
           
-          // Create file with explicit type
-          const fileName = `${app.name.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.jpg`;
+          // Create file with explicit type and descriptive name
+          const sanitizedName = app.name.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
+          const fileName = `${sanitizedName}_result.jpg`;
           const file = new File([imageBlob], fileName, { 
             type: 'image/jpeg',
             lastModified: Date.now()
@@ -336,8 +337,9 @@ export const shareHandlers = {
         const mimeType = blob.type || 'image/jpeg';
         const imageBlob = new Blob([blob], { type: mimeType });
         
-        // Create file with explicit type
-        const fileName = `${app.name.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.jpg`;
+        // Create file with explicit type and descriptive name
+        const sanitizedName = app.name.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
+        const fileName = `${sanitizedName}_result.jpg`;
         const file = new File([imageBlob], fileName, { 
           type: 'image/jpeg',
           lastModified: Date.now()

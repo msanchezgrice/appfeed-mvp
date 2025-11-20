@@ -558,30 +558,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                           </button>
                           <button
                             className="btn"
-                            onClick={async () => {
-                              const appUrl = `${window.location.origin}/app/${app.id}?run=${run.id}`;
-                              if (navigator.share) {
-                                const cleanDescription = app.description?.split('\\n\\nRemixed with:')[0] || app.description;
-                                try {
-                                  if (run?.asset_url) {
-                                    const res = await fetch(run.asset_url);
-                                    const blob = await res.blob();
-                                    const file = new File([blob], `${app.id}-${run.id}.jpg`, { type: blob.type || 'image/jpeg' });
-                                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                                      await navigator.share({ title: app.name, text: cleanDescription, url: appUrl, files: [file] });
-                                      return;
-                                    }
-                                  }
-                                  await navigator.share({ title: app.name, text: cleanDescription + (run?.asset_url ? `\\n${run.asset_url}` : ''), url: appUrl });
-                                } catch (err) {
-                                  if (err.name !== 'AbortError') console.error('Share failed:', err);
-                                }
-                              } else {
-                                const toCopy = run?.asset_url ? `${appUrl}\\n${run.asset_url}` : appUrl;
-                                navigator.clipboard.writeText(toCopy);
-                                alert('Link copied to clipboard!');
-                              }
-                            }}
+                            onClick={() => setShowShareSheet(true)}
                           >
                             Share
                           </button>
@@ -618,41 +595,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                 </button>
                 <button
                   className="btn"
-                  onClick={async () => {
-                    const appUrl = `${window.location.origin}/app/${app.id}?run=${run.id}`;
-                    if (navigator.share) {
-                      const cleanDescription = app.description?.split('\n\nRemixed with:')[0] || app.description;
-                      try {
-                        if (run?.asset_url) {
-                          const res = await fetch(run.asset_url);
-                          const blob = await res.blob();
-                          const file = new File([blob], `${app.id}-${run.id}.jpg`, { type: blob.type || 'image/jpeg' });
-                          if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                            await navigator.share({
-                              title: app.name,
-                              text: cleanDescription,
-                              url: appUrl,
-                              files: [file]
-                            });
-                            return;
-                          }
-                        }
-                        await navigator.share({
-                          title: app.name,
-                          text: cleanDescription + (run?.asset_url ? `\n${run.asset_url}` : ''),
-                          url: appUrl
-                        });
-                      } catch (err) {
-                        if (err.name !== 'AbortError') {
-                          console.error('Share failed:', err);
-                        }
-                      }
-                    } else {
-                      const toCopy = run?.asset_url ? `${appUrl}\n${run.asset_url}` : appUrl;
-                      navigator.clipboard.writeText(toCopy);
-                      alert('Link copied to clipboard!');
-                    }
-                  }}
+                  onClick={() => setShowShareSheet(true)}
                 >
                   Share
                 </button>
@@ -710,30 +653,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                           </button>
                           <button
                             className="btn"
-                            onClick={async () => {
-                              const appUrl = `${window.location.origin}/app/${app.id}?run=${run.id}`;
-                              if (navigator.share) {
-                                const cleanDescription = app.description?.split('\\n\\nRemixed with:')[0] || app.description;
-                                try {
-                                  if (run?.asset_url) {
-                                    const res = await fetch(run.asset_url);
-                                    const blob = await res.blob();
-                                    const file = new File([blob], `${app.id}-${run.id}.jpg`, { type: blob.type || 'image/jpeg' });
-                                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                                      await navigator.share({ title: app.name, text: cleanDescription, url: appUrl, files: [file] });
-                                      return;
-                                    }
-                                  }
-                                  await navigator.share({ title: app.name, text: cleanDescription + (run?.asset_url ? `\\n${run.asset_url}` : ''), url: appUrl });
-                                } catch (err) {
-                                  if (err.name !== 'AbortError') console.error('Share failed:', err);
-                                }
-                              } else {
-                                const toCopy = run?.asset_url ? `${appUrl}\\n${run.asset_url}` : appUrl;
-                                navigator.clipboard.writeText(toCopy);
-                                alert('Link copied to clipboard!');
-                              }
-                            }}
+                            onClick={() => setShowShareSheet(true)}
                           >
                             Share
                           </button>
@@ -770,41 +690,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                 </button>
                 <button
                   className="btn"
-                  onClick={async () => {
-                    const appUrl = `${window.location.origin}/app/${app.id}?run=${run.id}`;
-                    if (navigator.share) {
-                      const cleanDescription = app.description?.split('\n\nRemixed with:')[0] || app.description;
-                      try {
-                        if (run?.asset_url) {
-                          const res = await fetch(run.asset_url);
-                          const blob = await res.blob();
-                          const file = new File([blob], `${app.id}-${run.id}.jpg`, { type: blob.type || 'image/jpeg' });
-                          if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                            await navigator.share({
-                              title: app.name,
-                              text: cleanDescription,
-                              url: appUrl,
-                              files: [file]
-                            });
-                            return;
-                          }
-                        }
-                        await navigator.share({
-                          title: app.name,
-                          text: cleanDescription + (run?.asset_url ? `\n${run.asset_url}` : ''),
-                          url: appUrl
-                        });
-                      } catch (err) {
-                        if (err.name !== 'AbortError') {
-                          console.error('Share failed:', err);
-                        }
-                      }
-                    } else {
-                      const toCopy = run?.asset_url ? `${appUrl}\n${run.asset_url}` : appUrl;
-                      navigator.clipboard.writeText(toCopy);
-                      alert('Link copied to clipboard!');
-                    }
-                  }}
+                  onClick={() => setShowShareSheet(true)}
                 >
                   Share
                 </button>
@@ -1101,19 +987,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                   </button>
                   <button
                     className="btn"
-                    onClick={async () => {
-                      const appUrl = `${window.location.origin}/app/${app.id}?run=${run.id}`;
-                      if (navigator.share) {
-                        try {
-                          await navigator.share({ title: app.name, text: app.description, url: appUrl });
-                        } catch (err) {
-                          if (err.name !== 'AbortError') console.error('Share failed:', err);
-                        }
-                      } else {
-                        navigator.clipboard.writeText(appUrl);
-                        alert('Link copied to clipboard!');
-                      }
-                    }}
+                    onClick={() => setShowShareSheet(true)}
                   >
                     Share
                   </button>
