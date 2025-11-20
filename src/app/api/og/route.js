@@ -31,9 +31,11 @@ export async function GET(request) {
     let title = app.name;
     let subtitle = app.description?.slice(0, 100) || 'Try this app on Clipcade';
     
-    // If run ID provided, fetch run data
+    // If run ID provided, fetch run data for result image
     if (runId && type === 'result') {
       try {
+        console.log('[OG] Fetching run data for:', { runId, appId });
+        
         const runRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.clipcade.com'}/api/runs?id=${runId}`, {
           cache: 'no-store',
           headers: {
@@ -45,20 +47,39 @@ export async function GET(request) {
           const runData = await runRes.json();
           const run = runData.run;
           
-          console.log('[OG] Run data:', { runId, hasAssetUrl: !!run?.asset_url, assetUrl: run?.asset_url });
+          console.log('[OG] Run fetched successfully:', {
+            runId,
+            hasRun: !!run,
+            hasAssetUrl: !!run?.asset_url,
+            hasOutputs: !!run?.outputs,
+            outputKeys: run?.outputs ? Object.keys(run.outputs) : [],
+            assetUrl: run?.asset_url?.substring(0, 100) + '...'
+          });
           
+          // Try asset_url first (uploaded image)
           if (run?.asset_url) {
             runImageUrl = run.asset_url;
             title = `Check out my ${app.name} result!`;
             subtitle = `Created with ${app.name} on Clipcade`;
-          } else {
-            console.log('[OG] No asset_url found for run:', runId);
+            console.log('[OG] Using asset_url from run');
+          }
+          // Fallback: check if outputs contains an image data URL
+          else if (run?.outputs?.image && typeof run.outputs.image === 'string' && run.outputs.image.startsWith('data:image/')) {
+            runImageUrl = run.outputs.image;
+            title = `Check out my ${app.name} result!`;
+            subtitle = `Created with ${app.name} on Clipcade`;
+            console.log('[OG] Using image from outputs (data URL)');
+          }
+          else {
+            console.warn('[OG] No image found for run:', runId, 'Using app preview as fallback');
           }
         } else {
-          console.error('[OG] Run fetch failed:', runRes.status);
+          console.error('[OG] Run fetch failed with status:', runRes.status);
+          const errorText = await runRes.text();
+          console.error('[OG] Error response:', errorText.substring(0, 200));
         }
       } catch (err) {
-        console.error('[OG] Error fetching run:', err);
+        console.error('[OG] Error fetching run:', err.message, err.stack);
       }
     }
     
