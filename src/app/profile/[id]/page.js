@@ -101,13 +101,13 @@ export default function UserProfilePage() {
             marginBottom: 12
           }}
         />
-        <h2 style={{ margin: '0 0 4px 0' }}>{profileUser?.name || userId}</h2>
-        <p style={{ margin: 0, color: '#888', fontSize: 14 }}>@{userId}</p>
+        <h2 style={{ margin: '0 0 4px 0' }}>{profileUser?.name || usernameOrId}</h2>
+        <p style={{ margin: 0, color: '#888', fontSize: 14 }}>@{profileUser?.username || usernameOrId}</p>
         {profileUser?.bio && (
           <p style={{ margin: '12px 0 0 0', color: '#ccc', fontSize: 14 }}>{profileUser.bio}</p>
         )}
 
-        {userId !== uid() ? (
+        {actualUserId !== uid() ? (
           <button
             onClick={handleFollow}
             style={{
