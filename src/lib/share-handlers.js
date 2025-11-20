@@ -29,24 +29,67 @@ export const shareHandlers = {
 
   /**
    * SMS share
-   * Opens SMS compose with pre-filled text
+   * Opens SMS compose with pre-filled text and image if available
    * Works on iOS and Android
    */
-  sms: (app, run = null, assetUrl = null) => {
+  sms: async (app, run = null, assetUrl = null) => {
     const isResult = !!run;
     const url = run 
       ? `${SITE_URL}/app/${app.id}?run=${run.id}`
       : `${SITE_URL}/app/${app.id}`;
     
+    const title = isResult
+      ? `Check out my ${app.name} result!`
+      : app.name;
+    
     const text = isResult
+      ? `Check out what I made with ${app.name}!`
+      : app.description || `Try ${app.name} on Clipcade!`;
+    
+    // Try to use native share with image if available (works better for SMS)
+    if (navigator.share && assetUrl && isResult) {
+      try {
+        const shareData = {
+          title,
+          text,
+          url,
+        };
+        
+        // Try to include image file
+        try {
+          const response = await fetch(assetUrl);
+          const blob = await response.blob();
+          const file = new File([blob], `${app.id}-${run.id}.jpg`, { type: blob.type || 'image/jpeg' });
+          
+          // Check if files can be shared
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            shareData.files = [file];
+            console.log('[Share] SMS with image file via native share');
+          }
+        } catch (imgError) {
+          console.warn('[Share] Could not fetch image for SMS, sharing URL only:', imgError);
+        }
+        
+        await navigator.share(shareData);
+        return { platform: 'sms', url, withImage: !!shareData.files };
+      } catch (shareError) {
+        // If native share fails or is cancelled, fall back to SMS protocol
+        if (shareError.name === 'AbortError') {
+          throw shareError; // User cancelled, bubble up
+        }
+        console.warn('[Share] Native share failed, falling back to SMS protocol:', shareError);
+      }
+    }
+    
+    // Fallback: SMS protocol (works on iOS and Android, but no image)
+    const smsText = isResult
       ? `Check out what I made with ${app.name}! ${url}`
       : `Try ${app.name} on Clipcade! ${url}`;
     
-    // SMS protocol (works on iOS and Android)
-    const smsUrl = `sms:?&body=${encodeURIComponent(text)}`;
+    const smsUrl = `sms:?&body=${encodeURIComponent(smsText)}`;
     window.location.href = smsUrl;
     
-    return { platform: 'sms', url };
+    return { platform: 'sms', url, withImage: false };
   },
 
   /**

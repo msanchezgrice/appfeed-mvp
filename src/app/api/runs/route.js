@@ -107,6 +107,7 @@ export async function POST(req) {
     }
 
     // Upload output asset (image) and input image (first image input) to storage
+    // THIS RUNS FOR ALL RUNS with image outputs, not just when user clicks "Save"
     let assetUrl = null;
     let assetType = null;
     let inputAssetUrl = null;
@@ -114,21 +115,53 @@ export async function POST(req) {
     try {
       // Output image
       const outImg = run?.outputs?.image;
+      console.log('[API /runs] Checking for output image:', { 
+        runId: run.id, 
+        hasImage: !!outImg, 
+        imageType: typeof outImg,
+        startsWithData: typeof outImg === 'string' && outImg.startsWith('data:image/')
+      });
+      
       if (typeof outImg === 'string' && outImg.startsWith('data:image/')) {
         const re = new RegExp('^data:(image/[^;]+);base64,(.+)$');
         const match = outImg.match(re);
         if (match) {
           const mime = match[1];
           const b64 = match[2];
+          const imageSizeKb = Math.round(b64.length * 0.75 / 1024); // Approximate size
+          console.log('[API /runs] Processing output image:', { 
+            runId: run.id, 
+            mime, 
+            sizeKb: imageSizeKb 
+          });
+          
           // compress to jpeg 70% width <= 1200
           const buffer = Buffer.from(b64, 'base64');
           const compressed = await sharp(buffer).resize(1200, null, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 70 }).toBuffer();
           const compB64 = compressed.toString('base64');
+          
+          console.log('[API /runs] Uploading to storage...', { 
+            runId: run.id, 
+            compressedSizeKb: Math.round(compressed.length / 1024) 
+          });
+          
           const uploaded = await uploadImageToStorage(compB64, `run-assets/${run.id}`, 'image/jpeg');
           assetUrl = uploaded.url;
           assetType = 'image/jpeg';
+          
+          console.log('[API /runs] Upload successful:', { runId: run.id, assetUrl });
+          
           await supabase.from('runs').update({ asset_url: assetUrl, asset_type: assetType }).eq('id', run.id);
+          
+          console.log('[API /runs] Database updated with asset_url');
+        } else {
+          console.warn('[API /runs] Image data URL format not recognized:', { runId: run.id });
         }
+      } else if (outImg) {
+        console.warn('[API /runs] Output image exists but not a data URL:', { 
+          runId: run.id, 
+          type: typeof outImg 
+        });
       }
       // Input image (from app.inputs schema)
       if (app?.inputs && typeof run?.inputs === 'object') {
@@ -156,7 +189,12 @@ export async function POST(req) {
         }
       }
     } catch (err) {
-      console.error('[API /runs] Asset upload error (non-fatal):', err);
+      console.error('[API /runs] Asset upload error (non-fatal):', {
+        error: err.message,
+        stack: err.stack,
+        runId: run?.id,
+        hasOutputImage: !!run?.outputs?.image
+      });
     }
     
     // Save assets to user library (for authenticated users)
