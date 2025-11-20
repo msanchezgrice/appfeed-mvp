@@ -345,11 +345,15 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
         bottom: 100,
         display: 'flex',
         flexDirection: 'column',
+        alignItems: 'center',
         gap: 20,
         zIndex: 10
       }}>
         {/* Creator Avatar */}
         <Link href={`/profile/${app.creator?.username || app.creator?.id || app.creator_id}`} style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           width: 48,
           height: 48,
           borderRadius: '50%',
