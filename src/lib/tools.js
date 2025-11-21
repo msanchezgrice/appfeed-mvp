@@ -521,9 +521,8 @@ export async function tool_image_process({ userId, args, mode, supabase }) {
             parts: parts
           }],
           generationConfig: {
-            responseModalities: ["Image"], // Request image output, not text
             imageConfig: {
-              aspectRatio: "1:1" // Square output
+              aspectRatio: args.aspectRatio || "1:1" // Allow custom aspect ratio, default square
             }
           }
         })
