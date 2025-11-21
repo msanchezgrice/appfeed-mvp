@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start -p $PORT",
     "lint": "echo Skipping lint",
-    "postinstall": "echo Dependencies installed"
+    "postinstall": "echo Dependencies installed",
+    "prepare:playwright": "node playwright-install.mjs"
   },
   "overrides": {
     "zod": "3.22.4"
