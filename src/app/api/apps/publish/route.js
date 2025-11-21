@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/src/lib/supabase-server';
 import sharp from 'sharp';
-import { getDecryptedSecret } from '@/src/lib/secrets';
 import { logEventServer } from '@/src/lib/metrics';
 import { uploadHtmlToStorage } from '@/src/lib/supabase-storage';
-import { AI_TOOL_MAP, DEFAULT_AI_TOOLS } from '@/src/lib/publish-tools';
+import { getDecryptedSecret } from '@/src/lib/secrets';
+import { DEFAULT_AI_TOOLS } from '@/src/lib/publish-tools';
+import { sanitizeManifest, generateManifestWithAnthropic } from '@/src/lib/ai-publish';
 
 export const maxDuration = 60; // Allow up to 60 seconds for image generation
 
@@ -30,304 +31,6 @@ async function compressImage(base64Data, mimeType) {
     console.error('[Compress] Error:', err);
     // Return original if compression fails
     return `data:${mimeType};base64,${base64Data}`;
-  }
-}
-
-// Basic manifest sanitization and defaults
-function sanitizeManifest(raw, allowedTools = DEFAULT_AI_TOOLS) {
-  const manifest = typeof raw === 'object' && raw ? raw : {};
-  const safeString = (v, d = '') => (typeof v === 'string' && v.trim() ? v.trim() : d);
-  const safeArray = (v) => Array.isArray(v) ? v.filter(x => typeof x === 'string' && x.trim()).map(x => x.trim()) : [];
-  const safeObject = (v) => (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
-  const allowedToolList = (Array.isArray(allowedTools) && allowedTools.length ? allowedTools : DEFAULT_AI_TOOLS)
-    .filter(tool => AI_TOOL_MAP[tool]);
-  if (allowedToolList.length === 0) {
-    allowedToolList.push(DEFAULT_AI_TOOLS[0] || 'llm.complete');
-  }
-  const allowedToolSet = new Set(allowedToolList);
-  
-  const outputs = safeObject(manifest.outputs);
-  const demo = safeObject(manifest.demo);
-  if (!demo.sampleInputs || typeof demo.sampleInputs !== 'object') {
-    demo.sampleInputs = {};
-  }
-  const design = safeObject(manifest.design);
-  if (!design.containerColor) {
-    design.containerColor = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-  }
-  if (!design.fontColor) {
-    design.fontColor = 'white';
-  }
-  if (!design.fontFamily) {
-    design.fontFamily = 'inherit';
-  }
-  if (!design.inputLayout) {
-    design.inputLayout = 'vertical';
-  }
-  const runtime = safeObject(manifest.runtime);
-  if (!runtime.engine) {
-    runtime.engine = 'local';
-  }
-  if (!Array.isArray(runtime.steps)) {
-    runtime.steps = [];
-  }
-  runtime.steps = runtime.steps
-    .filter(step => step && allowedToolSet.has(step.tool))
-    .map((step, index) => ({
-      tool: step.tool,
-      args: safeObject(step.args),
-      output: safeString(step.output, step.tool === 'image.process' ? `image_${index || 'result'}` : 'result')
-    }));
-  if (runtime.steps.length === 0) {
-    const fallbackTool = allowedToolList[0];
-    runtime.steps.push({
-      tool: fallbackTool,
-      args: fallbackTool === 'image.process'
-        ? { instruction: 'Transform the uploaded image or create a fresh concept based on user inputs.' }
-        : { prompt: 'Summarize the provided inputs in a helpful way.' },
-      output: fallbackTool === 'image.process' ? 'image' : 'markdown'
-    });
-  }
-  const usesImageTool = runtime.steps.some(step => step.tool === 'image.process');
-  const usesTextTool = runtime.steps.some(step => step.tool !== 'image.process');
-  if (usesImageTool && !outputs.image) {
-    outputs.image = { type: 'image' };
-  }
-  if (usesTextTool && !outputs.markdown) {
-    outputs.markdown = { type: 'string' };
-  }
-  if (!Object.keys(outputs).length) {
-    outputs.markdown = { type: 'string' };
-  }
-  const inputs = safeObject(manifest.inputs);
-  
-  return {
-    name: safeString(manifest.name, 'AI App'),
-    description: safeString(manifest.description, 'App generated from your prompt'),
-    tags: safeArray(manifest.tags),
-    design,
-    preview_gradient: safeString(
-      manifest.preview_gradient,
-      'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
-    ),
-    modal_theme: safeObject(manifest.modal_theme),
-    input_theme: safeObject(manifest.input_theme),
-    demo,
-    inputs,
-    outputs,
-    runtime
-  };
-}
-
-async function generateManifestWithAnthropic({ prompt, userId, supabase, toolWhitelist }) {
-  const envKey = process.env.ANTHROPIC_API_KEY;
-  const userKey = await getDecryptedSecret(userId, 'anthropic', supabase);
-  const apiKey = userKey || envKey;
-  if (!apiKey) {
-    throw new Error('Missing Anthropic API key. Add it in Profile → Secrets.');
-  }
-  console.log('[AI Publish] Anthropic key source:', userKey ? 'user-secret' : (envKey ? 'env' : 'none'));
-  
-  // Pull light-weight user profile for context (author attribution)
-  let userMeta = { id: userId, username: `user_${String(userId || '').slice(-8)}`, display_name: null };
-  try {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('username, display_name')
-      .eq('id', userId)
-      .single();
-    if (profile) {
-      userMeta.username = profile.username || userMeta.username;
-      userMeta.display_name = profile.display_name || null;
-    }
-  } catch (e) {
-    console.warn('[AI Publish] Failed to fetch profile for prompt context:', e?.message || e);
-  }
-  
-  // Pull a few existing apps to bias the shape and fields
-  let examples = [];
-  try {
-    const { data: sampleApps } = await supabase
-      .from('apps')
-      .select('name, description, tags, design, preview_gradient, inputs, outputs, runtime')
-      .eq('is_published', true)
-      .limit(3);
-    if (Array.isArray(sampleApps)) {
-      examples = sampleApps.map(a => ({
-        name: a.name,
-        description: a.description,
-        tags: a.tags,
-        design: a.design,
-        preview_gradient: a.preview_gradient,
-        inputs: a.inputs,
-        outputs: a.outputs,
-        runtime: a.runtime
-      }));
-    }
-  } catch (e) {
-    console.warn('[AI Publish] Could not load example apps:', e?.message || e);
-  }
-
-  const allowedToolIds = (Array.isArray(toolWhitelist) && toolWhitelist.length ? toolWhitelist : DEFAULT_AI_TOOLS)
-    .filter(tool => AI_TOOL_MAP[tool]);
-  if (allowedToolIds.length === 0) {
-    allowedToolIds.push(DEFAULT_AI_TOOLS[0] || 'llm.complete');
-  }
-  const allowedToolMeta = allowedToolIds.map(id => AI_TOOL_MAP[id]).filter(Boolean);
-  const toolNames = allowedToolMeta.map(meta => `"${meta.id}"`).join(', ');
-  const toolGuidance = allowedToolMeta
-    .map(meta => `- ${meta.id}: ${meta.description} ${meta.promptHint}`)
-    .join(' ');
-  const outputGuidance = allowedToolMeta
-    .map(meta => {
-      if (meta.outputType === 'image') {
-        return `- ${meta.id} produces images → include outputs.image { type: "image" } and bind that step's output there.`;
-      }
-      return `- ${meta.id} produces markdown/text → include outputs.markdown { type: "string" } (or similar) for that step.`;
-    })
-    .join(' ');
-  
-  const system = [
-    'You are Clipcade’s app manifest generator.',
-    'Return ONLY a valid JSON object matching the required schema.',
-    'Use concise, production-ready values.',
-    `Supported runtime tools (user-selected): ${toolNames}. DO NOT reference other tools.`,
-    toolGuidance ? `TOOL DETAILS: ${toolGuidance}` : '',
-    outputGuidance ? `OUTPUT MAPPING: ${outputGuidance}` : '',
-    'If unsure for outputs, default to { "markdown": { "type": "string" } }.{',
-    'SCHEMA RULES:',
-    '- Editable: name, description, tags, preview_url, preview_gradient, design.containerColor, design.fontColor, design.fontFamily, design.inputLayout, modal_theme.*, input_theme.*',
-    '- Locked (do not mark as editable): container size, layout structure, and core logic in runtime steps',
-    '- Inputs: Use supported types only: string | number | boolean | enum | file(image/video) when needed',
-    '- Runtime: Prefer local engine; steps must use only the allowed tools listed above; define deterministic, minimal steps',
-    '- Outputs: Match outputs to the tools you include (image outputs for image.process, markdown for llm.complete) and only add required fields',
-    '- Demo: Provide sampleInputs that satisfy inputs',
-    '}', 
-  ].filter(Boolean).join(' ');
-  
-  const examplePrimaryTool = allowedToolMeta[0]?.id || 'llm.complete';
-  const exampleOutputKey = allowedToolMeta[0]?.outputType === 'image' ? 'image' : 'markdown';
-  const exampleOutputs = {
-    [exampleOutputKey]: allowedToolMeta[0]?.outputType === 'image' ? { type: 'image' } : { type: 'string' }
-  };
-  const exampleToolArgs = examplePrimaryTool === 'image.process'
-    ? { instruction: 'Create a polished visual for {{topic}}.' }
-    : { prompt: 'Answer clearly about {{topic}}.' };
-  
-  const example = {
-    name: "My App Name",
-    description: "What it does in 1-2 sentences",
-    tags: ["category1","category2"],
-    design: {
-      containerColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-      fontColor: "white",
-      fontFamily: "system-ui",
-      inputLayout: "vertical"
-    },
-    preview_gradient: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-    modal_theme: { backgroundColor: "#1a2332", buttonColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", accentColor: "#667eea" },
-    input_theme: { borderColor: "#333", backgroundColor: "#1a1a1a" },
-    demo: { sampleInputs: {} },
-    inputs: {
-      topic: { type: "string", label: "Topic", placeholder: "Describe the subject...", required: true }
-    },
-    outputs: exampleOutputs,
-    runtime: {
-      engine: "local",
-      steps: [{
-        tool: examplePrimaryTool,
-        args: exampleToolArgs,
-        output: exampleOutputKey
-      }]
-    }
-  };
-  
-  const userMsg = [
-    'Create a Clipcade app manifest from this prompt.',
-    'Prompt:',
-    JSON.stringify(prompt),
-    '',
-    'User context:',
-    JSON.stringify({ username: userMeta.username, display_name: userMeta.display_name }),
-    '',
-    'User-selected runtime tools (restrict yourself to these):',
-    JSON.stringify(allowedToolIds),
-    '',
-    'Return ONLY JSON with fields:',
-    'name, description, tags, design, preview_gradient, modal_theme, input_theme, demo, inputs, outputs, runtime',
-    '',
-    'Example JSON (shape only, adapt to the prompt):',
-    JSON.stringify(example),
-    '',
-    'Here are a few existing apps for reference (use only as loose guidance for shape and field naming, not content):',
-    JSON.stringify(examples)
-  ].join('\n');
-  
-  const modelPrimary = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929';
-  const modelFallback = 'claude-3-5-sonnet-latest';
-  const modelSecondFallback = 'claude-sonnet-4-5';
-  console.log('[AI Publish] Model selection:', { primary: modelPrimary, fallback: modelFallback, second_fallback: modelSecondFallback });
-  
-  function tryParseJsonLoose(text) {
-    try {
-      return JSON.parse(text);
-    } catch {
-      // Try to extract first JSON object block
-      const start = text.indexOf('{');
-      const end = text.lastIndexOf('}');
-      if (start !== -1 && end !== -1 && end > start) {
-        const candidate = text.slice(start, end + 1);
-        try {
-          return JSON.parse(candidate);
-        } catch {
-          // Try removing code fences
-          const cleaned = candidate.replace(/```(?:json)?/g, '');
-          try {
-            return JSON.parse(cleaned);
-          } catch {
-            return {};
-          }
-        }
-      }
-      return {};
-    }
-  }
-  
-  async function callAnthropic(model) {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 2000,
-        temperature: 0.2,
-        system,
-        messages: [{ role: 'user', content: userMsg }]
-      })
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Anthropic API error (${model}): ${text}`);
-    }
-    const data = await res.json();
-    const content = data?.content?.[0]?.text || '';
-    return tryParseJsonLoose(content || '{}');
-  }
-  
-  try {
-    return await callAnthropic(modelPrimary);
-  } catch (e) {
-    console.error('[AI Publish] Anthropic primary model failed, falling back:', e?.message || e);
-    try {
-      return await callAnthropic(modelFallback);
-    } catch (e2) {
-      console.error('[AI Publish] Anthropic first fallback failed, second fallback:', e2?.message || e2);
-      return await callAnthropic(modelSecondFallback);
-    }
   }
 }
 
@@ -400,27 +103,46 @@ export async function POST(request) {
         fork_of: null
       };
     } else if (mode === 'ai') {
-      // Generate via Anthropic (Sonnet)
-      const prompt = appData.prompt;
-      if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
-        return NextResponse.json({ error: 'Prompt is required for AI generation' }, { status: 400 });
-      }
       const requestedTools = Array.isArray(appData.tools) ? appData.tools : [];
-      const toolWhitelist = (requestedTools.length ? requestedTools : DEFAULT_AI_TOOLS)
-        .filter(tool => AI_TOOL_MAP[tool]);
-      if (toolWhitelist.length === 0) {
-        toolWhitelist.push(DEFAULT_AI_TOOLS[0] || 'llm.complete');
+      let toolWhitelist = requestedTools.length ? requestedTools : DEFAULT_AI_TOOLS;
+      if (!Array.isArray(toolWhitelist) || !toolWhitelist.length) {
+        toolWhitelist = [DEFAULT_AI_TOOLS[0] || 'llm.complete'];
       }
-      
-      let rawManifest = {};
-      try {
-        rawManifest = await generateManifestWithAnthropic({ prompt, userId, supabase, toolWhitelist });
-      } catch (err) {
-        console.error('[AI Publish] Manifest generation error:', err);
-        return NextResponse.json({ error: 'Failed to generate manifest with AI' }, { status: 502 });
+      const toolOrder = Array.isArray(appData.toolOrder) && appData.toolOrder.length ? appData.toolOrder : toolWhitelist;
+      const promptTemplates = appData.promptTemplates || {};
+      const modelChoice = appData.model;
+      let manifestInput = appData.manifest || null;
+
+      if (!manifestInput && appData.manifestJson) {
+        try {
+          manifestInput = JSON.parse(appData.manifestJson);
+        } catch (err) {
+          console.warn('[AI Publish] Invalid manifestJson payload, ignoring:', err?.message || err);
+        }
       }
-      
-      const manifest = sanitizeManifest(rawManifest, toolWhitelist);
+
+      if (!manifestInput && appData.prompt) {
+        try {
+          manifestInput = await generateManifestWithAnthropic({
+            prompt: appData.prompt,
+            userId,
+            supabase,
+            toolWhitelist,
+            toolOrder,
+            promptTemplates,
+            model: modelChoice
+          });
+        } catch (err) {
+          console.error('[AI Publish] Manifest generation error:', err);
+          return NextResponse.json({ error: 'Failed to generate manifest with AI' }, { status: 502 });
+        }
+      }
+
+      if (!manifestInput) {
+        return NextResponse.json({ error: 'Generated manifest not found. Please regenerate before publishing.' }, { status: 400 });
+      }
+
+      const manifest = sanitizeManifest(manifestInput, { allowedTools: toolWhitelist, toolOrder, promptTemplates });
       const aiName = manifest.name || 'AI App';
       const aiId = `${aiName.toLowerCase().replace(/\s+/g, '-')}-${Date.now().toString(36)}`;
       

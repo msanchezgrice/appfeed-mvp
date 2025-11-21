@@ -6,10 +6,17 @@ import Link from 'next/link';
 import { analytics, trackEvent } from '@/src/lib/analytics';
 import { AI_TOOL_OPTIONS, DEFAULT_AI_TOOLS } from '@/src/lib/publish-tools';
 
+const MODEL_OPTIONS = [
+  { value: '', label: 'Auto (Claude Sonnet 4.5 + fallbacks)' },
+  { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5 (Latest)' },
+  { value: 'claude-3-5-sonnet-latest', label: 'Claude 3.5 Sonnet (Latest)' },
+  { value: 'claude-3-5-haiku-latest', label: 'Claude 3.5 Haiku (Faster)' }
+];
+
 export default function PublishPage() {
   const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
-  const [step, setStep] = useState('choose-mode'); // choose-mode, inline-form, remote-form, github-form, analyzing, success, remote-url-form, html-bundle-form
+  const [step, setStep] = useState('choose-mode'); // choose-mode, inline-form, remote-form, github-form, analyzing, success, remote-url-form, html-bundle-form, ai-form, ai-preview, generating
   const [mode, setMode] = useState(null); // 'inline', 'remote', 'github', 'remote-url', 'html-bundle'
   // New AI mode states: ai-form, generating
 
@@ -21,6 +28,24 @@ export default function PublishPage() {
   const [tags, setTags] = useState('');
   const [isMobile, setIsMobile] = useState(false);
   const [selectedTools, setSelectedTools] = useState(DEFAULT_AI_TOOLS);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [llmPromptTemplate, setLlmPromptTemplate] = useState('');
+  const [imagePromptTemplate, setImagePromptTemplate] = useState('');
+  const [anthropicModel, setAnthropicModel] = useState('');
+  const [currentManifest, setCurrentManifest] = useState(null);
+  const [manifestJsonDraft, setManifestJsonDraft] = useState('');
+  const [jsonDraftError, setJsonDraftError] = useState('');
+  const [showJsonEditor, setShowJsonEditor] = useState(false);
+  const [refineNotes, setRefineNotes] = useState('');
+  const [isRefining, setIsRefining] = useState(false);
+  const [refineSuccess, setRefineSuccess] = useState(false);
+  const [refineError, setRefineError] = useState('');
+  const [generationError, setGenerationError] = useState('');
+  const [lastPrompt, setLastPrompt] = useState('');
+  const [isPublishing, setIsPublishing] = useState(false);
+  const manifestInputs = Object.entries(currentManifest?.inputs || {});
+  const manifestOutputs = Object.entries(currentManifest?.outputs || {});
+  const manifestSteps = currentManifest?.runtime?.steps || [];
 
   // Form states for AI app
   const [aiPrompt, setAiPrompt] = useState('');
@@ -62,6 +87,30 @@ export default function PublishPage() {
     });
   };
 
+  const moveTool = (toolId, direction) => {
+    setSelectedTools((prev) => {
+      const index = prev.indexOf(toolId);
+      if (index === -1) return prev;
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= prev.length) return prev;
+      const next = [...prev];
+      const [item] = next.splice(index, 1);
+      next.splice(newIndex, 0, item);
+      return next;
+    });
+  };
+
+  const resetAiPreviewState = () => {
+    setCurrentManifest(null);
+    setManifestJsonDraft('');
+    setShowJsonEditor(false);
+    setRefineNotes('');
+    setRefineSuccess(false);
+    setRefineError('');
+    setGenerationError('');
+    setLastPrompt('');
+  };
+
   useEffect(() => {
     // Redirect to sign-in if not authenticated
     if (isLoaded && !isSignedIn) {
@@ -85,6 +134,7 @@ export default function PublishPage() {
     } else if (selectedMode === 'github') {
       setStep('github-form');
     } else if (selectedMode === 'ai') {
+      resetAiPreviewState();
       setStep('ai-form');
     } else if (selectedMode === 'remote-url') {
       setStep('remote-url-form');
@@ -352,7 +402,45 @@ export default function PublishPage() {
       alert('Select at least one tool to continue.');
       return;
     }
+    setGenerationError('');
     setStep('generating');
+    try {
+      const response = await fetch('/api/apps/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          prompt: aiPrompt,
+          tools: selectedTools,
+          toolOrder: selectedTools,
+          promptTemplates: {
+            llmPrompt: llmPromptTemplate,
+            imageInstruction: imagePromptTemplate
+          },
+          model: anthropicModel || undefined
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to generate manifest');
+      }
+      setCurrentManifest(result.manifest || null);
+      setManifestJsonDraft(JSON.stringify(result.manifest || {}, null, 2));
+      setShowJsonEditor(false);
+      setRefineNotes('');
+      setRefineSuccess(false);
+      setRefineError('');
+      setLastPrompt(aiPrompt);
+      setStep('ai-preview');
+    } catch (error) {
+      setGenerationError(error.message);
+      setStep('ai-form');
+    }
+  };
+
+  const handlePublishGenerated = async () => {
+    if (!currentManifest) return;
+    setIsPublishing(true);
     try {
       const response = await fetch('/api/apps/publish', {
         method: 'POST',
@@ -361,33 +449,92 @@ export default function PublishPage() {
         body: JSON.stringify({
           mode: 'ai',
           appData: {
-            prompt: aiPrompt,
+            manifest: currentManifest,
+            prompt: lastPrompt || aiPrompt,
             tags,
             isMobile,
-            tools: selectedTools
+            tools: selectedTools,
+            toolOrder: selectedTools,
+            promptTemplates: {
+              llmPrompt: llmPromptTemplate,
+              imageInstruction: imagePromptTemplate
+            },
+            model: anthropicModel || undefined
           }
         })
       });
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to generate app');
+        throw new Error(result.error || 'Failed to publish');
       }
       setCreatedApp(result.app || null);
-      
-      // Track app published event (AI-generated)
       if (result.app) {
         analytics.appPublished(
           result.app.id,
           result.app.name,
           tags?.split(',').map(t => t.trim()).filter(Boolean) || [],
-          true // AI-generated
+          true
         );
       }
-      
       setStep('success');
     } catch (error) {
-      alert('Error generating app: ' + error.message);
-      setStep('ai-form');
+      alert('Error publishing app: ' + error.message);
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleApplyJsonDraft = () => {
+    try {
+      const parsed = JSON.parse(manifestJsonDraft || '{}');
+      setCurrentManifest(parsed);
+      setJsonDraftError('');
+      setRefineSuccess(false);
+      setRefineError('');
+    } catch (error) {
+      setJsonDraftError(`Invalid JSON: ${error.message}`);
+    }
+  };
+
+  const handleRefineManifest = async () => {
+    if (!currentManifest) return;
+    if (!refineNotes.trim()) {
+      setRefineError('Describe what you want to change.');
+      return;
+    }
+    setIsRefining(true);
+    setRefineError('');
+    setRefineSuccess(false);
+    try {
+      const response = await fetch('/api/apps/generate/refine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          manifest: currentManifest,
+          instructions: refineNotes,
+          tools: selectedTools,
+          toolOrder: selectedTools,
+          promptTemplates: {
+            llmPrompt: llmPromptTemplate,
+            imageInstruction: imagePromptTemplate
+          },
+          model: anthropicModel || undefined
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to refine manifest');
+      }
+      setCurrentManifest(result.manifest || null);
+      setManifestJsonDraft(JSON.stringify(result.manifest || {}, null, 2));
+      setRefineNotes('');
+      setRefineSuccess(true);
+      setTimeout(() => setRefineSuccess(false), 2500);
+    } catch (error) {
+      setRefineError(error.message);
+    } finally {
+      setIsRefining(false);
     }
   };
 
@@ -1019,6 +1166,70 @@ export default function PublishPage() {
                   );
                 })}
               </div>
+              <button
+                type="button"
+                className="btn ghost"
+                style={{ marginTop: 16 }}
+                onClick={() => setShowAdvancedSettings((v) => !v)}
+              >
+                {showAdvancedSettings ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+              </button>
+              {showAdvancedSettings && (
+                <div style={{ marginTop: 16, background: '#11141b', borderRadius: 12, border: '1px solid #2a2a2a', padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div>
+                    <div style={{ fontWeight: 600, marginBottom: 8 }}>Tool Order</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {selectedTools.map((toolId, index) => {
+                        const tool = AI_TOOL_OPTIONS.find((opt) => opt.id === toolId);
+                        return (
+                          <div key={toolId} style={{ background: '#080b12', borderRadius: 8, padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #1f1f1f' }}>
+                            <span style={{ fontWeight: 500 }}>{tool?.label || toolId}</span>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button type="button" className="btn ghost" disabled={index === 0} onClick={() => moveTool(toolId, -1)} style={{ padding: '4px 8px' }}>↑</button>
+                              <button type="button" className="btn ghost" disabled={index === selectedTools.length - 1} onClick={() => moveTool(toolId, 1)} style={{ padding: '4px 8px' }}>↓</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="label">LLM Prompt Template</label>
+                    <textarea
+                      className="input"
+                      placeholder="Optional: e.g. \"You are a seasoned UX writer... {{original}}\""
+                      rows={3}
+                      value={llmPromptTemplate}
+                      onChange={(e) => setLlmPromptTemplate(e.target.value)}
+                    />
+                    <p className="small" style={{ color: '#888', marginTop: 4 }}>
+                      Use <code>{'{{original}}'}</code> to inject the AI-generated prompt.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="label">Image Instruction Template</label>
+                    <textarea
+                      className="input"
+                      placeholder="Optional: e.g. \"Apply cinematic lighting to {{original}}\""
+                      rows={3}
+                      value={imagePromptTemplate}
+                      onChange={(e) => setImagePromptTemplate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Anthropic Model</label>
+                    <select
+                      className="input"
+                      value={anthropicModel}
+                      onChange={(e) => setAnthropicModel(e.target.value)}
+                    >
+                      {MODEL_OPTIONS.map((option) => (
+                        <option key={option.value || 'default'} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="card" style={{ marginBottom: 16 }}>
@@ -1055,12 +1266,165 @@ export default function PublishPage() {
               Generate App →
             </button>
           </form>
+
+          {generationError && (
+            <div style={{ padding: 12, background: '#ef444422', border: '1px solid #ef4444', borderRadius: 8, marginTop: 12 }}>
+              <div className="small" style={{ color: '#ef4444' }}>
+                <strong>Generation failed:</strong> {generationError}
+              </div>
+            </div>
+          )}
           
-          <style jsx>{`
-            @keyframes spin {
-              to { transform: rotate(360deg); }
-            }
-          `}</style>
+      <style jsx>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
+  )}
+
+      {step === 'ai-preview' && currentManifest && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h1 style={{ margin: 0 }}>Preview & Refine</h1>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn ghost" onClick={() => setStep('ai-form')}>
+                ← Back to Prompt
+              </button>
+              <button
+                className="btn ghost"
+                onClick={() => {
+                  resetAiPreviewState();
+                  setStep('ai-form');
+                }}
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+          <p className="small" style={{ marginBottom: 24, color: '#aaa' }}>
+            Prompt used: {lastPrompt || '(manual edit)'} • Tools: {selectedTools.join(' → ')}
+          </p>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <h3 style={{ marginTop: 0 }}>{currentManifest.name}</h3>
+            <p style={{ marginTop: 4, color: '#aaa' }}>{currentManifest.description}</p>
+            {currentManifest.tags?.length ? (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                {currentManifest.tags.map((tag) => (
+                  <span key={tag} className="badge">#{tag}</span>
+                ))}
+              </div>
+            ) : null}
+            <p className="small" style={{ marginTop: 12, color: '#888' }}>
+              Preview gradient: {currentManifest.preview_gradient}
+            </p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 16 }}>
+            <div className="card">
+              <h3 style={{ marginTop: 0 }}>Inputs</h3>
+              {manifestInputs.length === 0 && <p className="small" style={{ color: '#777' }}>No inputs defined</p>}
+              {manifestInputs.map(([key, input]) => (
+                <div key={key} style={{ marginBottom: 12 }}>
+                  <div style={{ fontWeight: 600 }}>{input.label || key} <span style={{ color: '#666', fontWeight: 400 }}>({input.type})</span></div>
+                  {input.placeholder && <div className="small" style={{ color: '#888' }}>{input.placeholder}</div>}
+                  {input.required && <div className="small" style={{ color: '#10b981' }}>Required</div>}
+                </div>
+              ))}
+            </div>
+            <div className="card">
+              <h3 style={{ marginTop: 0 }}>Outputs</h3>
+              {manifestOutputs.length === 0 && <p className="small" style={{ color: '#777' }}>No outputs defined</p>}
+              {manifestOutputs.map(([key, output]) => (
+                <div key={key} style={{ marginBottom: 12 }}>
+                  <div style={{ fontWeight: 600 }}>{key}</div>
+                  <div className="small" style={{ color: '#888' }}>Type: {output.type}</div>
+                </div>
+              ))}
+            </div>
+            <div className="card" style={{ gridColumn: '1 / -1' }}>
+              <h3 style={{ marginTop: 0 }}>Runtime Steps (in order)</h3>
+              {manifestSteps.length === 0 && <p className="small" style={{ color: '#777' }}>No steps defined</p>}
+              {manifestSteps.map((step, idx) => (
+                <div key={`${step.tool}-${idx}`} style={{ border: '1px solid #222', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>{idx + 1}. {step.tool}</div>
+                  <pre className="small" style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(step.args || {}, null, 2)}</pre>
+                  <div className="small" style={{ color: '#888', marginTop: 4 }}>Output key: {step.output}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <h3 style={{ marginTop: 0 }}>Refine</h3>
+            <p className="small" style={{ color: '#888' }}>
+              Describe fixes, bugs, or style tweaks. We'll ask Sonnet 4.5 to patch the manifest.
+            </p>
+            <textarea
+              className="input"
+              rows={4}
+              placeholder="Example: Make the inputs more playful and add a final llm.complete step that summarizes the output."
+              value={refineNotes}
+              onChange={(e) => setRefineNotes(e.target.value)}
+            />
+            {refineError && (
+              <div className="small" style={{ color: '#ef4444', marginTop: 8 }}>
+                {refineError}
+              </div>
+            )}
+            {refineSuccess && (
+              <div className="small" style={{ color: '#10b981', marginTop: 8 }}>
+                ✅ Manifest updated
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <button type="button" className="btn" onClick={handleRefineManifest} disabled={isRefining}>
+                {isRefining ? 'Refining...' : 'Apply Refinement'}
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => {
+                  setShowJsonEditor((prev) => !prev);
+                  setJsonDraftError('');
+                  setManifestJsonDraft(JSON.stringify(currentManifest, null, 2));
+                }}
+              >
+                {showJsonEditor ? 'Hide JSON Editor' : 'Open JSON Editor'}
+              </button>
+            </div>
+            {showJsonEditor && (
+              <div style={{ marginTop: 12 }}>
+                <textarea
+                  className="input"
+                  rows={10}
+                  value={manifestJsonDraft}
+                  onChange={(e) => setManifestJsonDraft(e.target.value)}
+                  style={{ fontFamily: 'monospace', fontSize: 12 }}
+                />
+                {jsonDraftError && (
+                  <div className="small" style={{ color: '#ef4444', marginTop: 4 }}>
+                    {jsonDraftError}
+                  </div>
+                )}
+                <button type="button" className="btn ghost" style={{ marginTop: 8 }} onClick={handleApplyJsonDraft}>
+                  Apply JSON Changes
+                </button>
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button
+              type="button"
+              className="btn primary"
+              onClick={handlePublishGenerated}
+              disabled={!currentManifest || isPublishing}
+              style={{ flex: 1 }}
+            >
+              {isPublishing ? 'Publishing...' : 'Publish App →'}
+            </button>
+            <button type="button" className="btn ghost" onClick={() => setStep('ai-form')}>
+              Edit Prompt
+            </button>
+          </div>
         </div>
       )}
 
