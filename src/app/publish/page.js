@@ -15,6 +15,26 @@ const MODEL_OPTIONS = [
   { value: 'claude-3-5-haiku-latest', label: 'Claude 3.5 Haiku (Faster)' }
 ];
 
+const OUTPUT_TYPE_OPTIONS = [
+  { value: 'markdown', label: 'Markdown / Text' },
+  { value: 'image', label: 'Image' },
+  { value: 'html', label: 'HTML' },
+  { value: 'json', label: 'JSON' },
+  { value: 'number', label: 'Number' },
+  { value: 'string', label: 'String' }
+];
+
+const COLOR_PALETTES = [
+  { id: 'purple', name: 'Purple / Blue', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', fontColor: '#ffffff' },
+  { id: 'pink', name: 'Pink / Red', gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', fontColor: '#ffffff' },
+  { id: 'cyan', name: 'Blue / Cyan', gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', fontColor: '#0b1220' },
+  { id: 'green', name: 'Green', gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', fontColor: '#ffffff' },
+  { id: 'orange', name: 'Orange', gradient: 'linear-gradient(135deg, #f5af19 0%, #f12711 100%)', fontColor: '#ffffff' },
+  { id: 'pastel', name: 'Pastel', gradient: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', fontColor: '#0b1220' }
+];
+
+const FONT_SWATCHES = ['#ffffff', '#f5f5f5', '#0b1220', '#111827', '#fef3c7', '#fde68a', '#d1d5db'];
+
 export default function PublishPage() {
   const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
@@ -51,6 +71,17 @@ export default function PublishPage() {
   const [previewImage, setPreviewImage] = useState('');
   const [previewImageLoading, setPreviewImageLoading] = useState(false);
   const [previewImageError, setPreviewImageError] = useState('');
+  const [previewImagePrompt, setPreviewImagePrompt] = useState('');
+  const [previewImagePromptUsed, setPreviewImagePromptUsed] = useState('');
+  const [scrapedDescription, setScrapedDescription] = useState('');
+
+  const applyManifestUpdate = (updater) => {
+    setCurrentManifest((prev) => {
+      if (!prev) return prev;
+      const next = typeof updater === 'function' ? updater(prev) : { ...prev, ...updater };
+      return next;
+    });
+  };
 
   const previewApp = useMemo(() => {
     if (!currentManifest) return null;
@@ -71,6 +102,13 @@ export default function PublishPage() {
   const manifestInputs = Object.entries(currentManifest?.inputs || {});
   const manifestOutputs = Object.entries(currentManifest?.outputs || {});
   const manifestSteps = currentManifest?.runtime?.steps || [];
+  const activePaletteId = useMemo(() => {
+    if (!currentManifest?.design?.containerColor) return null;
+    const found = COLOR_PALETTES.find(
+      (palette) => palette.gradient === currentManifest.design.containerColor
+    );
+    return found?.id || null;
+  }, [currentManifest]);
 
   // Form states for AI app
   const [aiPrompt, setAiPrompt] = useState('');
@@ -125,6 +163,52 @@ export default function PublishPage() {
     });
   };
 
+  const updateSelectedToolsFromOutputs = (outputTypes = []) => {
+    if (!Array.isArray(outputTypes) || outputTypes.length === 0) return;
+    const next = [];
+    outputTypes.forEach((type) => {
+      const normalized = String(type || '').toLowerCase();
+      if (normalized.includes('image') && !next.includes('image.process')) next.push('image.process');
+      if ((normalized.includes('markdown') || normalized.includes('text')) && !next.includes('llm.complete')) {
+        next.push('llm.complete');
+      }
+    });
+    if (next.length) {
+      setSelectedTools(next);
+    }
+  };
+
+  const handleOutputTypeChange = (key, nextType) => {
+    applyManifestUpdate((prev) => {
+      const outputs = { ...(prev.outputs || {}) };
+      outputs[key] = { ...(outputs[key] || {}), type: nextType };
+      return { ...prev, outputs };
+    });
+  };
+
+  const handlePaletteSelect = (palette) => {
+    if (!palette) return;
+    applyManifestUpdate((prev) => ({
+      ...prev,
+      design: {
+        ...(prev.design || {}),
+        containerColor: palette.gradient,
+        fontColor: palette.fontColor
+      },
+      preview_gradient: palette.gradient
+    }));
+  };
+
+  const handleFontColorSelect = (color) => {
+    applyManifestUpdate((prev) => ({
+      ...prev,
+      design: {
+        ...(prev.design || {}),
+        fontColor: color
+      }
+    }));
+  };
+
   const resetAiPreviewState = () => {
     setCurrentManifest(null);
     setManifestJsonDraft('');
@@ -134,6 +218,12 @@ export default function PublishPage() {
     setRefineError('');
     setGenerationError('');
     setLastPrompt('');
+    setPreviewRun(null);
+    setPreviewError('');
+    setPreviewImage('');
+    setPreviewImagePrompt('');
+    setPreviewImagePromptUsed('');
+    setScrapedDescription('');
   };
 
   useEffect(() => {
@@ -141,6 +231,8 @@ export default function PublishPage() {
     setPreviewError('');
     setPreviewImage(currentManifest?.preview_url || '');
     setPreviewImageError('');
+    setPreviewImagePrompt(currentManifest?.preview_prompt || '');
+    setPreviewImagePromptUsed(currentManifest?.preview_prompt || '');
   }, [currentManifest]);
 
   useEffect(() => {
@@ -413,6 +505,10 @@ export default function PublishPage() {
       // Auto-fill the prompt with the extracted data
       const data = result.data;
       setAiPrompt(data.suggestedPrompt || '');
+      setScrapedDescription(data.description || '');
+      if (Array.isArray(data.outputTypes)) {
+        updateSelectedToolsFromOutputs(data.outputTypes);
+      }
       
       // If tags were provided by scraper and user hasn't set any, use them
       if (data.tags && data.tags.length > 0 && !tags) {
@@ -456,8 +552,15 @@ export default function PublishPage() {
       if (!response.ok) {
         throw new Error(result.error || 'Failed to generate manifest');
       }
-      setCurrentManifest(result.manifest || null);
-      setManifestJsonDraft(JSON.stringify(result.manifest || {}, null, 2));
+      const manifest = result.manifest ? { ...result.manifest } : null;
+      if (manifest && !manifest.preview_prompt) {
+        manifest.preview_prompt = '';
+      }
+      setCurrentManifest(manifest);
+      setManifestJsonDraft(JSON.stringify(manifest || {}, null, 2));
+      setPreviewImage(manifest?.preview_url || '');
+      setPreviewImagePrompt(manifest?.preview_prompt || '');
+      setPreviewImagePromptUsed(manifest?.preview_prompt || '');
       setShowJsonEditor(false);
       setRefineNotes('');
       setRefineSuccess(false);
@@ -491,7 +594,9 @@ export default function PublishPage() {
               llmPrompt: llmPromptTemplate,
               imageInstruction: imagePromptTemplate
             },
-            model: anthropicModel || undefined
+            model: anthropicModel || undefined,
+            previewImageDataUrl: previewImage || null,
+            previewImagePrompt: previewImagePromptUsed || previewImagePrompt || ''
           }
         })
       });
@@ -609,14 +714,22 @@ export default function PublishPage() {
         credentials: 'include',
         body: JSON.stringify({
           name: currentManifest.name,
-          description: currentManifest.description
+          description: currentManifest.description,
+          prompt: previewImagePrompt
         })
       });
       const result = await response.json();
       if (!response.ok) {
         throw new Error(result.error || 'Failed to generate preview image');
       }
-      setPreviewImage(result.imageDataUrl || '');
+      const nextImage = result.imageDataUrl || '';
+      setPreviewImage(nextImage);
+      setPreviewImagePromptUsed(previewImagePrompt);
+      applyManifestUpdate((prev) => ({
+        ...prev,
+        preview_url: nextImage,
+        preview_prompt: previewImagePrompt
+      }));
     } catch (error) {
       setPreviewImageError(error.message);
     } finally {
@@ -1184,6 +1297,12 @@ export default function PublishPage() {
             <p className="small" style={{ marginTop: 12, marginBottom: 0, color: '#666' }}>
               Example: https://glif.app/@fab1an/glifs/clmqp99820001jn0f2xywz250
             </p>
+            {scrapedDescription && (
+              <div className="card" style={{ background: '#0f172a', marginTop: 12 }}>
+                <h4 style={{ marginTop: 0, marginBottom: 4 }}>Scraped Description</h4>
+                <p className="small" style={{ color: '#ddd' }}>{scrapedDescription}</p>
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleSubmitAI}>
@@ -1421,9 +1540,20 @@ export default function PublishPage() {
               <h3 style={{ marginTop: 0 }}>Outputs</h3>
               {manifestOutputs.length === 0 && <p className="small" style={{ color: '#777' }}>No outputs defined</p>}
               {manifestOutputs.map(([key, output]) => (
-                <div key={key} style={{ marginBottom: 12 }}>
-                  <div style={{ fontWeight: 600 }}>{key}</div>
-                  <div className="small" style={{ color: '#888' }}>Type: {output.type}</div>
+                <div key={key} style={{ marginBottom: 16 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>{key}</div>
+                  <select
+                    className="input"
+                    value={output.type || 'markdown'}
+                    onChange={(e) => handleOutputTypeChange(key, e.target.value)}
+                    style={{ width: '100%' }}
+                  >
+                    {OUTPUT_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               ))}
             </div>
@@ -1437,6 +1567,61 @@ export default function PublishPage() {
                   <div className="small" style={{ color: '#888', marginTop: 4 }}>Output key: {step.output}</div>
                 </div>
               ))}
+            </div>
+          </div>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <h3 style={{ marginTop: 0 }}>Colors & Typography</h3>
+            <p className="small" style={{ color: '#888', marginBottom: 12 }}>
+              Choose a palette for the app header/result card and set a contrasting font color.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
+              {COLOR_PALETTES.map((palette) => (
+                <button
+                  key={palette.id}
+                  type="button"
+                  onClick={() => handlePaletteSelect(palette)}
+                  style={{
+                    borderRadius: 12,
+                    border: activePaletteId === palette.id ? '2px solid var(--brand)' : '1px solid #2a2a2a',
+                    padding: 12,
+                    background: '#080b12',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    color: '#fff'
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: 8 }}>{palette.name}</div>
+                  <div
+                    style={{
+                      height: 60,
+                      borderRadius: 8,
+                      background: palette.gradient,
+                      border: '1px solid rgba(255,255,255,0.2)'
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>Font Color</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {FONT_SWATCHES.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => handleFontColorSelect(color)}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      border: currentManifest?.design?.fontColor === color ? '2px solid var(--brand)' : '1px solid #2a2a2a',
+                      background: color,
+                      cursor: 'pointer'
+                    }}
+                    aria-label={`Set font color ${color}`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
           <div className="card" style={{ marginBottom: 16 }}>
@@ -1475,6 +1660,14 @@ export default function PublishPage() {
                 {previewImageError}
               </div>
             )}
+            <label className="label" style={{ marginTop: 12 }}>Prompt Guidelines</label>
+            <textarea
+              className="input"
+              rows={3}
+              placeholder="Optional: e.g. Neon sushi bar with glossy lighting and texture close-ups."
+              value={previewImagePrompt}
+              onChange={(e) => setPreviewImagePrompt(e.target.value)}
+            />
             <button
               type="button"
               className="btn"

@@ -161,7 +161,7 @@ export async function POST(request) {
         tags: (appData.tags ? appData.tags.split(',').map(t => t.trim()) : manifest.tags || []).filter(Boolean),
         device_types: appData.isMobile ? ['mobile'] : ['mobile', 'desktop'],
         preview_type: 'image',
-        preview_url: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=800&auto=format&fit=crop',
+        preview_url: appData.previewImageDataUrl || manifest.preview_url || 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=800&auto=format&fit=crop',
         preview_gradient: manifest.preview_gradient || 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
         demo: manifest.demo || { sampleInputs: {} },
         inputs: manifest.inputs || {},
@@ -319,72 +319,81 @@ export async function POST(request) {
       }
     }
 
-    // Generate Nano Banana image using Gemini
-    try {
-      console.log('[Publish] Generating Nano Banana image for:', newApp.name);
-      
-      // Try user key first, then fall back to platform key
-      const envKey = process.env.GEMINI_API_KEY;
-      let userKey = null;
+    const providedPreview = mode === 'ai' && appData.previewImageDataUrl;
+    if (!providedPreview) {
       try {
-        userKey = await getDecryptedSecret(userId, 'gemini', supabase);
-      } catch (err) {
-        console.warn('[Publish] Error retrieving user Gemini key:', err);
-      }
-      
-      const geminiKey = userKey || envKey;
-      console.log('[Publish] Gemini key source:', userKey ? 'user-secret' : (envKey ? 'platform-env' : 'none'));
-      
-      if (geminiKey) {
-        const imagePrompt = `Generate an elevated apple store type image for this mobile app based on: ${newApp.name}. Description: ${newApp.description}`;
+        console.log('[Publish] Generating Nano Banana image for:', newApp.name);
         
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent`,
-          {
-            method: 'POST',
-            headers: { 
-              'x-goog-api-key': geminiKey,
-              'Content-Type': 'application/json' 
-            },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: imagePrompt }] }],
-              generationConfig: {
-                imageConfig: { aspectRatio: "9:16" }
-              }
-            })
-          }
-        );
-
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const imagePart = geminiData.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-          
-          if (imagePart) {
-            const imageBase64 = imagePart.inlineData.data;
-            const imageMime = imagePart.inlineData.mimeType || 'image/png';
-            
-            // Compress the image before storing
-            const compressedDataUrl = await compressImage(imageBase64, imageMime);
-            
-            // Update app with generated image
-            await supabase
-              .from('apps')
-              .update({ preview_url: compressedDataUrl, preview_type: 'image' })
-              .eq('id', insertedApp.id);
-            
-            // Update the returned app object
-            insertedApp.preview_url = compressedDataUrl;
-            insertedApp.preview_type = 'image';
-            
-            console.log('[Publish] Nano Banana image generated and compressed! ✅');
-          }
-        } else {
-          console.error('[Publish] Gemini API error:', await geminiRes.text());
+        // Try user key first, then fall back to platform key
+        const envKey = process.env.GEMINI_API_KEY;
+        let userKey = null;
+        try {
+          userKey = await getDecryptedSecret(userId, 'gemini', supabase);
+        } catch (err) {
+          console.warn('[Publish] Error retrieving user Gemini key:', err);
         }
+        
+        const geminiKey = userKey || envKey;
+        console.log('[Publish] Gemini key source:', userKey ? 'user-secret' : (envKey ? 'platform-env' : 'none'));
+        
+        if (geminiKey) {
+          const imagePrompt = `Generate an elevated apple store type image for this mobile app based on: ${newApp.name}. Description: ${newApp.description}`;
+          
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent`,
+            {
+              method: 'POST',
+              headers: { 
+                'x-goog-api-key': geminiKey,
+                'Content-Type': 'application/json' 
+              },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: imagePrompt }] }],
+                generationConfig: {
+                  imageConfig: { aspectRatio: "9:16" }
+                }
+              })
+            }
+          );
+
+          if (geminiRes.ok) {
+            const geminiData = await geminiRes.json();
+            const imagePart = geminiData.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+            
+            if (imagePart) {
+              const imageBase64 = imagePart.inlineData.data;
+              const imageMime = imagePart.inlineData.mimeType || 'image/png';
+              
+              // Compress the image before storing
+              const compressedDataUrl = await compressImage(imageBase64, imageMime);
+              
+              // Update app with generated image
+              await supabase
+                .from('apps')
+                .update({ preview_url: compressedDataUrl, preview_type: 'image' })
+                .eq('id', insertedApp.id);
+              
+              // Update the returned app object
+              insertedApp.preview_url = compressedDataUrl;
+              insertedApp.preview_type = 'image';
+              
+              console.log('[Publish] Nano Banana image generated and compressed! ✅');
+            }
+          } else {
+            console.error('[Publish] Gemini API error:', await geminiRes.text());
+          }
+        }
+      } catch (err) {
+        console.error('[Publish] Image generation error:', err);
+        // Don't fail the publish if image generation fails
       }
-    } catch (err) {
-      console.error('[Publish] Image generation error:', err);
-      // Don't fail the publish if image generation fails
+    } else {
+      await supabase
+        .from('apps')
+        .update({ preview_url: appData.previewImageDataUrl, preview_type: 'image' })
+        .eq('id', insertedApp.id);
+      insertedApp.preview_url = appData.previewImageDataUrl;
+      insertedApp.preview_type = 'image';
     }
 
     return NextResponse.json({

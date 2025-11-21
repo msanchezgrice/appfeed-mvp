@@ -21,7 +21,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, description } = await req.json();
+    const { name, description, prompt: promptOverride } = await req.json();
     if (!name || !description) {
       return NextResponse.json({ error: 'Name and description required' }, { status: 400 });
     }
@@ -38,7 +38,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Gemini key missing' }, { status: 500 });
     }
 
-    const prompt = `Generate an elevated, minimal, Apple-like aesthetic image for this app:
+    let prompt = `Generate an elevated, minimal, Apple-like aesthetic image for this app:
 
 App Name: ${name}
 Description: ${description}
@@ -47,6 +47,9 @@ Style: Clean, minimal, professional, modern, high-quality photography
 Mood: Aspirational, premium, elegant
 Colors: Soft, muted, sophisticated
 Composition: Centered, balanced, spacious`;
+    if (promptOverride && typeof promptOverride === 'string' && promptOverride.trim()) {
+      prompt += `\n\nCreator override instructions:\n${promptOverride.trim()}`;
+    }
 
     const response = await fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
