@@ -1,10 +1,12 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { analytics, trackEvent } from '@/src/lib/analytics';
 import { AI_TOOL_OPTIONS, DEFAULT_AI_TOOLS } from '@/src/lib/publish-tools';
+import AppForm from '@/src/components/AppForm';
+import AppOutput from '@/src/components/AppOutput';
 
 const MODEL_OPTIONS = [
   { value: '', label: 'Auto (Claude Sonnet 4.5 + fallbacks)' },
@@ -43,6 +45,29 @@ export default function PublishPage() {
   const [generationError, setGenerationError] = useState('');
   const [lastPrompt, setLastPrompt] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
+  const [previewRun, setPreviewRun] = useState(null);
+  const [runningPreview, setRunningPreview] = useState(false);
+  const [previewError, setPreviewError] = useState('');
+  const [previewImage, setPreviewImage] = useState('');
+  const [previewImageLoading, setPreviewImageLoading] = useState(false);
+  const [previewImageError, setPreviewImageError] = useState('');
+
+  const previewApp = useMemo(() => {
+    if (!currentManifest) return null;
+    return {
+      id: currentManifest.id || 'preview-app',
+      name: currentManifest.name || 'Preview App',
+      description: currentManifest.description || '',
+      demo: currentManifest.demo || { sampleInputs: {} },
+      inputs: currentManifest.inputs || {},
+      outputs: currentManifest.outputs || { markdown: { type: 'string' } },
+      runtime: currentManifest.runtime || { engine: 'local', steps: [] },
+      design: currentManifest.design || {},
+      modal_theme: currentManifest.modal_theme || {},
+      input_theme: currentManifest.input_theme || {},
+      preview_gradient: currentManifest.preview_gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+    };
+  }, [currentManifest]);
   const manifestInputs = Object.entries(currentManifest?.inputs || {});
   const manifestOutputs = Object.entries(currentManifest?.outputs || {});
   const manifestSteps = currentManifest?.runtime?.steps || [];
@@ -110,6 +135,13 @@ export default function PublishPage() {
     setGenerationError('');
     setLastPrompt('');
   };
+
+  useEffect(() => {
+    setPreviewRun(null);
+    setPreviewError('');
+    setPreviewImage(currentManifest?.preview_url || '');
+    setPreviewImageError('');
+  }, [currentManifest]);
 
   useEffect(() => {
     // Redirect to sign-in if not authenticated
@@ -535,6 +567,60 @@ export default function PublishPage() {
       setRefineError(error.message);
     } finally {
       setIsRefining(false);
+    }
+  };
+
+  const handlePreviewRun = async (values) => {
+    if (!currentManifest) return;
+    setRunningPreview(true);
+    setPreviewError('');
+    try {
+      const response = await fetch('/api/apps/generate/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          manifest: currentManifest,
+          inputs: values,
+          mode: 'try'
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to run preview');
+      }
+      setPreviewRun(result.run || null);
+    } catch (error) {
+      setPreviewError(error.message);
+      return;
+    } finally {
+      setRunningPreview(false);
+    }
+  };
+
+  const handleGeneratePreviewImage = async () => {
+    if (!currentManifest) return;
+    setPreviewImageLoading(true);
+    setPreviewImageError('');
+    try {
+      const response = await fetch('/api/apps/generate/nano-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: currentManifest.name,
+          description: currentManifest.description
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to generate preview image');
+      }
+      setPreviewImage(result.imageDataUrl || '');
+    } catch (error) {
+      setPreviewImageError(error.message);
+    } finally {
+      setPreviewImageLoading(false);
     }
   };
 
@@ -1353,6 +1439,81 @@ export default function PublishPage() {
               ))}
             </div>
           </div>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <h3 style={{ marginTop: 0 }}>Nano Banana Preview</h3>
+            <p className="small" style={{ color: '#888', marginBottom: 12 }}>
+              This is the hero image we’ll ship with your app card. Generate it now so you know what to tweak.
+            </p>
+            <div
+              style={{
+                borderRadius: 16,
+                minHeight: 260,
+                border: '1px solid #1f1f1f',
+                background: previewImage
+                  ? '#000'
+                  : currentManifest.preview_gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden'
+              }}
+            >
+              {previewImage ? (
+                <img
+                  src={previewImage}
+                  alt="Preview"
+                  style={{ width: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.8)' }}>
+                  No preview generated yet
+                </div>
+              )}
+            </div>
+            {previewImageError && (
+              <div className="small" style={{ color: '#ef4444', marginTop: 8 }}>
+                {previewImageError}
+              </div>
+            )}
+            <button
+              type="button"
+              className="btn"
+              style={{ marginTop: 12 }}
+              onClick={handleGeneratePreviewImage}
+              disabled={previewImageLoading}
+            >
+              {previewImageLoading ? 'Generating Image...' : previewImage ? 'Regenerate Image' : 'Generate Preview Image'}
+            </button>
+          </div>
+          {previewApp && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginTop: 0 }}>Try the App</h3>
+              <p className="small" style={{ color: '#888', marginBottom: 12 }}>
+                Use your demo inputs or tweak them to see if the flow feels right before publishing.
+              </p>
+              <AppForm
+                key={`preview-form-${previewApp.id}-${JSON.stringify(previewApp.inputs)}-${JSON.stringify(previewApp.demo?.sampleInputs || {})}`}
+                app={previewApp}
+                defaults={previewApp.demo?.sampleInputs || {}}
+                onSubmit={handlePreviewRun}
+              />
+              {runningPreview && (
+                <div className="small" style={{ color: '#aaa', marginTop: 8 }}>
+                  Running preview...
+                </div>
+              )}
+              {previewError && (
+                <div className="small" style={{ color: '#ef4444', marginTop: 8 }}>
+                  {previewError}
+                </div>
+              )}
+              {previewRun && (
+                <div style={{ marginTop: 16 }}>
+                  <AppOutput run={previewRun} app={previewApp} />
+                </div>
+              )}
+            </div>
+          )}
           <div className="card" style={{ marginBottom: 16 }}>
             <h3 style={{ marginTop: 0 }}>Refine</h3>
             <p className="small" style={{ color: '#888' }}>
