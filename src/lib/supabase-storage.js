@@ -163,3 +163,26 @@ export async function uploadImageVariants(buffer, baseFileKey) {
   };
 }
 
+/**
+ * Upload an arbitrary buffer with a given MIME type to Supabase Storage.
+ * @param {Buffer} buffer
+ * @param {string} filePath - path within the app-images bucket
+ * @param {string} mimeType - mime type
+ * @param {string} cacheControl - cache control header
+ */
+export async function uploadBufferToStorage(buffer, filePath, mimeType = 'application/octet-stream', cacheControl = '31536000') {
+  const supabase = createAdminSupabaseClient();
+  const { error } = await supabase.storage
+    .from('app-images')
+    .upload(filePath, buffer, {
+      contentType: mimeType,
+      upsert: true,
+      cacheControl
+    });
+  if (error) {
+    console.error('[Storage] Upload buffer error:', filePath, error);
+    throw error;
+  }
+  const { data: { publicUrl } } = supabase.storage.from('app-images').getPublicUrl(filePath);
+  return { url: publicUrl, path: filePath };
+}

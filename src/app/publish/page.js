@@ -79,6 +79,9 @@ export default function PublishPage() {
   const [assetLoading, setAssetLoading] = useState(false);
   const [assetError, setAssetError] = useState('');
   const [posterPrompt, setPosterPrompt] = useState('');
+  const [thumbPrompt, setThumbPrompt] = useState('');
+  const [ogPrompt, setOgPrompt] = useState('');
+  const [demoPrompt, setDemoPrompt] = useState('');
 
   const applyManifestUpdate = (updater) => {
     setCurrentManifest((prev) => {
@@ -2588,24 +2591,86 @@ POST /run
             )}
 
             {createdApp?.id && (
-              <div style={{ marginTop: 16 }}>
-                <label className="label">Poster prompt (optional)</label>
-                <textarea
-                  className="input"
-                  rows={3}
-                  placeholder="Describe the vibe for your poster – e.g. TikTok-style 9:16 demo, bold title, app UI inset, QR in bottom-right."
-                  value={posterPrompt}
-                  onChange={(e) => setPosterPrompt(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="btn"
-                  style={{ marginTop: 8 }}
-                  onClick={() => triggerAssetJobs(createdApp.id, { types: ['poster'], inputs: { prompt: posterPrompt } })}
-                  disabled={assetLoading}
-                >
-                  {assetLoading ? 'Regenerating poster…' : 'Regenerate poster'}
-                </button>
+              <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+                <div>
+                  <label className="label">Poster prompt (optional)</label>
+                  <textarea
+                    className="input"
+                    rows={3}
+                    placeholder="Describe the vibe for your poster – e.g. TikTok-style 9:16 demo, bold title, app UI inset, QR in bottom-right."
+                    value={posterPrompt}
+                    onChange={(e) => setPosterPrompt(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="btn"
+                    style={{ marginTop: 8 }}
+                    onClick={() => triggerAssetJobs(createdApp.id, { types: ['poster'], inputs: { prompt: posterPrompt } })}
+                    disabled={assetLoading}
+                  >
+                    {assetLoading ? 'Regenerating poster…' : 'Regenerate poster'}
+                  </button>
+                </div>
+
+                <div>
+                  <label className="label">Thumbnail prompt (optional)</label>
+                  <textarea
+                    className="input"
+                    rows={2}
+                    placeholder="Square thumb for shelves. E.g. minimal app icon + gradient."
+                    value={thumbPrompt}
+                    onChange={(e) => setThumbPrompt(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="btn"
+                    style={{ marginTop: 8 }}
+                    onClick={() => triggerAssetJobs(createdApp.id, { types: ['thumb'], inputs: { prompt: thumbPrompt } })}
+                    disabled={assetLoading}
+                  >
+                    {assetLoading ? 'Regenerating thumb…' : 'Regenerate thumb'}
+                  </button>
+                </div>
+
+                <div>
+                  <label className="label">OG image prompt (optional)</label>
+                  <textarea
+                    className="input"
+                    rows={2}
+                    placeholder="Landscape social preview. E.g. bold title + QR on right."
+                    value={ogPrompt}
+                    onChange={(e) => setOgPrompt(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="btn"
+                    style={{ marginTop: 8 }}
+                    onClick={() => triggerAssetJobs(createdApp.id, { types: ['og'], inputs: { prompt: ogPrompt } })}
+                    disabled={assetLoading}
+                  >
+                    {assetLoading ? 'Regenerating OG…' : 'Regenerate OG'}
+                  </button>
+                </div>
+
+                <div>
+                  <label className="label">Demo/GIF script (optional)</label>
+                  <textarea
+                    className="input"
+                    rows={2}
+                    placeholder="e.g. Wait 1.5s then tap Try. Keep it short."
+                    value={demoPrompt}
+                    onChange={(e) => setDemoPrompt(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="btn"
+                    style={{ marginTop: 8 }}
+                    onClick={() => triggerAssetJobs(createdApp.id, { types: ['demo', 'gif'], inputs: { prompt: demoPrompt, clickTry: true, delayMs: 1500 } })}
+                    disabled={assetLoading}
+                  >
+                    {assetLoading ? 'Recording demo…' : 'Generate demo + GIF'}
+                  </button>
+                </div>
               </div>
             )}
 

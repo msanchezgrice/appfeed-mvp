@@ -52,7 +52,7 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const appId = body.appId;
-    const types = supportedJobTypes(body.types?.length ? body.types : ['poster', 'og', 'thumb']);
+    const types = supportedJobTypes(body.types?.length ? body.types : ['poster', 'og', 'thumb', 'demo', 'gif']);
     if (!appId) return jsonError('appId is required', 400);
     if (!types.length) return jsonError('No valid job types provided', 400);
 

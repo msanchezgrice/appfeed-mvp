@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 import { getDecryptedSecret } from './secrets';
 import { uploadImageVariants } from './supabase-storage';
+import { captureDemo } from './demo-capture';
 
 const DEFAULT_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.clipcade.com';
 const FALLBACK_OPENAI_KEY = process.env.OPENAI_FALLBACK_API_KEY || process.env.OPENAI_API_KEY || '';
@@ -34,29 +35,120 @@ export async function fetchAppForAssets(supabase, appId) {
   return app;
 }
 
-export async function createOgAssetRecord({ supabase, app, userId }) {
-  const ogUrl = `${DEFAULT_SITE_URL}/api/og?app=${encodeURIComponent(app.id)}`;
+export async function createOgAssetRecord({ supabase, app, userId, promptOverride }) {
+  // If no prompt override, prefer existing OG asset or create simple OG link record
+  if (!promptOverride) {
+    const { data: existing } = await supabase
+      .from('app_assets')
+      .select('*')
+      .eq('app_id', app.id)
+      .eq('kind', 'og')
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (existing && existing.length) {
+      return { asset: existing[0], url: existing[0].url };
+    }
+  }
+
+  const envKey = process.env.GEMINI_API_KEY;
+  let userKey = null;
+
+  try {
+    userKey = await getDecryptedSecret(userId, 'gemini', supabase);
+  } catch (err) {
+    console.warn('[AssetKit] Could not fetch user Gemini key:', err?.message || err);
+  }
+
+  const geminiApiKey = userKey || envKey;
+
+  // Fallback: if no Gemini key, store dynamic OG endpoint
+  if (!geminiApiKey) {
+    const ogUrl = `${DEFAULT_SITE_URL}/api/og?app=${encodeURIComponent(app.id)}`;
+    const payload = {
+      app_id: app.id,
+      kind: 'og',
+      url: ogUrl,
+      width: 1200,
+      height: 630,
+      mime_type: 'image/png',
+      created_by: userId
+    };
+    const { data, error } = await supabase
+      .from('app_assets')
+      .insert(payload)
+      .select()
+      .single();
+    if (error) {
+      throw new Error(error.message || 'Failed to save OG asset record');
+    }
+    return { asset: data, url: ogUrl };
+  }
+
+  const basePrompt = `Generate a social sharing OG image (1200x630) for this app.
+
+Name: ${app.name}
+Description: ${app.description || 'Mobile app'}
+Style: Clean, legible, strong contrast, include space for title.`;
+  const prompt = promptOverride && String(promptOverride).trim()
+    ? `${basePrompt}\n\nCREATOR NOTES: ${String(promptOverride).trim()}`
+    : basePrompt;
+
+  const response = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
+    {
+      method: 'POST',
+      headers: {
+        'x-goog-api-key': geminiApiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          imageConfig: { aspectRatio: '16:9' }
+        }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini OG image error: ${errorText.slice(0, 200)}`);
+  }
+
+  const data = await response.json();
+  const imagePart = data.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
+  if (!imagePart?.inlineData?.data) {
+    throw new Error('Gemini did not return an OG image');
+  }
+
+  const buffer = Buffer.from(imagePart.inlineData.data, 'base64');
+  const baseKey = `app-assets/${app.id}/og`;
+  const { defaultUrl, urls, blurDataUrl, version } = await uploadImageVariants(buffer, baseKey);
+
   const payload = {
     app_id: app.id,
     kind: 'og',
-    url: ogUrl,
+    url: defaultUrl,
+    mime_type: imagePart.inlineData.mimeType || 'image/webp',
     width: 1200,
     height: 630,
-    mime_type: 'image/png',
+    blur_data_url: blurDataUrl,
+    variant_id: version,
+    prompt,
     created_by: userId
   };
 
-  const { data, error } = await supabase
+  const { data: asset, error } = await supabase
     .from('app_assets')
     .insert(payload)
     .select()
     .single();
 
   if (error) {
-    throw new Error(error.message || 'Failed to save OG asset record');
+    throw new Error(error.message || 'Failed to save OG asset');
   }
 
-  return { asset: data, url: ogUrl };
+  return { asset, url: defaultUrl };
 }
 
 export async function createPosterAsset({ supabase, app, userId, promptOverride }) {
@@ -176,25 +268,88 @@ async function fetchImageBuffer(srcUrl) {
 }
 
 export async function createThumbAsset({ supabase, app, userId, promptOverride }) {
-  const source = app.preview_url || app.preview_image || null;
-  if (!source) {
-    throw new Error('No preview image available to create thumbnail');
+  // If no prompt, derive from existing preview
+  if (!promptOverride) {
+    const source = app.preview_url || app.preview_image || null;
+    if (!source) {
+      throw new Error('No preview image available to create thumbnail');
+    }
+    const buffer = await fetchImageBuffer(source);
+    const square = await sharp(buffer)
+      .resize({ width: 720, height: 720, fit: 'cover', position: 'center' })
+      .webp({ quality: 70 })
+      .toBuffer();
+    const baseKey = `app-assets/${app.id}/thumb`;
+    const { defaultUrl, urls, blurDataUrl, version } = await uploadImageVariants(square, baseKey);
+    const payload = {
+      app_id: app.id,
+      kind: 'thumb',
+      url: defaultUrl,
+      mime_type: 'image/webp',
+      width: 720,
+      height: 720,
+      blur_data_url: blurDataUrl,
+      variant_id: version,
+      prompt: null,
+      created_by: userId
+    };
+    const { data: asset, error } = await supabase
+      .from('app_assets')
+      .insert(payload)
+      .select()
+      .single();
+    if (error) {
+      throw new Error(error.message || 'Failed to save thumbnail asset');
+    }
+    return { asset, urls, blur: blurDataUrl };
   }
 
-  const buffer = await fetchImageBuffer(source);
-  const square = await sharp(buffer)
-    .resize({ width: 720, height: 720, fit: 'cover', position: 'center' })
-    .webp({ quality: 70 })
-    .toBuffer();
-
+  // Prompt-based generation via Gemini (1:1)
+  const envKey = process.env.GEMINI_API_KEY;
+  let userKey = null;
+  try {
+    userKey = await getDecryptedSecret(userId, 'gemini', supabase);
+  } catch (err) {
+    console.warn('[AssetKit] Could not fetch user Gemini key for thumb:', err?.message || err);
+  }
+  const geminiApiKey = userKey || envKey;
+  if (!geminiApiKey) {
+    throw new Error('Gemini API key not configured for thumbnail generation');
+  }
+  const prompt = `Generate a square thumbnail/shelf image for this app. App: ${app.name}. Description: ${app.description || ''}. Creator notes: ${String(promptOverride).trim()}`;
+  const response = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
+    {
+      method: 'POST',
+      headers: {
+        'x-goog-api-key': geminiApiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          imageConfig: { aspectRatio: '1:1' }
+        }
+      })
+    }
+  );
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini thumb error: ${errorText.slice(0, 200)}`);
+  }
+  const data = await response.json();
+  const imagePart = data.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
+  if (!imagePart?.inlineData?.data) {
+    throw new Error('Gemini did not return a thumbnail image');
+  }
+  const buffer = Buffer.from(imagePart.inlineData.data, 'base64');
   const baseKey = `app-assets/${app.id}/thumb`;
-  const { defaultUrl, urls, blurDataUrl, version } = await uploadImageVariants(square, baseKey);
-
+  const { defaultUrl, urls, blurDataUrl, version } = await uploadImageVariants(buffer, baseKey);
   const payload = {
     app_id: app.id,
     kind: 'thumb',
     url: defaultUrl,
-    mime_type: 'image/webp',
+    mime_type: imagePart.inlineData.mimeType || 'image/webp',
     width: 720,
     height: 720,
     blur_data_url: blurDataUrl,
@@ -202,17 +357,14 @@ export async function createThumbAsset({ supabase, app, userId, promptOverride }
     prompt: promptOverride || null,
     created_by: userId
   };
-
   const { data: asset, error } = await supabase
     .from('app_assets')
     .insert(payload)
     .select()
     .single();
-
   if (error) {
     throw new Error(error.message || 'Failed to save thumbnail asset');
   }
-
   return { asset, urls, blur: blurDataUrl };
 }
 
@@ -241,8 +393,42 @@ export async function processAssetJob({ supabase, job, app, userId }) {
       const promptOverride = job.inputs && typeof job.inputs.prompt === 'string' ? job.inputs.prompt : null;
       outputs = await createThumbAsset({ supabase, app, userId, promptOverride });
     } else if (job.type === 'demo' || job.type === 'gif') {
-      // Placeholder until a Playwright worker is wired up
-      throw new Error('Demo/GIF generation requires a Playwright capture worker to record /app/:id; not yet configured.');
+      const script = job.inputs || {};
+      const demo = await captureDemo({ appId: app.id, userId, supabase, script });
+      const assets = [];
+      if (demo.poster) {
+        const { data: posterAsset, error: posterError } = await supabase
+          .from('app_assets')
+          .insert({
+            app_id: app.id,
+            kind: 'demo',
+            url: demo.poster.url,
+            mime_type: demo.poster.mime_type || 'image/webp',
+            blur_data_url: demo.poster.blur || null,
+            variant_id: demo.poster.version || null,
+            created_by: userId
+          })
+          .select()
+          .single();
+        if (posterError) throw posterError;
+        assets.push(posterAsset);
+      }
+      if (demo.gif?.url) {
+        const { data: gifAsset, error: gifError } = await supabase
+          .from('app_assets')
+          .insert({
+            app_id: app.id,
+            kind: 'gif',
+            url: demo.gif.url,
+            mime_type: demo.gif.mime_type || 'image/gif',
+            created_by: userId
+          })
+          .select()
+          .single();
+        if (gifError) throw gifError;
+        assets.push(gifAsset);
+      }
+      outputs = { assets };
     } else {
       throw new Error(`Unsupported job type: ${job.type}`);
     }
