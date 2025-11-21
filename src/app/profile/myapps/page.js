@@ -511,6 +511,13 @@ export default function MyAppsPage() {
               >
                 ✕ Close
               </button>
+              <Link
+                href="/publish"
+                className="btn primary"
+                style={{ padding: '6px 12px', textDecoration: 'none', marginLeft: 8 }}
+              >
+                Generate assets →
+              </Link>
             </div>
 
             <div style={{ padding: 20 }}>
@@ -527,15 +534,16 @@ export default function MyAppsPage() {
               )}
               {assetsOverlayData.assets && assetsOverlayData.assets.length > 0 && (() => {
                 const byKind = {};
-                if (assetsOverlayApp?.preview_url) {
-                  byKind['message'] = {
-                    id: 'message-image',
-                    kind: 'message',
-                    mime_type: 'image/*',
-                    url: assetsOverlayApp.preview_url,
-                    blur_data_url: assetsOverlayApp.preview_blur || null
-                  };
-                }
+          const messageUrl = assetsOverlayApp?.preview_url || assetsOverlayApp?.preview_image || null;
+          if (messageUrl) {
+            byKind['message'] = {
+              id: 'message-image',
+              kind: 'message',
+              mime_type: 'image/*',
+              url: messageUrl,
+              blur_data_url: assetsOverlayApp.preview_blur || null
+            };
+          }
                 assetsOverlayData.assets.forEach((a) => {
                   const key = a.kind || 'asset';
                   if (!byKind[key]) byKind[key] = a;

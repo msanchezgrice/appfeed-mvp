@@ -2601,6 +2601,9 @@ POST /run
                     value={posterPrompt}
                     onChange={(e) => setPosterPrompt(e.target.value)}
                   />
+                  <div className="small" style={{ color: '#9ca3af', marginTop: 6 }}>
+                    Current: {posterPrompt ? posterPrompt : 'Empty'}
+                  </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                     <button
                       type="button"
@@ -2630,6 +2633,9 @@ POST /run
                     value={thumbPrompt}
                     onChange={(e) => setThumbPrompt(e.target.value)}
                   />
+                  <div className="small" style={{ color: '#9ca3af', marginTop: 6 }}>
+                    Current: {thumbPrompt ? thumbPrompt : 'Empty'}
+                  </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                     <button
                       type="button"
@@ -2651,6 +2657,9 @@ POST /run
                     value={ogPrompt}
                     onChange={(e) => setOgPrompt(e.target.value)}
                   />
+                  <div className="small" style={{ color: '#9ca3af', marginTop: 6 }}>
+                    Current: {ogPrompt ? ogPrompt : 'Empty'}
+                  </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                     <button
                       type="button"
@@ -2672,6 +2681,9 @@ POST /run
                     value={demoPrompt}
                     onChange={(e) => setDemoPrompt(e.target.value)}
                   />
+                  <div className="small" style={{ color: '#9ca3af', marginTop: 6 }}>
+                    Current: {demoPrompt ? demoPrompt : 'Empty'}
+                  </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                     <button
                       type="button"
@@ -2736,12 +2748,13 @@ POST /run
                   // Deduplicate by kind, keep newest
                   const byKind = {};
                   // Include a message metadata image from preview if present
-                  if (createdApp?.preview_url) {
+                  const messageUrl = createdApp?.preview_url || createdApp?.preview_image || null;
+                  if (messageUrl) {
                     byKind['message'] = {
                       id: 'message-image',
                       kind: 'message',
                       mime_type: 'image/*',
-                      url: createdApp.preview_url,
+                      url: messageUrl,
                       blur_data_url: createdApp.preview_blur || null
                     };
                   }
