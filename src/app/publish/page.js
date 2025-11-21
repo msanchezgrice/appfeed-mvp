@@ -74,6 +74,10 @@ export default function PublishPage() {
   const [previewImagePrompt, setPreviewImagePrompt] = useState('');
   const [previewImagePromptUsed, setPreviewImagePromptUsed] = useState('');
   const [scrapedDescription, setScrapedDescription] = useState('');
+  const [assetJobs, setAssetJobs] = useState([]);
+  const [assetRecords, setAssetRecords] = useState([]);
+  const [assetLoading, setAssetLoading] = useState(false);
+  const [assetError, setAssetError] = useState('');
 
   const applyManifestUpdate = (updater) => {
     setCurrentManifest((prev) => {
@@ -244,6 +248,12 @@ export default function PublishPage() {
       router.push('/sign-in?redirect_url=/publish');
     }
   }, [isLoaded, isSignedIn, router]);
+
+  useEffect(() => {
+    if (step === 'success' && createdApp?.id) {
+      refreshAssetJobs(createdApp.id);
+    }
+  }, [step, createdApp?.id]);
 
   const handleChooseMode = (selectedMode) => {
     setMode(selectedMode);
@@ -773,6 +783,59 @@ export default function PublishPage() {
       setAutoImportError(error.message);
     } finally {
       setAutoImporting(false);
+    }
+  };
+
+  const resetAssetState = () => {
+    setAssetJobs([]);
+    setAssetRecords([]);
+    setAssetError('');
+    setAssetLoading(false);
+  };
+
+  const refreshAssetJobs = async (appId) => {
+    if (!appId) return;
+    setAssetLoading(true);
+    setAssetError('');
+    try {
+      const res = await fetch(`/api/asset-jobs?appId=${encodeURIComponent(appId)}`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to load marketing assets');
+      }
+      setAssetJobs(data.jobs || []);
+      setAssetRecords(data.assets || []);
+    } catch (error) {
+      setAssetError(error.message || 'Failed to load marketing assets');
+    } finally {
+      setAssetLoading(false);
+    }
+  };
+
+  const triggerAssetJobs = async (appId) => {
+    if (!appId) return;
+    setAssetLoading(true);
+    setAssetError('');
+    try {
+      const res = await fetch('/api/asset-jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ appId, types: ['poster', 'og', 'thumb'] })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to generate marketing assets');
+      }
+      setAssetJobs(data.jobs || []);
+      setAssetRecords(data.assets || []);
+    } catch (error) {
+      setAssetError(error.message || 'Failed to generate marketing assets');
+    } finally {
+      setAssetLoading(false);
     }
   };
 
@@ -2487,6 +2550,112 @@ POST /run
             </div>
           )}
 
+          <div className="card" style={{ margin: '0 auto 24px', maxWidth: 700, textAlign: 'left' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <h3 style={{ margin: '0 0 4px 0' }}>Marketing assets</h3>
+                <p className="small" style={{ margin: 0, color: '#9ca3af' }}>
+                  Generate poster + OG + thumb for sharing. Available after publish.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  className="btn primary"
+                  onClick={() => createdApp?.id && triggerAssetJobs(createdApp.id)}
+                  disabled={assetLoading || !createdApp?.id}
+                  title={!createdApp?.id ? 'Publish first to generate assets' : 'Generate marketing assets'}
+                >
+                  {assetLoading ? 'Working...' : 'Generate'}
+                </button>
+                <button
+                  className="btn"
+                  onClick={() => createdApp?.id && refreshAssetJobs(createdApp.id)}
+                  disabled={assetLoading || !createdApp?.id}
+                  title={!createdApp?.id ? 'Publish first to refresh assets' : 'Refresh status'}
+                >
+                  Refresh
+                </button>
+              </div>
+            </div>
+
+            {!createdApp?.id && (
+              <div className="small" style={{ color: '#9ca3af', marginTop: 8 }}>
+                Publish the app to enable asset generation.
+              </div>
+            )}
+
+            {assetError && (
+              <div className="small" style={{ color: '#ef4444', marginTop: 8 }}>
+                {assetError}
+              </div>
+            )}
+
+            {createdApp?.id && (
+              <div style={{ marginTop: 12, display: 'grid', gap: 12 }}>
+                {assetJobs.length === 0 && (
+                  <div className="small" style={{ color: '#9ca3af' }}>
+                    No jobs yet. Kick off generation to create poster, OG, and thumb assets.
+                  </div>
+                )}
+
+                {assetJobs.map((job) => (
+                  <div key={job.id} style={{ border: '1px solid #1f2937', borderRadius: 10, padding: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                      <div>
+                        <div style={{ fontWeight: 700, textTransform: 'capitalize' }}>{job.type}</div>
+                        <div className="small" style={{ color: '#9ca3af' }}>
+                          {job.status === 'in_progress' ? 'In progress' : job.status === 'complete' ? 'Complete' : job.status === 'failed' ? 'Failed' : 'Queued'}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: 999,
+                          background: job.status === 'complete' ? 'rgba(16,185,129,0.12)' : job.status === 'failed' ? 'rgba(239,68,68,0.12)' : 'rgba(59,130,246,0.12)',
+                          color: job.status === 'complete' ? '#10b981' : job.status === 'failed' ? '#ef4444' : '#3b82f6',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.4
+                        }}
+                      >
+                        {job.status}
+                      </div>
+                    </div>
+                    {job.error && (
+                      <div className="small" style={{ color: '#ef4444', marginTop: 6 }}>
+                        {job.error}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {assetRecords.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+                    {assetRecords.map((asset) => (
+                      <a
+                        key={asset.id}
+                        href={asset.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="card"
+                        style={{ padding: 12, textDecoration: 'none' }}
+                      >
+                        <div style={{ fontWeight: 700, textTransform: 'capitalize' }}>{asset.kind}</div>
+                        <div className="small" style={{ color: '#9ca3af', marginTop: 4 }}>
+                          {asset.mime_type || 'asset'}
+                        </div>
+                        <div className="small" style={{ color: '#6b7280', marginTop: 6, wordBreak: 'break-all' }}>
+                          {asset.url}
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/feed" className="btn primary">
               View in Feed →
@@ -2505,6 +2674,7 @@ POST /run
               setRemoteUrl('');
               setAiPrompt('');
               setCreatedApp(null);
+              resetAssetState();
             }} className="btn ghost">
               Publish Another
             </button>
