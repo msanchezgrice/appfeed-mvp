@@ -2732,9 +2732,17 @@ POST /run
                   </div>
                 ))}
 
-                {assetRecords.length > 0 && (
+                {assetRecords.length > 0 && (() => {
+                  // Deduplicate by kind, keep newest
+                  const byKind = {};
+                  assetRecords.forEach((a) => {
+                    const key = a.kind || 'asset';
+                    if (!byKind[key]) byKind[key] = a;
+                  });
+                  const assetsToShow = Object.values(byKind);
+                  return (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
-                    {assetRecords.map((asset) => {
+                    {assetsToShow.map((asset) => {
                       const isImage = (asset.mime_type || '').startsWith('image/');
                       const label = asset.kind === 'poster'
                         ? 'Poster'
@@ -2744,14 +2752,7 @@ POST /run
                         ? 'Thumbnail'
                         : asset.kind;
                       return (
-                        <a
-                          key={asset.id}
-                          href={asset.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="card"
-                          style={{ padding: 12, textDecoration: 'none' }}
-                        >
+                        <div key={asset.id} className="card" style={{ padding: 12, textDecoration: 'none' }}>
                           <div style={{ fontWeight: 700, textTransform: 'capitalize', marginBottom: 6 }}>{label}</div>
                           {isImage && (
                             <div
@@ -2760,7 +2761,8 @@ POST /run
                                 overflow: 'hidden',
                                 border: '1px solid #1f2937',
                                 marginBottom: 8,
-                                background: '#020617'
+                                background: '#020617',
+                                position: 'relative'
                               }}
                             >
                               <img
@@ -2774,6 +2776,14 @@ POST /run
                                   objectFit: 'cover'
                                 }}
                               />
+                              <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 8 }}>
+                                <a className="btn" style={{ padding: '6px 10px', fontSize: 12 }} href={asset.url} download>
+                                  Download
+                                </a>
+                                <a className="btn ghost" style={{ padding: '6px 10px', fontSize: 12 }} href={asset.url} target="_blank" rel="noopener noreferrer">
+                                  Open
+                                </a>
+                              </div>
                             </div>
                           )}
                           <div className="small" style={{ color: '#9ca3af', marginTop: 4 }}>
@@ -2782,11 +2792,12 @@ POST /run
                           <div className="small" style={{ color: '#6b7280', marginTop: 6, wordBreak: 'break-all' }}>
                             {asset.url}
                           </div>
-                        </a>
+                        </div>
                       );
                     })}
                   </div>
-                )}
+                  );
+                })()}
               </div>
             )}
           </div>

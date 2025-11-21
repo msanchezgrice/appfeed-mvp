@@ -30,11 +30,24 @@ async function encodeGifFromFrames(frames, width, height, delayMs = 150) {
 }
 
 export async function captureDemo({ appId, userId, supabase, script = {} }) {
-  const chromium = await loadPlaywright();
-  const browser = await chromium.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
+  let chromium;
+  try {
+    chromium = await loadPlaywright();
+  } catch (err) {
+    const hint = 'Playwright Chromium is not installed. Install browsers (npx playwright install chromium) or set PLAYWRIGHT_BROWSERS_PATH to a bundled Chromium.';
+    throw new Error(`${hint} Original error: ${err?.message || err}`);
+  }
+
+  let browser;
+  try {
+    browser = await chromium.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+  } catch (err) {
+    const hint = 'Failed to launch Chromium. Ensure headless_shell exists or set PLAYWRIGHT_CHROMIUM_PATH / install browsers.';
+    throw new Error(`${hint} Original error: ${err?.message || err}`);
+  }
 
   const page = await browser.newPage({ viewport: { width: 540, height: 960 } });
   const targetUrl = `${SITE_URL}/app/${appId}?autoplay=1`;

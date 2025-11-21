@@ -146,64 +146,77 @@ export default function PersonalAppView() {
         {assetsLoading && <div className="small" style={{ color: '#888' }}>Loading assets…</div>}
         {assetsError && <div className="small" style={{ color: '#ef4444' }}>{assetsError}</div>}
         {!assetsLoading && assets.length === 0 && <div className="small" style={{ color: '#888' }}>No assets yet. Generate from the publish success screen.</div>}
-        {assets.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
-            {assets.map((asset) => {
-              const isImage = (asset.mime_type || '').startsWith('image/');
-              const label = asset.kind === 'poster'
-                ? 'Poster'
-                : asset.kind === 'og'
-                ? 'OG'
-                : asset.kind === 'thumb'
-                ? 'Thumb'
-                : asset.kind.toUpperCase();
-              return (
-                <a
-                  key={asset.id}
-                  href={asset.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="card"
-                  style={{ padding: 12, textDecoration: 'none' }}
-                >
-                  <div style={{ fontWeight: 700, textTransform: 'capitalize', marginBottom: 6 }}>{label}</div>
-                  {isImage && (
-                    <div
-                      style={{
-                        borderRadius: 10,
-                        overflow: 'hidden',
-                        border: '1px solid #1f2937',
-                        marginBottom: 8,
-                        background: '#020617'
-                      }}
-                    >
-                      <img
-                        src={asset.url}
-                        alt={label}
+        {assets.length > 0 && (() => {
+          const byKind = {};
+          assets.forEach((a) => {
+            const key = a.kind || 'asset';
+            if (!byKind[key]) byKind[key] = a;
+          });
+          const assetsToShow = Object.values(byKind);
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+              {assetsToShow.map((asset) => {
+                const isImage = (asset.mime_type || '').startsWith('image/');
+                const label = asset.kind === 'poster'
+                  ? 'Poster'
+                  : asset.kind === 'og'
+                  ? 'OG'
+                  : asset.kind === 'thumb'
+                  ? 'Thumb'
+                  : asset.kind.toUpperCase();
+                return (
+                  <div
+                    key={asset.id}
+                    className="card"
+                    style={{ padding: 12, textDecoration: 'none' }}
+                  >
+                    <div style={{ fontWeight: 700, textTransform: 'capitalize', marginBottom: 6 }}>{label}</div>
+                    {isImage && (
+                      <div
                         style={{
-                          width: '100%',
-                          height: 'auto',
-                          display: 'block',
-                          aspectRatio: asset.kind === 'thumb' ? '1 / 1' : '4 / 5',
-                          objectFit: 'cover'
+                          borderRadius: 10,
+                          overflow: 'hidden',
+                          border: '1px solid #1f2937',
+                          marginBottom: 8,
+                          background: '#020617',
+                          position: 'relative'
                         }}
-                      />
+                      >
+                        <img
+                          src={asset.url}
+                          alt={label}
+                          style={{
+                            width: '100%',
+                            height: 'auto',
+                            display: 'block',
+                            aspectRatio: asset.kind === 'thumb' ? '1 / 1' : '4 / 5',
+                            objectFit: 'cover'
+                          }}
+                        />
+                        <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 8 }}>
+                          <a className="btn" style={{ padding: '6px 10px', fontSize: 12 }} href={asset.url} download>
+                            Download
+                          </a>
+                          <a className="btn ghost" style={{ padding: '6px 10px', fontSize: 12 }} href={asset.url} target="_blank" rel="noopener noreferrer">
+                            Open
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                    <div className="small" style={{ color: '#9ca3af', marginTop: 4 }}>
+                      {asset.mime_type || 'asset'}
                     </div>
-                  )}
-                  <div className="small" style={{ color: '#9ca3af', marginTop: 4 }}>
-                    {asset.mime_type || 'asset'}
+                    <div className="small" style={{ color: '#6b7280', marginTop: 6, wordBreak: 'break-all' }}>
+                      {asset.url}
+                    </div>
                   </div>
-                  <div className="small" style={{ color: '#6b7280', marginTop: 6, wordBreak: 'break-all' }}>
-                    {asset.url}
-                  </div>
-                </a>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
 }
-
 
