@@ -405,12 +405,13 @@ export async function refineManifestWithAnthropic({
 
   const system = [
     'You are Clipcade’s manifest refinement assistant.',
-    'Return ONLY the updated manifest JSON.',
+    'Return ONLY the updated manifest JSON with identical structure to the input.',
     `Allowed runtime tools: ${toolNames}. Do NOT introduce new ones.`,
     toolGuidance,
     templateHints,
     normalizedOrder.length ? `Tool execution order must be ${normalizedOrder.join(' → ')}.` : '',
-    'Preserve structural integrity and only make requested changes.'
+    'Preserve structural integrity and only make requested changes.',
+    'If you cannot apply the instructions, return the original manifest JSON exactly as provided—never respond with empty or non-JSON output.'
   ].filter(Boolean).join(' ');
 
   const userMsg = [
@@ -429,7 +430,8 @@ export async function refineManifestWithAnthropic({
     try {
       const updated = await callAnthropic({ model: candidate, system, userMsg, apiKey });
       if (updated && Object.keys(updated).length) return updated;
-      lastError = new Error('Empty manifest returned');
+      console.warn('[AI Publish] Empty manifest from refine call, returning original manifest.');
+      return manifest;
     } catch (err) {
       lastError = err;
       console.error('[AI Publish] Anthropic refine call failed:', err?.message || err);
