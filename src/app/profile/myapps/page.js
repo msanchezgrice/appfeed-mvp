@@ -545,6 +545,7 @@ export default function MyAppsPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
                     {assetsToShow.map((asset) => {
                       const isImage = (asset.mime_type || '').startsWith('image/') || asset.kind === 'message';
+                      const isDataUrl = asset.url && asset.url.startsWith('data:');
                       const label = asset.kind === 'poster'
                         ? 'Poster'
                         : asset.kind === 'og'
@@ -592,9 +593,16 @@ export default function MyAppsPage() {
                           <div className="small" style={{ color: '#9ca3af', marginTop: 4 }}>
                             {asset.mime_type || 'asset'}
                           </div>
-                          <div className="small" style={{ color: '#6b7280', marginTop: 6, wordBreak: 'break-all' }}>
-                            {asset.url}
-                          </div>
+                          {!isDataUrl && (
+                            <div className="small" style={{ color: '#6b7280', marginTop: 6, wordBreak: 'break-all' }}>
+                              {asset.url}
+                            </div>
+                          )}
+                          {isDataUrl && (
+                            <div className="small" style={{ color: '#6b7280', marginTop: 6 }}>
+                              (inline image)
+                            </div>
+                          )}
                         </div>
                       );
                     })}

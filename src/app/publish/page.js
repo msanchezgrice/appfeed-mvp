@@ -2763,6 +2763,7 @@ POST /run
                         : asset.kind === 'message'
                         ? 'Message preview'
                         : asset.kind;
+                      const isDataUrl = asset.url && asset.url.startsWith('data:');
                       return (
                         <div key={asset.id} className="card" style={{ padding: 12, textDecoration: 'none' }}>
                           <div style={{ fontWeight: 700, textTransform: 'capitalize', marginBottom: 6 }}>{label}</div>
@@ -2801,9 +2802,16 @@ POST /run
                           <div className="small" style={{ color: '#9ca3af', marginTop: 4 }}>
                             {asset.mime_type || 'image'}
                           </div>
-                          <div className="small" style={{ color: '#6b7280', marginTop: 6, wordBreak: 'break-all' }}>
-                            {asset.url}
-                          </div>
+                          {!isDataUrl && (
+                            <div className="small" style={{ color: '#6b7280', marginTop: 6, wordBreak: 'break-all' }}>
+                              {asset.url}
+                            </div>
+                          )}
+                          {isDataUrl && (
+                            <div className="small" style={{ color: '#6b7280', marginTop: 6 }}>
+                              (inline image)
+                            </div>
+                          )}
                         </div>
                       );
                     })}
