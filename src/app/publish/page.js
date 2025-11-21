@@ -78,6 +78,7 @@ export default function PublishPage() {
   const [assetRecords, setAssetRecords] = useState([]);
   const [assetLoading, setAssetLoading] = useState(false);
   const [assetError, setAssetError] = useState('');
+  const [posterPrompt, setPosterPrompt] = useState('');
 
   const applyManifestUpdate = (updater) => {
     setCurrentManifest((prev) => {
@@ -815,7 +816,9 @@ export default function PublishPage() {
     }
   };
 
-  const triggerAssetJobs = async (appId) => {
+  const triggerAssetJobs = async (appId, options = {}) => {
+    const types = options.types && options.types.length ? options.types : ['poster', 'og', 'thumb'];
+    const inputs = options.inputs || {};
     if (!appId) return;
     setAssetLoading(true);
     setAssetError('');
@@ -824,7 +827,7 @@ export default function PublishPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ appId, types: ['poster', 'og', 'thumb'] })
+        body: JSON.stringify({ appId, types, inputs })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -2584,6 +2587,28 @@ POST /run
               </div>
             )}
 
+            {createdApp?.id && (
+              <div style={{ marginTop: 16 }}>
+                <label className="label">Poster prompt (optional)</label>
+                <textarea
+                  className="input"
+                  rows={3}
+                  placeholder="Describe the vibe for your poster – e.g. TikTok-style 9:16 demo, bold title, app UI inset, QR in bottom-right."
+                  value={posterPrompt}
+                  onChange={(e) => setPosterPrompt(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ marginTop: 8 }}
+                  onClick={() => triggerAssetJobs(createdApp.id, { types: ['poster'], inputs: { prompt: posterPrompt } })}
+                  disabled={assetLoading}
+                >
+                  {assetLoading ? 'Regenerating poster…' : 'Regenerate poster'}
+                </button>
+              </div>
+            )}
+
             {assetError && (
               <div className="small" style={{ color: '#ef4444', marginTop: 8 }}>
                 {assetError}
@@ -2632,24 +2657,57 @@ POST /run
 
                 {assetRecords.length > 0 && (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
-                    {assetRecords.map((asset) => (
-                      <a
-                        key={asset.id}
-                        href={asset.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="card"
-                        style={{ padding: 12, textDecoration: 'none' }}
-                      >
-                        <div style={{ fontWeight: 700, textTransform: 'capitalize' }}>{asset.kind}</div>
-                        <div className="small" style={{ color: '#9ca3af', marginTop: 4 }}>
-                          {asset.mime_type || 'asset'}
-                        </div>
-                        <div className="small" style={{ color: '#6b7280', marginTop: 6, wordBreak: 'break-all' }}>
-                          {asset.url}
-                        </div>
-                      </a>
-                    ))}
+                    {assetRecords.map((asset) => {
+                      const isImage = (asset.mime_type || '').startsWith('image/');
+                      const label = asset.kind === 'poster'
+                        ? 'Poster'
+                        : asset.kind === 'og'
+                        ? 'OG image'
+                        : asset.kind === 'thumb'
+                        ? 'Thumbnail'
+                        : asset.kind;
+                      return (
+                        <a
+                          key={asset.id}
+                          href={asset.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="card"
+                          style={{ padding: 12, textDecoration: 'none' }}
+                        >
+                          <div style={{ fontWeight: 700, textTransform: 'capitalize', marginBottom: 6 }}>{label}</div>
+                          {isImage && (
+                            <div
+                              style={{
+                                borderRadius: 10,
+                                overflow: 'hidden',
+                                border: '1px solid #1f2937',
+                                marginBottom: 8,
+                                background: '#020617'
+                              }}
+                            >
+                              <img
+                                src={asset.url}
+                                alt={label}
+                                style={{
+                                  width: '100%',
+                                  height: 'auto',
+                                  display: 'block',
+                                  aspectRatio: asset.kind === 'thumb' ? '1 / 1' : '4 / 5',
+                                  objectFit: 'cover'
+                                }}
+                              />
+                            </div>
+                          )}
+                          <div className="small" style={{ color: '#9ca3af', marginTop: 4 }}>
+                            {asset.mime_type || 'image'}
+                          </div>
+                          <div className="small" style={{ color: '#6b7280', marginTop: 6, wordBreak: 'break-all' }}>
+                            {asset.url}
+                          </div>
+                        </a>
+                      );
+                    })}
                   </div>
                 )}
               </div>
