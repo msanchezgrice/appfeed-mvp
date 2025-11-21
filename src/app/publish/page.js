@@ -2735,6 +2735,16 @@ POST /run
                 {assetRecords.length > 0 && (() => {
                   // Deduplicate by kind, keep newest
                   const byKind = {};
+                  // Include a message metadata image from preview if present
+                  if (createdApp?.preview_url) {
+                    byKind['message'] = {
+                      id: 'message-image',
+                      kind: 'message',
+                      mime_type: 'image/*',
+                      url: createdApp.preview_url,
+                      blur_data_url: createdApp.preview_blur || null
+                    };
+                  }
                   assetRecords.forEach((a) => {
                     const key = a.kind || 'asset';
                     if (!byKind[key]) byKind[key] = a;
@@ -2743,13 +2753,15 @@ POST /run
                   return (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
                     {assetsToShow.map((asset) => {
-                      const isImage = (asset.mime_type || '').startsWith('image/');
+                      const isImage = (asset.mime_type || '').startsWith('image/') || asset.kind === 'message';
                       const label = asset.kind === 'poster'
                         ? 'Poster'
                         : asset.kind === 'og'
                         ? 'OG image'
                         : asset.kind === 'thumb'
                         ? 'Thumbnail'
+                        : asset.kind === 'message'
+                        ? 'Message preview'
                         : asset.kind;
                       return (
                         <div key={asset.id} className="card" style={{ padding: 12, textDecoration: 'none' }}>

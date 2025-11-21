@@ -148,6 +148,15 @@ export default function PersonalAppView() {
         {!assetsLoading && assets.length === 0 && <div className="small" style={{ color: '#888' }}>No assets yet. Generate from the publish success screen.</div>}
         {assets.length > 0 && (() => {
           const byKind = {};
+          if (app?.preview_url) {
+            byKind['message'] = {
+              id: 'message-image',
+              kind: 'message',
+              mime_type: 'image/*',
+              url: app.preview_url,
+              blur_data_url: app.preview_blur || null
+            };
+          }
           assets.forEach((a) => {
             const key = a.kind || 'asset';
             if (!byKind[key]) byKind[key] = a;
@@ -156,13 +165,15 @@ export default function PersonalAppView() {
           return (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
               {assetsToShow.map((asset) => {
-                const isImage = (asset.mime_type || '').startsWith('image/');
+                const isImage = (asset.mime_type || '').startsWith('image/') || asset.kind === 'message';
                 const label = asset.kind === 'poster'
                   ? 'Poster'
                   : asset.kind === 'og'
                   ? 'OG'
                   : asset.kind === 'thumb'
                   ? 'Thumb'
+                  : asset.kind === 'message'
+                  ? 'Message preview'
                   : asset.kind.toUpperCase();
                 return (
                   <div
@@ -219,4 +230,3 @@ export default function PersonalAppView() {
     </div>
   );
 }
-
