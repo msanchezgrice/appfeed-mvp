@@ -59,7 +59,7 @@ export async function createOgAssetRecord({ supabase, app, userId }) {
   return { asset: data, url: ogUrl };
 }
 
-export async function createPosterAsset({ supabase, app, userId }) {
+export async function createPosterAsset({ supabase, app, userId, promptOverride }) {
   // Return existing poster if already generated
   const { data: existing } = await supabase
     .from('app_assets')
@@ -86,13 +86,17 @@ export async function createPosterAsset({ supabase, app, userId }) {
     throw new Error('Gemini API key not configured');
   }
 
-  const prompt = `Generate an elevated, mobile-first marketing poster for this app.
+  const basePrompt = `Generate an elevated, mobile-first marketing poster for this app.
 
 Name: ${app.name}
 Description: ${app.description || 'Mobile app'}
 
 Style: 1080x1350 poster, clean, premium, high-contrast text, space for QR code.
 Mood: Aspirational and clear. Text legible.`;
+
+  const prompt = promptOverride && String(promptOverride).trim()
+    ? `${basePrompt}\n\nCREATOR NOTES: ${String(promptOverride).trim()}`
+    : basePrompt;
 
   const response = await fetch(
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
@@ -171,7 +175,7 @@ async function fetchImageBuffer(srcUrl) {
   return Buffer.from(arrayBuf);
 }
 
-export async function createThumbAsset({ supabase, app, userId }) {
+export async function createThumbAsset({ supabase, app, userId, promptOverride }) {
   const source = app.preview_url || app.preview_image || null;
   if (!source) {
     throw new Error('No preview image available to create thumbnail');
@@ -195,6 +199,7 @@ export async function createThumbAsset({ supabase, app, userId }) {
     height: 720,
     blur_data_url: blurDataUrl,
     variant_id: version,
+    prompt: promptOverride || null,
     created_by: userId
   };
 
@@ -228,11 +233,13 @@ export async function processAssetJob({ supabase, job, app, userId }) {
     let outputs = null;
 
     if (job.type === 'poster') {
-      outputs = await createPosterAsset({ supabase, app, userId });
+      const promptOverride = job.inputs && typeof job.inputs.prompt === 'string' ? job.inputs.prompt : null;
+      outputs = await createPosterAsset({ supabase, app, userId, promptOverride });
     } else if (job.type === 'og') {
       outputs = await createOgAssetRecord({ supabase, app, userId });
     } else if (job.type === 'thumb') {
-      outputs = await createThumbAsset({ supabase, app, userId });
+      const promptOverride = job.inputs && typeof job.inputs.prompt === 'string' ? job.inputs.prompt : null;
+      outputs = await createThumbAsset({ supabase, app, userId, promptOverride });
     } else if (job.type === 'demo' || job.type === 'gif') {
       // Placeholder until a Playwright worker is wired up
       throw new Error('Demo/GIF generation requires a Playwright capture worker to record /app/:id; not yet configured.');
