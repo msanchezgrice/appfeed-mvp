@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AssetThumbnail from '@/src/components/AssetThumbnail';
 
 export default function MyAppsPage() {
   const { user: clerkUser, isLoaded, isSignedIn } = useUser();
@@ -13,6 +14,11 @@ export default function MyAppsPage() {
   const [filter, setFilter] = useState('all'); // 'all', 'published', 'unpublished'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedApp, setSelectedApp] = useState(null); // For preview modal
+  const [assetsOverlayOpen, setAssetsOverlayOpen] = useState(false);
+  const [assetsOverlayApp, setAssetsOverlayApp] = useState(null);
+  const [assetsOverlayData, setAssetsOverlayData] = useState({ assets: [], jobs: [] });
+  const [assetsOverlayLoading, setAssetsOverlayLoading] = useState(false);
+  const [assetsOverlayError, setAssetsOverlayError] = useState('');
 
   useEffect(() => {
     // Redirect to sign-in if not authenticated
@@ -122,6 +128,25 @@ export default function MyAppsPage() {
       }
     } catch (err) {
       alert('Error: ' + err.message);
+    }
+  };
+
+  const openAssetsOverlay = async (app) => {
+    setAssetsOverlayOpen(true);
+    setAssetsOverlayApp(app);
+    setAssetsOverlayLoading(true);
+    setAssetsOverlayError('');
+    try {
+      const res = await fetch(`/api/asset-jobs?appId=${encodeURIComponent(app.id)}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to load marketing assets');
+      }
+      setAssetsOverlayData({ assets: data.assets || [], jobs: data.jobs || [] });
+    } catch (err) {
+      setAssetsOverlayError(err?.message || 'Failed to load marketing assets');
+    } finally {
+      setAssetsOverlayLoading(false);
     }
   };
 
@@ -370,6 +395,17 @@ export default function MyAppsPage() {
 
                 {/* Action Buttons */}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => openAssetsOverlay(app)}
+                    className="btn ghost"
+                    style={{
+                      padding: '6px 14px',
+                      fontSize: 13,
+                      textDecoration: 'none'
+                    }}
+                  >
+                    🖼️ Marketing Assets
+                  </button>
                   <Link
                     href={`/app/${app.id}`}
                     className="btn ghost"
@@ -427,6 +463,148 @@ export default function MyAppsPage() {
         </div>
       )}
 
+      {/* Assets Overlay */}
+      {assetsOverlayOpen && (
+        <div
+          onClick={() => setAssetsOverlayOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 4000,
+            padding: 16
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#0b1220',
+              borderRadius: 16,
+              maxWidth: 900,
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              border: '1px solid #1f2937',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+            }}
+          >
+            <div style={{
+              padding: 20,
+              borderBottom: '1px solid #1f2937',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>Marketing Assets</div>
+                <div className="small" style={{ color: '#9ca3af' }}>
+                  {assetsOverlayApp?.name}
+                </div>
+              </div>
+              <button
+                onClick={() => setAssetsOverlayOpen(false)}
+                className="btn ghost"
+                style={{ padding: '6px 12px' }}
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div style={{ padding: 20 }}>
+              {assetsOverlayLoading && (
+                <div className="small" style={{ color: '#888' }}>Loading assets…</div>
+              )}
+              {assetsOverlayError && (
+                <div className="small" style={{ color: '#ef4444' }}>{assetsOverlayError}</div>
+              )}
+              {!assetsOverlayLoading && assetsOverlayData.assets && assetsOverlayData.assets.length === 0 && (
+                <div className="small" style={{ color: '#888' }}>
+                  No assets yet. Generate from Publish → success screen.
+                </div>
+              )}
+              {assetsOverlayData.assets && assetsOverlayData.assets.length > 0 && (() => {
+                const byKind = {};
+                if (assetsOverlayApp?.preview_url) {
+                  byKind['message'] = {
+                    id: 'message-image',
+                    kind: 'message',
+                    mime_type: 'image/*',
+                    url: assetsOverlayApp.preview_url,
+                    blur_data_url: assetsOverlayApp.preview_blur || null
+                  };
+                }
+                assetsOverlayData.assets.forEach((a) => {
+                  const key = a.kind || 'asset';
+                  if (!byKind[key]) byKind[key] = a;
+                });
+                const assetsToShow = Object.values(byKind);
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+                    {assetsToShow.map((asset) => {
+                      const isImage = (asset.mime_type || '').startsWith('image/') || asset.kind === 'message';
+                      const label = asset.kind === 'poster'
+                        ? 'Poster'
+                        : asset.kind === 'og'
+                        ? 'OG'
+                        : asset.kind === 'thumb'
+                        ? 'Thumb'
+                        : asset.kind === 'message'
+                        ? 'Message preview'
+                        : asset.kind.toUpperCase();
+                      return (
+                        <div key={asset.id} className="card" style={{ padding: 12 }}>
+                          <div style={{ fontWeight: 700, textTransform: 'capitalize', marginBottom: 6 }}>{label}</div>
+                          {isImage && (
+                            <div
+                              style={{
+                                borderRadius: 10,
+                                overflow: 'hidden',
+                                border: '1px solid #1f2937',
+                                marginBottom: 8,
+                                background: '#020617',
+                                position: 'relative'
+                              }}
+                            >
+                              <img
+                                src={asset.url}
+                                alt={label}
+                                style={{
+                                  width: '100%',
+                                  height: 'auto',
+                                  display: 'block',
+                                  aspectRatio: asset.kind === 'thumb' ? '1 / 1' : '4 / 5',
+                                  objectFit: 'cover'
+                                }}
+                              />
+                              <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 8 }}>
+                                <a className="btn" style={{ padding: '6px 10px', fontSize: 12 }} href={asset.url} download>
+                                  Download
+                                </a>
+                                <a className="btn ghost" style={{ padding: '6px 10px', fontSize: 12 }} href={asset.url} target="_blank" rel="noopener noreferrer">
+                                  Open
+                                </a>
+                              </div>
+                            </div>
+                          )}
+                          <div className="small" style={{ color: '#9ca3af', marginTop: 4 }}>
+                            {asset.mime_type || 'asset'}
+                          </div>
+                          <div className="small" style={{ color: '#6b7280', marginTop: 6, wordBreak: 'break-all' }}>
+                            {asset.url}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
       {/* App Preview Modal */}
       {selectedApp && (
         <div
@@ -551,4 +729,3 @@ export default function MyAppsPage() {
     </div>
   );
 }
-
