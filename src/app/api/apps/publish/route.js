@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import { getDecryptedSecret } from '@/src/lib/secrets';
 import { logEventServer } from '@/src/lib/metrics';
 import { uploadHtmlToStorage } from '@/src/lib/supabase-storage';
+import { AI_TOOL_MAP, DEFAULT_AI_TOOLS } from '@/src/lib/publish-tools';
 
 export const maxDuration = 60; // Allow up to 60 seconds for image generation
 
@@ -33,16 +34,19 @@ async function compressImage(base64Data, mimeType) {
 }
 
 // Basic manifest sanitization and defaults
-function sanitizeManifest(raw) {
+function sanitizeManifest(raw, allowedTools = DEFAULT_AI_TOOLS) {
   const manifest = typeof raw === 'object' && raw ? raw : {};
   const safeString = (v, d = '') => (typeof v === 'string' && v.trim() ? v.trim() : d);
   const safeArray = (v) => Array.isArray(v) ? v.filter(x => typeof x === 'string' && x.trim()).map(x => x.trim()) : [];
   const safeObject = (v) => (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+  const allowedToolList = (Array.isArray(allowedTools) && allowedTools.length ? allowedTools : DEFAULT_AI_TOOLS)
+    .filter(tool => AI_TOOL_MAP[tool]);
+  if (allowedToolList.length === 0) {
+    allowedToolList.push(DEFAULT_AI_TOOLS[0] || 'llm.complete');
+  }
+  const allowedToolSet = new Set(allowedToolList);
   
   const outputs = safeObject(manifest.outputs);
-  if (!outputs || Object.keys(outputs).length === 0) {
-    outputs.markdown = { type: 'string' };
-  }
   const demo = safeObject(manifest.demo);
   if (!demo.sampleInputs || typeof demo.sampleInputs !== 'object') {
     demo.sampleInputs = {};
@@ -67,6 +71,34 @@ function sanitizeManifest(raw) {
   if (!Array.isArray(runtime.steps)) {
     runtime.steps = [];
   }
+  runtime.steps = runtime.steps
+    .filter(step => step && allowedToolSet.has(step.tool))
+    .map((step, index) => ({
+      tool: step.tool,
+      args: safeObject(step.args),
+      output: safeString(step.output, step.tool === 'image.process' ? `image_${index || 'result'}` : 'result')
+    }));
+  if (runtime.steps.length === 0) {
+    const fallbackTool = allowedToolList[0];
+    runtime.steps.push({
+      tool: fallbackTool,
+      args: fallbackTool === 'image.process'
+        ? { instruction: 'Transform the uploaded image or create a fresh concept based on user inputs.' }
+        : { prompt: 'Summarize the provided inputs in a helpful way.' },
+      output: fallbackTool === 'image.process' ? 'image' : 'markdown'
+    });
+  }
+  const usesImageTool = runtime.steps.some(step => step.tool === 'image.process');
+  const usesTextTool = runtime.steps.some(step => step.tool !== 'image.process');
+  if (usesImageTool && !outputs.image) {
+    outputs.image = { type: 'image' };
+  }
+  if (usesTextTool && !outputs.markdown) {
+    outputs.markdown = { type: 'string' };
+  }
+  if (!Object.keys(outputs).length) {
+    outputs.markdown = { type: 'string' };
+  }
   const inputs = safeObject(manifest.inputs);
   
   return {
@@ -87,7 +119,7 @@ function sanitizeManifest(raw) {
   };
 }
 
-async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
+async function generateManifestWithAnthropic({ prompt, userId, supabase, toolWhitelist }) {
   const envKey = process.env.ANTHROPIC_API_KEY;
   const userKey = await getDecryptedSecret(userId, 'anthropic', supabase);
   const apiKey = userKey || envKey;
@@ -135,22 +167,52 @@ async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
   } catch (e) {
     console.warn('[AI Publish] Could not load example apps:', e?.message || e);
   }
+
+  const allowedToolIds = (Array.isArray(toolWhitelist) && toolWhitelist.length ? toolWhitelist : DEFAULT_AI_TOOLS)
+    .filter(tool => AI_TOOL_MAP[tool]);
+  if (allowedToolIds.length === 0) {
+    allowedToolIds.push(DEFAULT_AI_TOOLS[0] || 'llm.complete');
+  }
+  const allowedToolMeta = allowedToolIds.map(id => AI_TOOL_MAP[id]).filter(Boolean);
+  const toolNames = allowedToolMeta.map(meta => `"${meta.id}"`).join(', ');
+  const toolGuidance = allowedToolMeta
+    .map(meta => `- ${meta.id}: ${meta.description} ${meta.promptHint}`)
+    .join(' ');
+  const outputGuidance = allowedToolMeta
+    .map(meta => {
+      if (meta.outputType === 'image') {
+        return `- ${meta.id} produces images → include outputs.image { type: "image" } and bind that step's output there.`;
+      }
+      return `- ${meta.id} produces markdown/text → include outputs.markdown { type: "string" } (or similar) for that step.`;
+    })
+    .join(' ');
   
   const system = [
     'You are Clipcade’s app manifest generator.',
     'Return ONLY a valid JSON object matching the required schema.',
     'Use concise, production-ready values.',
-    'Supported runtime tools: "llm.complete" and "image.process". Prefer engine "local".',
+    `Supported runtime tools (user-selected): ${toolNames}. DO NOT reference other tools.`,
+    toolGuidance ? `TOOL DETAILS: ${toolGuidance}` : '',
+    outputGuidance ? `OUTPUT MAPPING: ${outputGuidance}` : '',
     'If unsure for outputs, default to { "markdown": { "type": "string" } }.{',
     'SCHEMA RULES:',
     '- Editable: name, description, tags, preview_url, preview_gradient, design.containerColor, design.fontColor, design.fontFamily, design.inputLayout, modal_theme.*, input_theme.*',
     '- Locked (do not mark as editable): container size, layout structure, and core logic in runtime steps',
     '- Inputs: Use supported types only: string | number | boolean | enum | file(image/video) when needed',
-    '- Runtime: Prefer local engine; steps use only llm.complete or image.process as per needs; define deterministic, minimal steps',
-    '- Outputs: If not specified by the prompt, include markdown output',
+    '- Runtime: Prefer local engine; steps must use only the allowed tools listed above; define deterministic, minimal steps',
+    '- Outputs: Match outputs to the tools you include (image outputs for image.process, markdown for llm.complete) and only add required fields',
     '- Demo: Provide sampleInputs that satisfy inputs',
     '}', 
-  ].join(' ');
+  ].filter(Boolean).join(' ');
+  
+  const examplePrimaryTool = allowedToolMeta[0]?.id || 'llm.complete';
+  const exampleOutputKey = allowedToolMeta[0]?.outputType === 'image' ? 'image' : 'markdown';
+  const exampleOutputs = {
+    [exampleOutputKey]: allowedToolMeta[0]?.outputType === 'image' ? { type: 'image' } : { type: 'string' }
+  };
+  const exampleToolArgs = examplePrimaryTool === 'image.process'
+    ? { instruction: 'Create a polished visual for {{topic}}.' }
+    : { prompt: 'Answer clearly about {{topic}}.' };
   
   const example = {
     name: "My App Name",
@@ -167,15 +229,15 @@ async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
     input_theme: { borderColor: "#333", backgroundColor: "#1a1a1a" },
     demo: { sampleInputs: {} },
     inputs: {
-      query: { type: "string", label: "Query", placeholder: "Enter text...", required: true }
+      topic: { type: "string", label: "Topic", placeholder: "Describe the subject...", required: true }
     },
-    outputs: { markdown: { type: "string" } },
+    outputs: exampleOutputs,
     runtime: {
       engine: "local",
       steps: [{
-        tool: "llm.complete",
-        args: { prompt: "Answer: {{query}}" },
-        output: "result"
+        tool: examplePrimaryTool,
+        args: exampleToolArgs,
+        output: exampleOutputKey
       }]
     }
   };
@@ -187,6 +249,9 @@ async function generateManifestWithAnthropic({ prompt, userId, supabase }) {
     '',
     'User context:',
     JSON.stringify({ username: userMeta.username, display_name: userMeta.display_name }),
+    '',
+    'User-selected runtime tools (restrict yourself to these):',
+    JSON.stringify(allowedToolIds),
     '',
     'Return ONLY JSON with fields:',
     'name, description, tags, design, preview_gradient, modal_theme, input_theme, demo, inputs, outputs, runtime',
@@ -340,16 +405,22 @@ export async function POST(request) {
       if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
         return NextResponse.json({ error: 'Prompt is required for AI generation' }, { status: 400 });
       }
+      const requestedTools = Array.isArray(appData.tools) ? appData.tools : [];
+      const toolWhitelist = (requestedTools.length ? requestedTools : DEFAULT_AI_TOOLS)
+        .filter(tool => AI_TOOL_MAP[tool]);
+      if (toolWhitelist.length === 0) {
+        toolWhitelist.push(DEFAULT_AI_TOOLS[0] || 'llm.complete');
+      }
       
       let rawManifest = {};
       try {
-        rawManifest = await generateManifestWithAnthropic({ prompt, userId, supabase });
+        rawManifest = await generateManifestWithAnthropic({ prompt, userId, supabase, toolWhitelist });
       } catch (err) {
         console.error('[AI Publish] Manifest generation error:', err);
         return NextResponse.json({ error: 'Failed to generate manifest with AI' }, { status: 502 });
       }
       
-      const manifest = sanitizeManifest(rawManifest);
+      const manifest = sanitizeManifest(rawManifest, toolWhitelist);
       const aiName = manifest.name || 'AI App';
       const aiId = `${aiName.toLowerCase().replace(/\s+/g, '-')}-${Date.now().toString(36)}`;
       

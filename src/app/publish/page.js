@@ -4,6 +4,7 @@ import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { analytics, trackEvent } from '@/src/lib/analytics';
+import { AI_TOOL_OPTIONS, DEFAULT_AI_TOOLS } from '@/src/lib/publish-tools';
 
 export default function PublishPage() {
   const { user, isLoaded, isSignedIn } = useUser();
@@ -19,6 +20,7 @@ export default function PublishPage() {
   const [demoVideo, setDemoVideo] = useState(null);
   const [tags, setTags] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const [selectedTools, setSelectedTools] = useState(DEFAULT_AI_TOOLS);
 
   // Form states for AI app
   const [aiPrompt, setAiPrompt] = useState('');
@@ -49,6 +51,16 @@ export default function PublishPage() {
   // Form states for HTML bundle
   const [htmlContent, setHtmlContent] = useState('');
   const [htmlFile, setHtmlFile] = useState(null);
+
+  const toggleToolSelection = (toolId) => {
+    setSelectedTools((prev) => {
+      if (prev.includes(toolId)) {
+        if (prev.length === 1) return prev; // Keep at least one tool selected
+        return prev.filter((id) => id !== toolId);
+      }
+      return [...prev, toolId];
+    });
+  };
 
   useEffect(() => {
     // Redirect to sign-in if not authenticated
@@ -336,6 +348,10 @@ export default function PublishPage() {
 
   const handleSubmitAI = async (e) => {
     e.preventDefault();
+    if (selectedTools.length === 0) {
+      alert('Select at least one tool to continue.');
+      return;
+    }
     setStep('generating');
     try {
       const response = await fetch('/api/apps/publish', {
@@ -347,7 +363,8 @@ export default function PublishPage() {
           appData: {
             prompt: aiPrompt,
             tags,
-            isMobile
+            isMobile,
+            tools: selectedTools
           }
         })
       });
@@ -953,6 +970,58 @@ export default function PublishPage() {
             </div>
 
             <div className="card" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginTop: 0 }}>Tools & Integrations</h3>
+              <p className="small" style={{ marginTop: 0, marginBottom: 16, color: '#888' }}>
+                Pick which runtime tools the AI is allowed to use. Toggle on Google Image to force Gemini image generation
+                instead of trying to describe it in the prompt.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {AI_TOOL_OPTIONS.map((tool) => {
+                  const isSelected = selectedTools.includes(tool.id);
+                  return (
+                    <button
+                      key={tool.id}
+                      type="button"
+                      onClick={() => toggleToolSelection(tool.id)}
+                      style={{
+                        textAlign: 'left',
+                        borderRadius: 12,
+                        border: isSelected ? '1px solid var(--brand)' : '1px solid #2a2a2a',
+                        background: isSelected ? 'linear-gradient(135deg, #6366f122 0%, #8b5cf622 100%)' : 'transparent',
+                        padding: 16,
+                        color: 'inherit',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{tool.label}</div>
+                          <div className="small" style={{ color: '#aaa', marginTop: 4 }}>{tool.description}</div>
+                        </div>
+                        <div
+                          style={{
+                            borderRadius: 999,
+                            padding: '4px 10px',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            background: isSelected ? '#10b98133' : '#2d2d2d',
+                            color: isSelected ? '#10b981' : '#aaa',
+                            alignSelf: 'flex-start'
+                          }}
+                        >
+                          {isSelected ? 'Selected' : 'Tap to add'}
+                        </div>
+                      </div>
+                      <div className="small" style={{ color: '#777', marginTop: 10 }}>
+                        {tool.promptHint}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="card" style={{ marginBottom: 16 }}>
               <h3 style={{ marginTop: 0 }}>Discovery & Device</h3>
               <div style={{ marginBottom: 16 }}>
                 <label className="label">Tags</label>
@@ -977,7 +1046,12 @@ export default function PublishPage() {
               </div>
             </div>
 
-            <button type="submit" className="btn primary" style={{ width: '100%', padding: '14px', fontSize: 16 }}>
+            <button
+              type="submit"
+              className="btn primary"
+              style={{ width: '100%', padding: '14px', fontSize: 16 }}
+              disabled={selectedTools.length === 0}
+            >
               Generate App →
             </button>
           </form>
