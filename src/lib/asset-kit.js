@@ -35,9 +35,9 @@ export async function fetchAppForAssets(supabase, appId) {
   return app;
 }
 
-export async function createOgAssetRecord({ supabase, app, userId, promptOverride }) {
-  // If no prompt override, prefer existing OG asset or create simple OG link record
-  if (!promptOverride) {
+export async function createOgAssetRecord({ supabase, app, userId, promptOverride, force }) {
+  // If no prompt override and not forced, prefer existing OG asset or create simple OG link record
+  if (!promptOverride && !force) {
     const { data: existing } = await supabase
       .from('app_assets')
       .select('*')
@@ -151,17 +151,19 @@ Style: Clean, legible, strong contrast, include space for title.`;
   return { asset, url: defaultUrl };
 }
 
-export async function createPosterAsset({ supabase, app, userId, promptOverride }) {
-  // Return existing poster if already generated
-  const { data: existing } = await supabase
-    .from('app_assets')
-    .select('*')
-    .eq('app_id', app.id)
-    .eq('kind', 'poster')
-    .order('created_at', { ascending: false })
-    .limit(1);
-  if (existing && existing.length) {
-    return { asset: existing[0], urls: { 720: existing[0].url }, blur: existing[0].blur_data_url };
+export async function createPosterAsset({ supabase, app, userId, promptOverride, force }) {
+  // Return existing poster if already generated and not forcing a refresh
+  if (!force && !promptOverride) {
+    const { data: existing } = await supabase
+      .from('app_assets')
+      .select('*')
+      .eq('app_id', app.id)
+      .eq('kind', 'poster')
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (existing && existing.length) {
+      return { asset: existing[0], urls: { 720: existing[0].url }, blur: existing[0].blur_data_url };
+    }
   }
 
   const envKey = process.env.GEMINI_API_KEY;
@@ -267,9 +269,9 @@ async function fetchImageBuffer(srcUrl) {
   return Buffer.from(arrayBuf);
 }
 
-export async function createThumbAsset({ supabase, app, userId, promptOverride }) {
+export async function createThumbAsset({ supabase, app, userId, promptOverride, force }) {
   // If no prompt, derive from existing preview
-  if (!promptOverride) {
+  if (!promptOverride && !force) {
     const source = app.preview_url || app.preview_image || null;
     if (!source) {
       throw new Error('No preview image available to create thumbnail');
@@ -386,12 +388,16 @@ export async function processAssetJob({ supabase, job, app, userId }) {
 
     if (job.type === 'poster') {
       const promptOverride = job.inputs && typeof job.inputs.prompt === 'string' ? job.inputs.prompt : null;
-      outputs = await createPosterAsset({ supabase, app, userId, promptOverride });
+      const force = !!(job.inputs && job.inputs.force);
+      outputs = await createPosterAsset({ supabase, app, userId, promptOverride, force });
     } else if (job.type === 'og') {
-      outputs = await createOgAssetRecord({ supabase, app, userId });
+      const promptOverride = job.inputs && typeof job.inputs.prompt === 'string' ? job.inputs.prompt : null;
+      const force = !!(job.inputs && job.inputs.force);
+      outputs = await createOgAssetRecord({ supabase, app, userId, promptOverride, force });
     } else if (job.type === 'thumb') {
       const promptOverride = job.inputs && typeof job.inputs.prompt === 'string' ? job.inputs.prompt : null;
-      outputs = await createThumbAsset({ supabase, app, userId, promptOverride });
+      const force = !!(job.inputs && job.inputs.force);
+      outputs = await createThumbAsset({ supabase, app, userId, promptOverride, force });
     } else if (job.type === 'demo' || job.type === 'gif') {
       const script = job.inputs || {};
       const demo = await captureDemo({ appId: app.id, userId, supabase, script });

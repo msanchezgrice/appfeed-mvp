@@ -2605,7 +2605,7 @@ POST /run
                     <button
                       type="button"
                       className="btn"
-                      onClick={() => triggerAssetJobs(createdApp.id, { types: ['poster'], inputs: { prompt: posterPrompt } })}
+                      onClick={() => triggerAssetJobs(createdApp.id, { types: ['poster'], inputs: { prompt: posterPrompt, force: true } })}
                       disabled={assetLoading}
                     >
                       {assetLoading ? 'Regenerating poster…' : 'Regenerate poster'}
@@ -2613,7 +2613,7 @@ POST /run
                     <button
                       type="button"
                       className="btn"
-                      onClick={() => triggerAssetJobs(createdApp.id, { types: ['poster', 'og', 'thumb'], inputs: { prompt: posterPrompt } })}
+                      onClick={() => triggerAssetJobs(createdApp.id, { types: ['poster', 'og', 'thumb'], inputs: { prompt: posterPrompt, force: true } })}
                       disabled={assetLoading}
                     >
                       {assetLoading ? 'Run all images…' : 'Run all images'}
@@ -2634,7 +2634,7 @@ POST /run
                     <button
                       type="button"
                       className="btn"
-                      onClick={() => triggerAssetJobs(createdApp.id, { types: ['thumb'], inputs: { prompt: thumbPrompt } })}
+                      onClick={() => triggerAssetJobs(createdApp.id, { types: ['thumb'], inputs: { prompt: thumbPrompt, force: true } })}
                       disabled={assetLoading}
                     >
                       {assetLoading ? 'Regenerating thumb…' : 'Regenerate thumb'}
@@ -2655,7 +2655,7 @@ POST /run
                     <button
                       type="button"
                       className="btn"
-                      onClick={() => triggerAssetJobs(createdApp.id, { types: ['og'], inputs: { prompt: ogPrompt } })}
+                      onClick={() => triggerAssetJobs(createdApp.id, { types: ['og'], inputs: { prompt: ogPrompt, force: true } })}
                       disabled={assetLoading}
                     >
                       {assetLoading ? 'Regenerating OG…' : 'Regenerate OG'}
