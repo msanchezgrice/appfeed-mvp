@@ -14,6 +14,9 @@ export default function PersonalAppView() {
   const [app, setApp] = useState(null);
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [assets, setAssets] = useState([]);
+  const [assetsLoading, setAssetsLoading] = useState(false);
+  const [assetsError, setAssetsError] = useState('');
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -29,6 +32,22 @@ export default function PersonalAppView() {
         const runsRes = await fetch(`/api/runs?appId=${encodeURIComponent(appId)}`, { cache: 'no-store' });
         const runsData = await runsRes.json();
         setRuns(runsData.runs || []);
+        // Load marketing assets
+        try {
+          setAssetsLoading(true);
+          const assetsRes = await fetch(`/api/asset-jobs?appId=${encodeURIComponent(appId)}`, { cache: 'no-store' });
+          const assetsData = await assetsRes.json();
+          if (assetsRes.ok) {
+            setAssets(assetsData.assets || []);
+            setAssetsError('');
+          } else {
+            setAssetsError(assetsData.error || 'Failed to load assets');
+          }
+        } catch (err) {
+          setAssetsError(err?.message || 'Failed to load assets');
+        } finally {
+          setAssetsLoading(false);
+        }
       } catch (e) {
         console.error('[Personal App] Load error:', e);
       } finally {
@@ -111,6 +130,75 @@ export default function PersonalAppView() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: 32 }}>
+        <h3 style={{ marginBottom: 12 }}>Marketing Assets</h3>
+        <p className="small" style={{ color: '#888', marginBottom: 12 }}>
+          Download your poster, OG, thumb, and demo/GIF assets. Regenerate in Publish → success screen using per-asset prompts.
+        </p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          <Link className="btn" href="/publish">Open Publish</Link>
+          <Link className="btn ghost" href={`/api/asset-jobs?appId=${encodeURIComponent(appId)}`} target="_blank" rel="noreferrer">Raw JSON</Link>
+        </div>
+        {assetsLoading && <div className="small" style={{ color: '#888' }}>Loading assets…</div>}
+        {assetsError && <div className="small" style={{ color: '#ef4444' }}>{assetsError}</div>}
+        {!assetsLoading && assets.length === 0 && <div className="small" style={{ color: '#888' }}>No assets yet. Generate from the publish success screen.</div>}
+        {assets.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+            {assets.map((asset) => {
+              const isImage = (asset.mime_type || '').startsWith('image/');
+              const label = asset.kind === 'poster'
+                ? 'Poster'
+                : asset.kind === 'og'
+                ? 'OG'
+                : asset.kind === 'thumb'
+                ? 'Thumb'
+                : asset.kind.toUpperCase();
+              return (
+                <a
+                  key={asset.id}
+                  href={asset.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="card"
+                  style={{ padding: 12, textDecoration: 'none' }}
+                >
+                  <div style={{ fontWeight: 700, textTransform: 'capitalize', marginBottom: 6 }}>{label}</div>
+                  {isImage && (
+                    <div
+                      style={{
+                        borderRadius: 10,
+                        overflow: 'hidden',
+                        border: '1px solid #1f2937',
+                        marginBottom: 8,
+                        background: '#020617'
+                      }}
+                    >
+                      <img
+                        src={asset.url}
+                        alt={label}
+                        style={{
+                          width: '100%',
+                          height: 'auto',
+                          display: 'block',
+                          aspectRatio: asset.kind === 'thumb' ? '1 / 1' : '4 / 5',
+                          objectFit: 'cover'
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div className="small" style={{ color: '#9ca3af', marginTop: 4 }}>
+                    {asset.mime_type || 'asset'}
+                  </div>
+                  <div className="small" style={{ color: '#6b7280', marginTop: 6, wordBreak: 'break-all' }}>
+                    {asset.url}
+                  </div>
+                </a>
+              );
+            })}
           </div>
         )}
       </div>

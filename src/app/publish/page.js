@@ -2601,15 +2601,24 @@ POST /run
                     value={posterPrompt}
                     onChange={(e) => setPosterPrompt(e.target.value)}
                   />
-                  <button
-                    type="button"
-                    className="btn"
-                    style={{ marginTop: 8 }}
-                    onClick={() => triggerAssetJobs(createdApp.id, { types: ['poster'], inputs: { prompt: posterPrompt } })}
-                    disabled={assetLoading}
-                  >
-                    {assetLoading ? 'Regenerating poster…' : 'Regenerate poster'}
-                  </button>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => triggerAssetJobs(createdApp.id, { types: ['poster'], inputs: { prompt: posterPrompt } })}
+                      disabled={assetLoading}
+                    >
+                      {assetLoading ? 'Regenerating poster…' : 'Regenerate poster'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => triggerAssetJobs(createdApp.id, { types: ['poster', 'og', 'thumb'], inputs: { prompt: posterPrompt } })}
+                      disabled={assetLoading}
+                    >
+                      {assetLoading ? 'Run all images…' : 'Run all images'}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
@@ -2621,15 +2630,16 @@ POST /run
                     value={thumbPrompt}
                     onChange={(e) => setThumbPrompt(e.target.value)}
                   />
-                  <button
-                    type="button"
-                    className="btn"
-                    style={{ marginTop: 8 }}
-                    onClick={() => triggerAssetJobs(createdApp.id, { types: ['thumb'], inputs: { prompt: thumbPrompt } })}
-                    disabled={assetLoading}
-                  >
-                    {assetLoading ? 'Regenerating thumb…' : 'Regenerate thumb'}
-                  </button>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => triggerAssetJobs(createdApp.id, { types: ['thumb'], inputs: { prompt: thumbPrompt } })}
+                      disabled={assetLoading}
+                    >
+                      {assetLoading ? 'Regenerating thumb…' : 'Regenerate thumb'}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
@@ -2641,15 +2651,16 @@ POST /run
                     value={ogPrompt}
                     onChange={(e) => setOgPrompt(e.target.value)}
                   />
-                  <button
-                    type="button"
-                    className="btn"
-                    style={{ marginTop: 8 }}
-                    onClick={() => triggerAssetJobs(createdApp.id, { types: ['og'], inputs: { prompt: ogPrompt } })}
-                    disabled={assetLoading}
-                  >
-                    {assetLoading ? 'Regenerating OG…' : 'Regenerate OG'}
-                  </button>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => triggerAssetJobs(createdApp.id, { types: ['og'], inputs: { prompt: ogPrompt } })}
+                      disabled={assetLoading}
+                    >
+                      {assetLoading ? 'Regenerating OG…' : 'Regenerate OG'}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
@@ -2661,15 +2672,16 @@ POST /run
                     value={demoPrompt}
                     onChange={(e) => setDemoPrompt(e.target.value)}
                   />
-                  <button
-                    type="button"
-                    className="btn"
-                    style={{ marginTop: 8 }}
-                    onClick={() => triggerAssetJobs(createdApp.id, { types: ['demo', 'gif'], inputs: { prompt: demoPrompt, clickTry: true, delayMs: 1500 } })}
-                    disabled={assetLoading}
-                  >
-                    {assetLoading ? 'Recording demo…' : 'Generate demo + GIF'}
-                  </button>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => triggerAssetJobs(createdApp.id, { types: ['demo', 'gif'], inputs: { prompt: demoPrompt, clickTry: true, delayMs: 1500 } })}
+                      disabled={assetLoading}
+                    >
+                      {assetLoading ? 'Recording demo…' : 'Generate demo + GIF'}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
