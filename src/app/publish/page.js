@@ -1197,7 +1197,7 @@ export default function PublishPage() {
                     <label className="label">LLM Prompt Template</label>
                     <textarea
                       className="input"
-                      placeholder="Optional: e.g. \"You are a seasoned UX writer... {{original}}\""
+                      placeholder={'Optional: e.g. "You are a seasoned UX writer... {{original}}"'}
                       rows={3}
                       value={llmPromptTemplate}
                       onChange={(e) => setLlmPromptTemplate(e.target.value)}
@@ -1210,7 +1210,7 @@ export default function PublishPage() {
                     <label className="label">Image Instruction Template</label>
                     <textarea
                       className="input"
-                      placeholder="Optional: e.g. \"Apply cinematic lighting to {{original}}\""
+                      placeholder={'Optional: e.g. "Apply cinematic lighting to {{original}}"'}
                       rows={3}
                       value={imagePromptTemplate}
                       onChange={(e) => setImagePromptTemplate(e.target.value)}
