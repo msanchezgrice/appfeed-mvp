@@ -83,6 +83,11 @@ export default function PublishPage() {
   const [ogPrompt, setOgPrompt] = useState('');
   const [demoPrompt, setDemoPrompt] = useState('');
 
+  const DEFAULT_POSTER_PROMPT = 'Generate an elevated, mobile-first marketing poster (1080x1350) with bold title, app UI inset, and QR space.';
+  const DEFAULT_THUMB_PROMPT = 'Create a clean square thumbnail for shelves/app icon, simple gradient + recognizable mark.';
+  const DEFAULT_OG_PROMPT = 'Landscape OG (1200x630) with clear title, short description space, and a QR or CTA area on the right.';
+  const DEFAULT_DEMO_SCRIPT = 'Open the app, wait ~1.5s, tap Try, and capture a short 9–12s clip.';
+
   const applyManifestUpdate = (updater) => {
     setCurrentManifest((prev) => {
       if (!prev) return prev;
@@ -2602,7 +2607,10 @@ POST /run
                     onChange={(e) => setPosterPrompt(e.target.value)}
                   />
                   <div className="small" style={{ color: '#9ca3af', marginTop: 6 }}>
-                    Current: {posterPrompt ? `${posterPrompt.slice(0, 80)}${posterPrompt.length > 80 ? '…' : ''}` : 'Empty'}
+                    Current: {posterPrompt ? `${posterPrompt.slice(0, 80)}${posterPrompt.length > 80 ? '…' : ''}` : '(using default)'}
+                  </div>
+                  <div className="small" style={{ color: '#6b7280' }}>
+                    Default: {DEFAULT_POSTER_PROMPT}
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                     <button
@@ -2634,7 +2642,10 @@ POST /run
                     onChange={(e) => setThumbPrompt(e.target.value)}
                   />
                   <div className="small" style={{ color: '#9ca3af', marginTop: 6 }}>
-                    Current: {thumbPrompt ? `${thumbPrompt.slice(0, 80)}${thumbPrompt.length > 80 ? '…' : ''}` : 'Empty'}
+                    Current: {thumbPrompt ? `${thumbPrompt.slice(0, 80)}${thumbPrompt.length > 80 ? '…' : ''}` : '(using default)'}
+                  </div>
+                  <div className="small" style={{ color: '#6b7280' }}>
+                    Default: {DEFAULT_THUMB_PROMPT}
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                     <button
@@ -2658,7 +2669,10 @@ POST /run
                     onChange={(e) => setOgPrompt(e.target.value)}
                   />
                   <div className="small" style={{ color: '#9ca3af', marginTop: 6 }}>
-                    Current: {ogPrompt ? `${ogPrompt.slice(0, 80)}${ogPrompt.length > 80 ? '…' : ''}` : 'Empty'}
+                    Current: {ogPrompt ? `${ogPrompt.slice(0, 80)}${ogPrompt.length > 80 ? '…' : ''}` : '(using default)'}
+                  </div>
+                  <div className="small" style={{ color: '#6b7280' }}>
+                    Default: {DEFAULT_OG_PROMPT}
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                     <button
@@ -2682,7 +2696,10 @@ POST /run
                     onChange={(e) => setDemoPrompt(e.target.value)}
                   />
                   <div className="small" style={{ color: '#9ca3af', marginTop: 6 }}>
-                    Current: {demoPrompt ? `${demoPrompt.slice(0, 80)}${demoPrompt.length > 80 ? '…' : ''}` : 'Empty'}
+                    Current: {demoPrompt ? `${demoPrompt.slice(0, 80)}${demoPrompt.length > 80 ? '…' : ''}` : '(using default)'}
+                  </div>
+                  <div className="small" style={{ color: '#6b7280' }}>
+                    Default: {DEFAULT_DEMO_SCRIPT}
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                     <button
