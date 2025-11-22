@@ -49,14 +49,11 @@ export async function GET(req) {
     }
 
     // Fallback: derive last run for apps without saved state
-    const missingAppIds = appId
-      ? (states.length === 0 ? [appId] : [])
-      : null;
-
-    const needFallback = appId ? missingAppIds : (states.length ? null : []);
+    const missingAppIds = appId && states.length === 0 ? [appId] : null;
 
     let runFallback = {};
-    // If specific appId missing, fetch last run for that app/user
+    // If specific appId missing, fetch last run for that app/user.
+    // For list calls (no appId), we skip fallback to avoid heavy scans.
     if (appId && missingAppIds?.length) {
       const { data: runs, error: runsError } = await supabase
         .from('runs')
@@ -67,20 +64,6 @@ export async function GET(req) {
         .limit(1);
       if (!runsError && runs?.length) {
         runFallback[appId] = runs[0];
-      }
-    } else if (!appId) {
-      const { data: runs, error: runsError } = await supabase
-        .from('runs')
-        .select('id, app_id, inputs, outputs, asset_url, asset_type, created_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(100);
-      if (!runsError && Array.isArray(runs)) {
-        for (const run of runs) {
-          if (!runFallback[run.app_id]) {
-            runFallback[run.app_id] = run;
-          }
-        }
       }
     }
 

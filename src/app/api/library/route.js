@@ -30,7 +30,8 @@ export async function GET() {
         )
       `)
       .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(60);
     
     if (error) {
       console.error('Error fetching library:', error);

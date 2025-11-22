@@ -19,8 +19,27 @@ export default function HomeAppsPage() {
       return;
     }
     (async () => {
+      // Phase 1: try to hydrate from sessionStorage for instant UI
+      let loadedFromCache = false;
+      const cacheKey = user ? `cc_home_apps:${user.id}` : null;
+      if (cacheKey && typeof window !== 'undefined') {
+        try {
+          const cached = window.sessionStorage.getItem(cacheKey);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length) {
+              setApps(parsed);
+              setLoading(false);
+              loadedFromCache = true;
+            }
+          }
+        } catch {
+          // ignore cache errors
+        }
+      }
+
       try {
-        setLoading(true);
+        if (!loadedFromCache) setLoading(true);
         const res = await fetch('/api/library', { cache: 'no-store' });
         if (!res.ok) {
           console.error('[Home] Failed to load library', res.status);
@@ -30,26 +49,34 @@ export default function HomeAppsPage() {
         const data = await res.json();
         const items = Array.isArray(data.items) ? data.items : [];
         setApps(items);
-
-        // Optionally load per-app state for notification badges
-        try {
-          const stateRes = await fetch('/api/user-state', { cache: 'no-store' });
-          if (stateRes.ok) {
-            const stateData = await stateRes.json();
-            const map = {};
-            (stateData.states || []).forEach((s) => {
-              if (s?.app_id) map[s.app_id] = s;
-            });
-            setStates(map);
+         // update cache for this session
+        if (cacheKey && typeof window !== 'undefined') {
+          try {
+            window.sessionStorage.setItem(cacheKey, JSON.stringify(items));
+          } catch {
+            // ignore
           }
-        } catch {
-          // ignore
         }
       } catch (err) {
         console.error('[Home] Error loading library', err);
         setApps([]);
       } finally {
         setLoading(false);
+      }
+    })();
+    // Load user state for badges in the background so it never blocks icons
+    (async () => {
+      try {
+        const stateRes = await fetch('/api/user-state', { cache: 'no-store' });
+        if (!stateRes.ok) return;
+        const stateData = await stateRes.json();
+        const map = {};
+        (stateData.states || []).forEach((s) => {
+          if (s?.app_id) map[s.app_id] = s;
+        });
+        setStates(map);
+      } catch {
+        // ignore
       }
     })();
   }, [isLoaded, isSignedIn, router]);
@@ -143,15 +170,24 @@ export default function HomeAppsPage() {
                   <span
                     style={{
                       position: 'absolute',
-                      top: 6,
-                      right: 6,
-                      width: 10,
-                      height: 10,
-                      borderRadius: '50%',
-                      background: '#22c55e',
+                      top: 4,
+                      right: 4,
+                      minWidth: 16,
+                      height: 16,
+                      borderRadius: 999,
+                      background: '#ef4444',
+                      color: '#fff',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '0 4px',
                       boxShadow: '0 0 0 2px rgba(0,0,0,0.7)'
                     }}
-                  />
+                  >
+                    1
+                  </span>
                 )}
               </div>
             <div

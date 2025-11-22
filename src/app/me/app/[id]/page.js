@@ -27,25 +27,42 @@ export default function PersonalAppView() {
     }
     (async () => {
       try {
-        const homeRes = await fetch(`/api/app-home?appId=${encodeURIComponent(appId)}`, { cache: 'no-store' });
-        const homeData = await homeRes.json();
-        if (!homeRes.ok) {
-          console.error('[Personal App] app-home error:', homeData.error);
+        // 1) Load app via existing apps endpoint (stable, used by /app/[id])
+        const appRes = await fetch(`/api/apps/${encodeURIComponent(appId)}`, { cache: 'no-store' });
+        const appData = await appRes.json();
+        if (appRes.ok && (appData.app || appData)) {
+          setApp(appData.app || appData);
         } else {
-          setApp(homeData.app || null);
-          setUserState(homeData.userState || null);
-          setRuns(homeData.runs || []);
-          try {
-            fetch('/api/app-home/seen', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ appId })
-            }).catch(() => {});
-          } catch {
-            // ignore
-          }
+          console.error('[Personal App] app load error:', appData.error || appRes.status);
         }
 
+        // 2) Load user-specific state (may fall back to last run on server)
+        try {
+          const stateRes = await fetch(`/api/user-state?appId=${encodeURIComponent(appId)}`, { cache: 'no-store' });
+          const stateData = await stateRes.json();
+          if (stateRes.ok) {
+            setUserState(stateData.state || null);
+          } else {
+            console.error('[Personal App] user-state error:', stateData.error || stateRes.status);
+          }
+        } catch {
+          // ignore state errors
+        }
+
+        // 3) Load recent runs for this app/user
+        try {
+          const runsRes = await fetch(`/api/runs?appId=${encodeURIComponent(appId)}`, { cache: 'no-store' });
+          const runsData = await runsRes.json();
+          if (runsRes.ok) {
+            setRuns(runsData.runs || []);
+          } else {
+            console.error('[Personal App] runs error:', runsData.error || runsRes.status);
+          }
+        } catch {
+          // ignore runs errors
+        }
+
+        // 4) Load marketing assets (unchanged)
         try {
           setAssetsLoading(true);
           const assetsRes = await fetch(`/api/asset-jobs?appId=${encodeURIComponent(appId)}`, { cache: 'no-store' });
