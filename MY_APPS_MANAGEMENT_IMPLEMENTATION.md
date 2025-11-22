@@ -162,3 +162,4 @@ src/
 - Modal uses React state (no additional routing)
 - Optimized for creators with <100 apps
 
+

@@ -95,14 +95,21 @@ export async function DELETE(req, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user owns this app
+    // Check if user owns this app or is admin
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('clerk_user_id', userId)
+      .single();
+    const isAdmin = profile?.email === 'msanchezgrice@gmail.com';
+
     const { data: app } = await supabase
       .from('apps')
       .select('creator_id')
       .eq('id', id)
       .single();
 
-    if (!app || app.creator_id !== userId) {
+    if (!app || (app.creator_id !== userId && !isAdmin)) {
       return NextResponse.json({ error: 'Unauthorized - you can only delete your own apps' }, { status: 403 });
     }
 

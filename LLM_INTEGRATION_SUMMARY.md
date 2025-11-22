@@ -241,3 +241,4 @@ console.log('[LLM] Success! Response length:', txt.length);
 
 Both features enhance the user experience by providing dynamic, AI-powered content instead of static, hardcoded data.
 
+

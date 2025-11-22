@@ -148,3 +148,4 @@ If you need to modify the code:
 - Profile integration: `/src/app/profile/page.js`
 - Documentation: `MY_APPS_MANAGEMENT_IMPLEMENTATION.md`
 
+

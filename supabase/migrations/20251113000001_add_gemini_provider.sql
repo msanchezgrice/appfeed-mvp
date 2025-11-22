@@ -11,3 +11,4 @@ ALTER TABLE secrets ADD CONSTRAINT secrets_provider_check
 -- Add comment for documentation
 COMMENT ON CONSTRAINT secrets_provider_check ON secrets IS 'Validates that provider is one of the supported API providers including Google Gemini';
 
+

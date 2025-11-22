@@ -26,6 +26,9 @@ export default function AdminDashboard() {
   const [selectedApp, setSelectedApp] = useState(null); // For modal preview
   const [fetchedKey, setFetchedKey] = useState(null); // cache last fetch key
   const [userStats, setUserStats] = useState({ newUsers: 0, returningUsers: 0 }); // Users tab
+  const [manageSearch, setManageSearch] = useState('');
+  const [manageStatus, setManageStatus] = useState('all'); // all | published | unpublished
+  const [generatingPreviewId, setGeneratingPreviewId] = useState(null);
 
   // Check admin access
   useEffect(() => {
@@ -648,8 +651,68 @@ export default function AdminDashboard() {
           <p className="small" style={{ color: '#888', marginBottom: 20 }}>
             Delete apps from the platform (careful - this is permanent!)
           </p>
+          <div style={{ 
+            display: 'flex', 
+            gap: 12, 
+            marginBottom: 12, 
+            flexWrap: 'wrap',
+            alignItems: 'center'
+          }}>
+            <input
+              value={manageSearch}
+              onChange={(e) => setManageSearch(e.target.value)}
+              placeholder="Search by name, id, or description"
+              style={{
+                flex: '1 1 240px',
+                padding: '10px 12px',
+                borderRadius: 10,
+                border: '1px solid #333',
+                background: '#0f0f0f',
+                color: '#fff'
+              }}
+            />
+            <select
+              value={manageStatus}
+              onChange={(e) => setManageStatus(e.target.value)}
+              style={{
+                padding: '10px 12px',
+                borderRadius: 10,
+                border: '1px solid #333',
+                background: '#0f0f0f',
+                color: '#fff'
+              }}
+            >
+              <option value="all">All statuses</option>
+              <option value="published">Published</option>
+              <option value="unpublished">Unpublished</option>
+            </select>
+          </div>
           <div style={{ background: 'var(--bg-dark)', borderRadius: 12, border: '1px solid #333' }}>
-            {manageApps.length > 0 ? manageApps.map(app => (
+            {(() => {
+              const filtered = manageApps.filter(app => {
+                const term = manageSearch.toLowerCase().trim();
+                const matchesSearch = term
+                  ? (app.name?.toLowerCase().includes(term) ||
+                     app.description?.toLowerCase().includes(term) ||
+                     app.id?.toLowerCase().includes(term))
+                  : true;
+                const matchesStatus = manageStatus === 'all'
+                  ? true
+                  : manageStatus === 'published'
+                    ? !!app.is_published
+                    : !app.is_published;
+                return matchesSearch && matchesStatus;
+              });
+
+              if (!filtered.length) {
+                return (
+                  <div style={{ padding: 20, textAlign: 'center', color: '#888' }}>
+                    No apps match your filters
+                  </div>
+                );
+              }
+
+              return filtered.map(app => (
               <div 
                 key={app.id}
                 style={{
@@ -663,11 +726,11 @@ export default function AdminDashboard() {
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.background = '#222'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-              >
-                <div 
-                  style={{ flex: 1, marginRight: 16 }}
-                  onClick={() => setSelectedApp(app)}
                 >
+                  <div 
+                    style={{ flex: 1, marginRight: 16 }}
+                    onClick={() => setSelectedApp(app)}
+                  >
                   <div style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
@@ -728,6 +791,39 @@ export default function AdminDashboard() {
                   >
                     {app.is_published ? '👁️ Unpublish' : '✅ Publish'}
                   </button>
+                  <button
+                    onClick={async () => {
+                      setGeneratingPreviewId(app.id);
+                      try {
+                        const res = await fetch('/api/generate-app-image', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ appId: app.id })
+                        });
+                        if (res.ok) {
+                          alert('Preview generation triggered');
+                        } else {
+                          const error = await res.json();
+                          alert('Failed to trigger preview: ' + (error.error || res.status));
+                        }
+                      } catch (err) {
+                        alert('Error: ' + err.message);
+                      } finally {
+                        setGeneratingPreviewId(null);
+                      }
+                    }}
+                    className="btn ghost"
+                    style={{
+                      color: '#60a5fa',
+                      border: '1px solid #60a5fa',
+                      padding: '6px 12px',
+                      fontSize: 13,
+                      opacity: generatingPreviewId === app.id ? 0.6 : 1
+                    }}
+                    disabled={generatingPreviewId === app.id}
+                  >
+                    🎞️ {generatingPreviewId === app.id ? 'Generating...' : 'Generate preview'}
+                  </button>
                   
                   <button
                     onClick={async () => {
@@ -758,11 +854,8 @@ export default function AdminDashboard() {
                   </button>
                 </div>
               </div>
-            )) : (
-              <div style={{ padding: 20, textAlign: 'center', color: '#888' }}>
-                No apps to manage
-              </div>
-            )}
+              ));
+            })()}
           </div>
         </div>
       )}
@@ -879,4 +972,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
