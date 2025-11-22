@@ -18,6 +18,23 @@ export default function HomeAppsPage() {
       return;
     }
     (async () => {
+      // Try to hydrate from session cache for instant UI
+      if (typeof window !== 'undefined' && isSignedIn) {
+        try {
+          const cacheKey = `cc_home_apps:${isSignedIn ? 'user' : 'anon'}`;
+          const cached = window.sessionStorage.getItem(cacheKey);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length) {
+              setApps(parsed);
+              setLoading(false);
+            }
+          }
+        } catch {
+          // ignore cache errors
+        }
+      }
+
       try {
         setLoading(true);
         const res = await fetch('/api/library', { cache: 'no-store' });
@@ -29,6 +46,15 @@ export default function HomeAppsPage() {
         const data = await res.json();
         const items = Array.isArray(data.items) ? data.items : [];
         setApps(items);
+        // update cache for this session
+        if (typeof window !== 'undefined') {
+          try {
+            const cacheKey = `cc_home_apps:${isSignedIn ? 'user' : 'anon'}`;
+            window.sessionStorage.setItem(cacheKey, JSON.stringify(items));
+          } catch {
+            // ignore
+          }
+        }
       } catch (err) {
         console.error('[Home] Error loading library', err);
         setApps([]);

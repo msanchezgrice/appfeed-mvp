@@ -15,9 +15,6 @@ export default function PersonalAppView() {
   const [runs, setRuns] = useState([]);
   const [userState, setUserState] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [assets, setAssets] = useState([]);
-  const [assetsLoading, setAssetsLoading] = useState(false);
-  const [assetsError, setAssetsError] = useState('');
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -56,28 +53,11 @@ export default function PersonalAppView() {
           if (runsRes.ok) {
             setRuns(runsData.runs || []);
           } else {
-            console.error('[Personal App] runs error:', runsData.error || runsRes.status);
-          }
-        } catch {
-          // ignore runs errors
+          console.error('[Personal App] runs error:', runsData.error || runsRes.status);
         }
-
-        // 4) Load marketing assets (unchanged)
-        try {
-          setAssetsLoading(true);
-          const assetsRes = await fetch(`/api/asset-jobs?appId=${encodeURIComponent(appId)}`, { cache: 'no-store' });
-          const assetsData = await assetsRes.json();
-          if (assetsRes.ok) {
-            setAssets(assetsData.assets || []);
-            setAssetsError('');
-          } else {
-            setAssetsError(assetsData.error || 'Failed to load assets');
-          }
-        } catch (err) {
-          setAssetsError(err?.message || 'Failed to load assets');
-        } finally {
-          setAssetsLoading(false);
-        }
+      } catch {
+        // ignore runs errors
+      }
       } catch (e) {
         console.error('[Personal App] Load error:', e);
       } finally {
@@ -121,7 +101,6 @@ export default function PersonalAppView() {
         'Tap Start to generate your first result',
         'We’ll save it so you can tweak and rerun quickly'
       ];
-  const ftueSample = app?.ftue_sample_output_url || app?.preview_url;
 
   const lastUpdate = userState?.last_update_at ? new Date(userState.last_update_at) : null;
   const lastOpened = userState?.last_opened_at ? new Date(userState.last_opened_at) : null;
@@ -314,26 +293,6 @@ export default function PersonalAppView() {
                 <li key={i}>{b}</li>
               ))}
             </ul>
-            {ftueSample && (
-              <div style={{ marginTop: 12 }}>
-                <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 6 }}>Example</div>
-                <div
-                  style={{
-                    width: '100%',
-                    maxWidth: 220,
-                    borderRadius: 12,
-                    overflow: 'hidden',
-                    border: '1px solid #1f2937'
-                  }}
-                >
-                  <img
-                    src={ftueSample}
-                    alt="Sample output"
-                    style={{ width: '100%', display: 'block', objectFit: 'cover' }}
-                  />
-                </div>
-              </div>
-            )}
           </div>
           <div id="personal-try" style={{ marginBottom: 32 }}>
             <h3 style={{ marginBottom: 12 }}>Start your first run</h3>
@@ -342,99 +301,6 @@ export default function PersonalAppView() {
         </>
       )}
 
-      <div style={{ marginTop: 32 }}>
-        <h3 style={{ marginBottom: 12 }}>Marketing Assets</h3>
-        <p className="small" style={{ color: '#888', marginBottom: 12 }}>
-          Download your poster, OG, thumb, and demo/GIF assets. Regenerate in Publish → success screen using per-asset prompts.
-        </p>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-          <Link className="btn" href="/publish">Open Publish</Link>
-          <Link className="btn ghost" href={`/api/asset-jobs?appId=${encodeURIComponent(appId)}`} target="_blank" rel="noreferrer">Raw JSON</Link>
-        </div>
-        {assetsLoading && <div className="small" style={{ color: '#888' }}>Loading assets…</div>}
-        {assetsError && <div className="small" style={{ color: '#ef4444' }}>{assetsError}</div>}
-        {!assetsLoading && assets.length === 0 && <div className="small" style={{ color: '#888' }}>No assets yet. Generate from the publish success screen.</div>}
-        {assets.length > 0 && (() => {
-          const byKind = {};
-          if (app?.preview_url) {
-            byKind['message'] = {
-              id: 'message-image',
-              kind: 'message',
-              mime_type: 'image/*',
-              url: app.preview_url,
-              blur_data_url: app.preview_blur || null
-            };
-          }
-          assets.forEach((a) => {
-            const key = a.kind || 'asset';
-            if (!byKind[key]) byKind[key] = a;
-          });
-          const assetsToShow = Object.values(byKind);
-          return (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
-              {assetsToShow.map((asset) => {
-                const isImage = (asset.mime_type || '').startsWith('image/') || asset.kind === 'message';
-                const label = asset.kind === 'poster'
-                  ? 'Poster'
-                  : asset.kind === 'og'
-                  ? 'OG'
-                  : asset.kind === 'thumb'
-                  ? 'Thumb'
-                  : asset.kind === 'message'
-                  ? 'Message preview'
-                  : asset.kind.toUpperCase();
-                return (
-                  <div
-                    key={asset.id}
-                    className="card"
-                    style={{ padding: 12, textDecoration: 'none' }}
-                  >
-                    <div style={{ fontWeight: 700, textTransform: 'capitalize', marginBottom: 6 }}>{label}</div>
-                    {isImage && (
-                      <div
-                        style={{
-                          borderRadius: 10,
-                          overflow: 'hidden',
-                          border: '1px solid #1f2937',
-                          marginBottom: 8,
-                          background: '#020617',
-                          position: 'relative'
-                        }}
-                      >
-                        <img
-                          src={asset.url}
-                          alt={label}
-                          style={{
-                            width: '100%',
-                            height: 'auto',
-                            display: 'block',
-                            aspectRatio: asset.kind === 'thumb' ? '1 / 1' : '4 / 5',
-                            objectFit: 'cover'
-                          }}
-                        />
-                        <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 8 }}>
-                          <a className="btn" style={{ padding: '6px 10px', fontSize: 12 }} href={asset.url} download>
-                            Download
-                          </a>
-                          <a className="btn ghost" style={{ padding: '6px 10px', fontSize: 12 }} href={asset.url} target="_blank" rel="noopener noreferrer">
-                            Open
-                          </a>
-                        </div>
-                      </div>
-                    )}
-                    <div className="small" style={{ color: '#9ca3af', marginTop: 4 }}>
-                      {asset.mime_type || 'asset'}
-                    </div>
-                    <div className="small" style={{ color: '#6b7280', marginTop: 6, wordBreak: 'break-all' }}>
-                      {asset.url}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
-      </div>
     </div>
   );
 }
