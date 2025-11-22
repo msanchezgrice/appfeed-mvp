@@ -19,6 +19,17 @@ export default function MyAppsPage() {
   const [assetsOverlayData, setAssetsOverlayData] = useState({ assets: [], jobs: [] });
   const [assetsOverlayLoading, setAssetsOverlayLoading] = useState(false);
   const [assetsOverlayError, setAssetsOverlayError] = useState('');
+  const [assetsOverlayActionLoading, setAssetsOverlayActionLoading] = useState(false);
+  const [assetsOverlayActionError, setAssetsOverlayActionError] = useState('');
+  const [overlayPosterPrompt, setOverlayPosterPrompt] = useState('');
+  const [overlayThumbPrompt, setOverlayThumbPrompt] = useState('');
+  const [overlayOgPrompt, setOverlayOgPrompt] = useState('');
+  const [overlayDemoPrompt, setOverlayDemoPrompt] = useState('');
+
+  const DEFAULT_POSTER_PROMPT = 'Generate an elevated 1080x1350 poster with bold title, UI inset, and QR space.';
+  const DEFAULT_THUMB_PROMPT = 'Square thumbnail: clean gradient + recognizable mark/icon.';
+  const DEFAULT_OG_PROMPT = 'Landscape OG 1200x630 with clear title, short description space, QR/CTA area.';
+  const DEFAULT_DEMO_PROMPT = 'Open app, wait ~1.5s, tap Try, capture a short 9–12s clip.';
 
   useEffect(() => {
     // Redirect to sign-in if not authenticated
@@ -136,6 +147,10 @@ export default function MyAppsPage() {
     setAssetsOverlayApp(app);
     setAssetsOverlayLoading(true);
     setAssetsOverlayError('');
+    setOverlayPosterPrompt('');
+    setOverlayThumbPrompt('');
+    setOverlayOgPrompt('');
+    setOverlayDemoPrompt('');
     try {
       const res = await fetch(`/api/asset-jobs?appId=${encodeURIComponent(app.id)}`, { cache: 'no-store' });
       const data = await res.json();
@@ -147,6 +162,33 @@ export default function MyAppsPage() {
       setAssetsOverlayError(err?.message || 'Failed to load marketing assets');
     } finally {
       setAssetsOverlayLoading(false);
+    }
+  };
+
+  const regenAssetsFromOverlay = async (types = [], inputs = {}) => {
+    if (!assetsOverlayApp?.id) return;
+    setAssetsOverlayActionLoading(true);
+    setAssetsOverlayActionError('');
+    try {
+      const res = await fetch('/api/asset-jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          appId: assetsOverlayApp.id,
+          types: types.length ? types : ['poster', 'og', 'thumb'],
+          inputs: { ...inputs, force: true }
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to regenerate assets');
+      }
+      setAssetsOverlayData({ assets: data.assets || [], jobs: data.jobs || [] });
+    } catch (err) {
+      setAssetsOverlayActionError(err?.message || 'Failed to regenerate assets');
+    } finally {
+      setAssetsOverlayActionLoading(false);
     }
   };
 
@@ -514,6 +556,106 @@ export default function MyAppsPage() {
             </div>
 
             <div style={{ padding: 20 }}>
+              {/* Quick Regenerate */}
+              {assetsOverlayApp && (
+                <div className="card" style={{ marginBottom: 16, border: '1px solid #1f2937', background: '#0f172a' }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Regenerate</div>
+                  <div className="small" style={{ color: '#9ca3af', marginBottom: 8 }}>
+                    Use prompts to regenerate poster, OG, thumb, or demo/GIF. Defaults apply when empty.
+                  </div>
+                  {assetsOverlayActionError && (
+                    <div className="small" style={{ color: '#ef4444', marginBottom: 8 }}>
+                      {assetsOverlayActionError}
+                    </div>
+                  )}
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <div>
+                      <label className="label">Poster prompt</label>
+                      <textarea
+                        className="input"
+                        rows={2}
+                        placeholder={DEFAULT_POSTER_PROMPT}
+                        value={overlayPosterPrompt}
+                        onChange={(e) => setOverlayPosterPrompt(e.target.value)}
+                      />
+                      <div className="small" style={{ color: '#9ca3af' }}>
+                        {overlayPosterPrompt ? overlayPosterPrompt.slice(0, 80) + (overlayPosterPrompt.length > 80 ? '…' : '') : '(using default)'}
+                      </div>
+                      <button
+                        className="btn"
+                        style={{ marginTop: 6 }}
+                        onClick={() => regenAssetsFromOverlay(['poster'], { prompt: overlayPosterPrompt })}
+                        disabled={assetsOverlayActionLoading}
+                      >
+                        {assetsOverlayActionLoading ? 'Working…' : 'Regenerate Poster'}
+                      </button>
+                    </div>
+                    <div>
+                      <label className="label">Thumbnail prompt</label>
+                      <textarea
+                        className="input"
+                        rows={2}
+                        placeholder={DEFAULT_THUMB_PROMPT}
+                        value={overlayThumbPrompt}
+                        onChange={(e) => setOverlayThumbPrompt(e.target.value)}
+                      />
+                      <div className="small" style={{ color: '#9ca3af' }}>
+                        {overlayThumbPrompt ? overlayThumbPrompt.slice(0, 80) + (overlayThumbPrompt.length > 80 ? '…' : '') : '(using default)'}
+                      </div>
+                      <button
+                        className="btn"
+                        style={{ marginTop: 6 }}
+                        onClick={() => regenAssetsFromOverlay(['thumb'], { prompt: overlayThumbPrompt })}
+                        disabled={assetsOverlayActionLoading}
+                      >
+                        {assetsOverlayActionLoading ? 'Working…' : 'Regenerate Thumb'}
+                      </button>
+                    </div>
+                    <div>
+                      <label className="label">OG prompt</label>
+                      <textarea
+                        className="input"
+                        rows={2}
+                        placeholder={DEFAULT_OG_PROMPT}
+                        value={overlayOgPrompt}
+                        onChange={(e) => setOverlayOgPrompt(e.target.value)}
+                      />
+                      <div className="small" style={{ color: '#9ca3af' }}>
+                        {overlayOgPrompt ? overlayOgPrompt.slice(0, 80) + (overlayOgPrompt.length > 80 ? '…' : '') : '(using default)'}
+                      </div>
+                      <button
+                        className="btn"
+                        style={{ marginTop: 6 }}
+                        onClick={() => regenAssetsFromOverlay(['og'], { prompt: overlayOgPrompt })}
+                        disabled={assetsOverlayActionLoading}
+                      >
+                        {assetsOverlayActionLoading ? 'Working…' : 'Regenerate OG'}
+                      </button>
+                    </div>
+                    <div>
+                      <label className="label">Demo/GIF script</label>
+                      <textarea
+                        className="input"
+                        rows={2}
+                        placeholder={DEFAULT_DEMO_PROMPT}
+                        value={overlayDemoPrompt}
+                        onChange={(e) => setOverlayDemoPrompt(e.target.value)}
+                      />
+                      <div className="small" style={{ color: '#9ca3af' }}>
+                        {overlayDemoPrompt ? overlayDemoPrompt.slice(0, 80) + (overlayDemoPrompt.length > 80 ? '…' : '') : '(using default)'}
+                      </div>
+                      <button
+                        className="btn"
+                        style={{ marginTop: 6 }}
+                        onClick={() => regenAssetsFromOverlay(['demo', 'gif'], { prompt: overlayDemoPrompt, clickTry: true, delayMs: 1500 })}
+                        disabled={assetsOverlayActionLoading}
+                      >
+                        {assetsOverlayActionLoading ? 'Working…' : 'Generate Demo + GIF'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               {assetsOverlayLoading && (
                 <div className="small" style={{ color: '#888' }}>Loading assets…</div>
               )}
