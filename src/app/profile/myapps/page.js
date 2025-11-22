@@ -264,9 +264,9 @@ export default function MyAppsPage() {
             <Link href="/profile" style={{ color: '#888', textDecoration: 'none', fontSize: 14 }}>
               ← Back to Profile
             </Link>
-            <h1 style={{ margin: '8px 0 4px 0' }}>🎨 My Apps</h1>
+            <h1 style={{ margin: '8px 0 4px 0' }}>🏠 Home</h1>
             <p style={{ color: '#888', margin: 0, fontSize: 14 }}>
-              Manage your created apps and view performance metrics
+              Jump back into your apps, pick up where you left off, and manage assets.
             </p>
           </div>
           <Link href="/publish" className="btn primary" style={{ textDecoration: 'none' }}>
