@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -11,6 +11,7 @@ export default function HomeAppsPage() {
   const [apps, setApps] = useState([]);
   const [states, setStates] = useState({});
   const [loading, setLoading] = useState(true);
+  const cacheKey = user ? `cc_home_apps:${user.id}` : null;
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -21,7 +22,6 @@ export default function HomeAppsPage() {
     (async () => {
       // Phase 1: try to hydrate from sessionStorage for instant UI
       let loadedFromCache = false;
-      const cacheKey = user ? `cc_home_apps:${user.id}` : null;
       if (cacheKey && typeof window !== 'undefined') {
         try {
           const cached = window.sessionStorage.getItem(cacheKey);
@@ -108,6 +108,28 @@ export default function HomeAppsPage() {
     );
   }
 
+  // Compute badge count for nav/home if needed
+  const badgeCount = useMemo(() => {
+    let count = 0;
+    apps.forEach((app) => {
+      const s = states[app.id];
+      const lastUpdate = s?.last_update_at ? new Date(s.last_update_at) : null;
+      const lastOpened = s?.last_opened_at ? new Date(s.last_opened_at) : null;
+      if (lastUpdate && (!lastOpened || lastUpdate > lastOpened)) count += 1;
+    });
+    return count;
+  }, [apps, states]);
+
+  // Persist badge count so BottomNav can render without hitting APIs
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.sessionStorage.setItem('cc_home_badge_count', badgeCount.toString());
+    } catch {
+      // ignore
+    }
+  }, [badgeCount]);
+
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', padding: '24px 16px', paddingBottom: 80 }}>
       <div style={{ marginBottom: 16 }}>
@@ -115,6 +137,18 @@ export default function HomeAppsPage() {
         <p style={{ color: '#888', margin: 0, fontSize: 14 }}>
           Your saved apps, iOS-style. Tap to open your personal app view.
         </p>
+        {badgeCount > 0 && (
+          <div
+            style={{
+              marginTop: 6,
+              fontSize: 12,
+              color: '#ef4444',
+              fontWeight: 700
+            }}
+          >
+            {badgeCount > 9 ? '9+' : badgeCount} app updates
+          </div>
+        )}
       </div>
 
       <div

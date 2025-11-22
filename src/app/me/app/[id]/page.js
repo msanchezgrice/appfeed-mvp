@@ -113,6 +113,16 @@ export default function PersonalAppView() {
     app?.demo?.sampleInputs ||
     {};
 
+  const ftueSummary = app?.ftue_summary || app?.description || 'Your first run will be guided with the defaults below.';
+  const ftueBullets = Array.isArray(app?.ftue_bullets)
+    ? app.ftue_bullets
+    : [
+        'Review the suggested inputs below',
+        'Tap Start to generate your first result',
+        'We’ll save it so you can tweak and rerun quickly'
+      ];
+  const ftueSample = app?.ftue_sample_output_url || app?.preview_url;
+
   const lastUpdate = userState?.last_update_at ? new Date(userState.last_update_at) : null;
   const lastOpened = userState?.last_opened_at ? new Date(userState.last_opened_at) : null;
   const hasNewUpdate = lastUpdate && (!lastOpened || lastUpdate > lastOpened);
@@ -205,6 +215,17 @@ export default function PersonalAppView() {
                   >
                     ▶️ Try again
                   </button>
+                  <button
+                    className="btn ghost"
+                    style={{ marginLeft: 8 }}
+                    onClick={() => {
+                      const el = document.getElementById('personal-try');
+                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      // Force reset by scrolling and relying on TikTokFeedCard defaults
+                    }}
+                  >
+                    Reset to defaults
+                  </button>
                 </div>
               </div>
             ) : (
@@ -286,11 +307,36 @@ export default function PersonalAppView() {
           >
             <h3 style={{ margin: '0 0 8px 0' }}>Your first run</h3>
             <p style={{ margin: 0, color: '#9ca3af', fontSize: 13 }}>
-              We’ll walk you through a quick first run. You can tweak inputs as you go, and your results will be saved
-              here for next time.
+              {ftueSummary}
             </p>
+            <ul style={{ margin: '12px 0 0 16px', padding: 0, color: '#cbd5e1', fontSize: 13, lineHeight: 1.5 }}>
+              {ftueBullets.map((b, i) => (
+                <li key={i}>{b}</li>
+              ))}
+            </ul>
+            {ftueSample && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 6 }}>Example</div>
+                <div
+                  style={{
+                    width: '100%',
+                    maxWidth: 220,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    border: '1px solid #1f2937'
+                  }}
+                >
+                  <img
+                    src={ftueSample}
+                    alt="Sample output"
+                    style={{ width: '100%', display: 'block', objectFit: 'cover' }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
           <div id="personal-try" style={{ marginBottom: 32 }}>
+            <h3 style={{ marginBottom: 12 }}>Start your first run</h3>
             <TikTokFeedCard app={app} presetDefaults={lastInputs} />
           </div>
         </>
