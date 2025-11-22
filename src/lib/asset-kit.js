@@ -5,6 +5,8 @@ import { captureDemo } from './demo-capture';
 
 const DEFAULT_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.clipcade.com';
 const FALLBACK_OPENAI_KEY = process.env.OPENAI_FALLBACK_API_KEY || process.env.OPENAI_API_KEY || '';
+const GEMINI_IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
+const GEMINI_MAX_OUTPUT_TOKENS = 32768;
 
 function ensureAppOwnership(app, userId) {
   if (!app) {
@@ -94,7 +96,7 @@ Style: Clean, legible, strong contrast, include space for title.`;
     : basePrompt;
 
   const response = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMAGE_MODEL}:generateContent`,
     {
       method: 'POST',
       headers: {
@@ -102,8 +104,9 @@ Style: Clean, legible, strong contrast, include space for title.`;
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts: [{ text: `${prompt}\n\nQuality: high-res, balanced composition, readable text, no artifacts, allow space for title/description.` }] }],
         generationConfig: {
+          maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
           imageConfig: { aspectRatio: '16:9' }
         }
       })
@@ -193,7 +196,7 @@ Mood: Aspirational and clear. Text legible.`;
     : basePrompt;
 
   const response = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMAGE_MODEL}:generateContent`,
     {
       method: 'POST',
       headers: {
@@ -202,9 +205,10 @@ Mood: Aspirational and clear. Text legible.`;
       },
       body: JSON.stringify({
         contents: [{
-          parts: [{ text: prompt }]
+          parts: [{ text: `${prompt}\n\nQuality: high-res, balanced composition, readable text, no artifacts, allow space for QR/title.` }]
         }],
         generationConfig: {
+          maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
           imageConfig: {
             aspectRatio: '3:4'
           }
@@ -318,9 +322,9 @@ export async function createThumbAsset({ supabase, app, userId, promptOverride, 
   if (!geminiApiKey) {
     throw new Error('Gemini API key not configured for thumbnail generation');
   }
-  const prompt = `Generate a square thumbnail/shelf image for this app. App: ${app.name}. Description: ${app.description || ''}. Creator notes: ${String(promptOverride).trim()}`;
+  const prompt = `Generate a square thumbnail/shelf image for this app. App: ${app.name}. Description: ${app.description || ''}. Creator notes: ${String(promptOverride).trim()}. Quality: crisp, clean gradient, no artifacts, clear icon/mark.`;
   const response = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMAGE_MODEL}:generateContent`,
     {
       method: 'POST',
       headers: {
@@ -330,6 +334,7 @@ export async function createThumbAsset({ supabase, app, userId, promptOverride, 
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
+          maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
           imageConfig: { aspectRatio: '1:1' }
         }
       })
