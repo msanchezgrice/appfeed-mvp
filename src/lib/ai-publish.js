@@ -127,10 +127,22 @@ export function sanitizeManifest(raw, options = {}) {
   }
 
   const inputs = safeObject(manifest.inputs);
+  const normalizedDescription = safeString(manifest.description, 'App generated from your prompt');
+  const ftueSummary = safeString(
+    manifest.ftue_summary,
+    normalizedDescription ? normalizedDescription : `Get started with ${manifest.name || 'this app'}`
+  );
+  const defaultFtueBullets = [
+    'Review the suggested inputs below.',
+    'Tap Try to generate your first result.',
+    'We save it so you can tweak and rerun quickly.'
+  ];
+  const ftueBullets = safeArray(manifest.ftue_bullets);
+  const normalizedFtueBullets = ftueBullets.length ? ftueBullets : defaultFtueBullets;
 
   return {
     name: safeString(manifest.name, 'AI App'),
-    description: safeString(manifest.description, 'App generated from your prompt'),
+    description: normalizedDescription,
     tags: safeArray(manifest.tags),
     design,
     preview_gradient: safeString(
@@ -142,7 +154,9 @@ export function sanitizeManifest(raw, options = {}) {
     demo,
     inputs,
     outputs,
-    runtime
+    runtime,
+    ftue_summary: ftueSummary,
+    ftue_bullets: normalizedFtueBullets
   };
 }
 
@@ -333,7 +347,13 @@ export async function generateManifestWithAnthropic({
         args: exampleToolArgs,
         output: exampleOutputKey
       }]
-    }
+    },
+    ftue_summary: 'A short sentence explaining what this app does and why it helps the user',
+    ftue_bullets: [
+      'First step or tip for using the app',
+      'Second step or key feature',
+      'Third step or expected outcome'
+    ]
   };
 
   const userMsg = [
@@ -345,7 +365,7 @@ export async function generateManifestWithAnthropic({
     JSON.stringify({ username: userMeta.username, display_name: userMeta.display_name }),
     '',
     'Return ONLY JSON with fields:',
-    'name, description, tags, design, preview_gradient, modal_theme, input_theme, demo, inputs, outputs, runtime',
+    'name, description, tags, design, preview_gradient, modal_theme, input_theme, demo, inputs, outputs, runtime, ftue_summary, ftue_bullets',
     '',
     'Example JSON (shape only, adapt to the prompt):',
     JSON.stringify(example),

@@ -10,6 +10,18 @@ export default function HomeAppsPage() {
   const router = useRouter();
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [colCount, setColCount] = useState(3);
+
+  useEffect(() => {
+    const computeCols = () => {
+      if (typeof window === 'undefined') return;
+      // Always 3 columns on mobile (<640px), 4 on tablet/desktop
+      setColCount(window.innerWidth < 640 ? 3 : 4);
+    };
+    computeCols();
+    window.addEventListener('resize', computeCols);
+    return () => window.removeEventListener('resize', computeCols);
+  }, []);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -68,9 +80,9 @@ export default function HomeAppsPage() {
     return (
       <div style={{ maxWidth: 600, margin: '0 auto', padding: '24px 16px', paddingBottom: 80 }}>
         <div className="skeleton" style={{ width: 160, height: 24, borderRadius: 8, marginBottom: 16 }} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="skeleton" style={{ height: 90, borderRadius: 24 }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="skeleton" style={{ height: 100, borderRadius: 24 }} />
           ))}
         </div>
       </div>
@@ -103,8 +115,8 @@ export default function HomeAppsPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-          gap: 12
+          gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))`,
+          gap: 16
         }}
       >
         {apps.map((app) => (
@@ -117,14 +129,14 @@ export default function HomeAppsPage() {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 6
+              gap: 8
             }}
           >
             <div
               style={{
-                width: 64,
-                height: 64,
-                borderRadius: 20,
+                width: colCount === 3 ? 100 : 84,
+                height: colCount === 3 ? 100 : 84,
+                borderRadius: 24,
                 background: app.preview_gradient || 'linear-gradient(135deg,#111,#222)',
                 display: 'flex',
                 alignItems: 'center',
@@ -142,14 +154,14 @@ export default function HomeAppsPage() {
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               ) : (
-                <span style={{ fontSize: 28 }}>{app.icon || '📱'}</span>
+                <span style={{ fontSize: colCount === 3 ? 36 : 28 }}>{app.icon || '📱'}</span>
               )}
             </div>
             <div
               style={{
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: 600,
-                maxWidth: 72,
+                maxWidth: colCount === 3 ? 110 : 100,
                 textAlign: 'center',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
@@ -161,9 +173,9 @@ export default function HomeAppsPage() {
             {app.description && (
               <div
                 style={{
-                  fontSize: 10,
+                  fontSize: 11,
                   color: '#777',
-                  maxWidth: 72,
+                  maxWidth: colCount === 3 ? 110 : 100,
                   textAlign: 'center',
                   display: '-webkit-box',
                   WebkitLineClamp: 2,

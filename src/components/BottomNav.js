@@ -6,8 +6,8 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   const navItems = [
-    { label: 'Feed', icon: '🏠', path: '/feed' },
-    { label: 'Home', icon: '⭐', path: '/home' },
+    { label: 'Feed', icon: '📡', path: '/feed' },
+    { label: 'Home', icon: '🏠', path: '/home' },
     { label: 'Search', icon: '🔍', path: '/search' },
     { label: 'My Assets', icon: '🎨', path: '/library' },
     { label: 'Profile', icon: '👤', path: '/profile' }
