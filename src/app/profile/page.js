@@ -348,7 +348,7 @@ export default function ProfilePage() {
             minWidth: 'fit-content'
           }}
         >
-          My Apps
+          Home
         </button>
         <button
           onClick={() => setActiveTab('followers')}

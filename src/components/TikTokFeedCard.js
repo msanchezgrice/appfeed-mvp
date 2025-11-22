@@ -25,7 +25,7 @@ async function api(path, method='GET', body) {
   return await res.json();
 }
 
-export default function TikTokFeedCard({ app, presetDefaults }) {
+export default function TikTokFeedCard({ app, presetDefaults, savedState }) {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -51,6 +51,21 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
   const [resultSaved, setResultSaved] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
+
+  // Hydrate previous run/output if we have saved state
+  useEffect(() => {
+    if (!savedState?.state || run) return;
+    const outputs = savedState.state.outputs || savedState.state;
+    if (outputs && Object.keys(outputs).length) {
+      setRun({
+        id: savedState.last_run_id || `${app.id}-saved`,
+        app_id: app.id,
+        inputs: savedState.inputs || {},
+        outputs,
+        status: 'saved'
+      });
+    }
+  }, [savedState, app.id, run]);
 
   // Detect mobile on mount (prevents hydration mismatch)
   useEffect(() => {
@@ -167,6 +182,25 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
     
     const r = await api('/api/runs', 'POST', { appId: app.id, inputs, mode });
     setRun(r);
+    // Persist user state (inputs + outputs) for resume
+    if (user && r?.id) {
+      const statePayload = {
+        appId: app.id,
+        inputs,
+        state: {
+          outputs: r?.outputs || {},
+          asset_url: r?.asset_url,
+          input_asset_url: r?.input_asset_url
+        },
+        last_run_id: r.id,
+        state_schema_version: 1
+      };
+      fetch('/api/user-state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(statePayload)
+      }).catch(() => {});
+    }
     setResultSaved(false);
     try {
       if (typeof window !== 'undefined' && r?.id) {
@@ -526,7 +560,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
               <button className="btn ghost" onClick={() => setShowTry(false)}>Close</button>
             </div>
             <p className="small">Runs in a read-only sandbox with sample inputs.</p>
-            <AppForm app={app} onSubmit={(vals) => onRun(vals, 'try')} defaults={presetDefaults || app.demo?.sampleInputs||{}} />
+            <AppForm app={app} onSubmit={(vals) => onRun(vals, 'try')} defaults={savedState?.inputs || presetDefaults || app.demo?.sampleInputs||{}} />
             {run && !searchParams.get('run') && (
               <>
                 <hr />
@@ -621,7 +655,7 @@ export default function TikTokFeedCard({ app, presetDefaults }) {
                 </div>
               </div>
             ) : null}
-            <AppForm app={app} onSubmit={(vals) => onRun(vals, 'use')} defaults={presetDefaults || app.demo?.sampleInputs||{}} />
+            <AppForm app={app} onSubmit={(vals) => onRun(vals, 'use')} defaults={savedState?.inputs || presetDefaults || app.demo?.sampleInputs||{}} />
             {run && !searchParams.get('run') && (
               <>
                 <hr />

@@ -25,6 +25,7 @@ export default function MyAppsPage() {
   const [overlayThumbPrompt, setOverlayThumbPrompt] = useState('');
   const [overlayOgPrompt, setOverlayOgPrompt] = useState('');
   const [overlayDemoPrompt, setOverlayDemoPrompt] = useState('');
+  const [appStates, setAppStates] = useState({});
 
   const DEFAULT_POSTER_PROMPT = 'Generate an elevated 1080x1350 poster with bold title, UI inset, and QR space.';
   const DEFAULT_THUMB_PROMPT = 'Square thumbnail: clean gradient + recognizable mark/icon.';
@@ -80,6 +81,25 @@ export default function MyAppsPage() {
       }
     })();
   }, [clerkUser, isLoaded, isSignedIn, router]);
+
+  // Load per-app state (last run / persisted state)
+  useEffect(() => {
+    if (!clerkUser || !apps.length) return;
+    (async () => {
+      try {
+        const res = await fetch('/api/user-state', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const map = {};
+        (data.states || []).forEach((s) => {
+          if (s?.app_id) map[s.app_id] = s;
+        });
+        setAppStates(map);
+      } catch (err) {
+        console.error('[Home] Failed to load state map', err);
+      }
+    })();
+  }, [clerkUser, apps.length]);
 
   // Apply filters and search
   useEffect(() => {
@@ -140,6 +160,36 @@ export default function MyAppsPage() {
     } catch (err) {
       alert('Error: ' + err.message);
     }
+  };
+
+  const getStatePreview = (appId) => {
+    const entry = appStates[appId];
+    if (!entry) return null;
+    const state = entry.state || {};
+    const outputs = state.outputs || state;
+
+    // Image priority: skip large data URLs to keep UI light
+    const collectImages = [];
+    if (Array.isArray(outputs?.images)) collectImages.push(...outputs.images);
+    if (outputs?.image) collectImages.push(outputs.image);
+    if (outputs?.thumbnails) collectImages.push(...outputs.thumbnails);
+    if (state?.poster_url) collectImages.push(state.poster_url);
+    if (state?.thumb_url) collectImages.push(state.thumb_url);
+    if (state?.og_url) collectImages.push(state.og_url);
+
+    const firstImg = collectImages.find((img) => typeof img === 'string' && !img.startsWith('data:'));
+    if (firstImg) return { type: 'image', value: firstImg };
+
+    // Text/chat preview
+    if (outputs?.text) return { type: 'text', value: outputs.text };
+    if (outputs?.message) return { type: 'text', value: outputs.message };
+    if (Array.isArray(outputs?.messages) && outputs.messages.length) {
+      const last = outputs.messages[outputs.messages.length - 1];
+      if (typeof last === 'string') return { type: 'text', value: last };
+      if (last?.content) return { type: 'text', value: last.content };
+    }
+
+    return null;
   };
 
   const openAssetsOverlay = async (app) => {
@@ -313,195 +363,174 @@ export default function MyAppsPage() {
           )}
         </div>
       ) : (
-        <div style={{ 
-          background: 'var(--bg-dark)', 
-          borderRadius: 12, 
-          border: '1px solid #333',
-          overflow: 'hidden'
-        }}>
-          {filteredApps.map((app, index) => (
-            <div
-              key={app.id}
-              style={{
-                padding: 20,
-                borderBottom: index < filteredApps.length - 1 ? '1px solid #222' : 'none',
-                display: 'flex',
-                gap: 20,
-                alignItems: 'flex-start',
-                transition: 'background 0.2s',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#1a1a1a'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-            >
-              {/* App Preview/Thumbnail - Left side */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: 16
+          }}
+        >
+          {filteredApps.map(app => {
+            const statePreview = getStatePreview(app.id);
+            const stateMeta = appStates[app.id];
+            return (
               <div
-                onClick={() => setSelectedApp(app)}
+                key={app.id}
                 style={{
-                  width: 120,
-                  height: 120,
-                  borderRadius: 12,
-                  background: app.preview_gradient || '#333',
-                  flexShrink: 0,
-                  overflow: 'hidden',
-                  cursor: 'pointer',
-                  border: '1px solid #333'
+                  background: 'linear-gradient(160deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))',
+                  borderRadius: 16,
+                  border: '1px solid #2a2a2a',
+                  padding: 16,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                  position: 'relative',
+                  overflow: 'hidden'
                 }}
               >
-                {app.preview_url ? (
-                  <img
-                    src={app.preview_url}
-                    alt={app.name}
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <div
+                    onClick={() => setSelectedApp(app)}
                     style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover'
+                      width: 64,
+                      height: 64,
+                      borderRadius: 14,
+                      background: app.preview_gradient || '#333',
+                      overflow: 'hidden',
+                      border: '1px solid #333',
+                      flexShrink: 0,
+                      cursor: 'pointer'
                     }}
-                  />
-                ) : (
+                  >
+                    {app.preview_url ? (
+                      <img
+                        src={app.preview_url}
+                        alt={app.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>
+                        {app.icon || '📱'}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontWeight: 700, fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {app.icon ? `${app.icon} ${app.name}` : app.name}
+                      </span>
+                      <span style={{
+                        fontSize: 10,
+                        padding: '2px 8px',
+                        borderRadius: 999,
+                        background: app.is_published ? '#10b981' : '#fbbf24',
+                        color: app.is_published ? 'white' : '#000',
+                        fontWeight: 700
+                      }}>
+                        {app.is_published ? 'LIVE' : 'DRAFT'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#888', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {app.description}
+                    </div>
+                  </div>
+                </div>
+
+                {statePreview && (
                   <div style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 48
+                    background: '#111',
+                    border: '1px solid #222',
+                    borderRadius: 12,
+                    padding: 10,
+                    minHeight: 70
                   }}>
-                    {app.icon || '📱'}
+                    <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>
+                      Last session
+                    </div>
+                    {statePreview.type === 'image' ? (
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <div style={{ width: 60, height: 60, borderRadius: 10, overflow: 'hidden', border: '1px solid #333', flexShrink: 0 }}>
+                          <img
+                            src={statePreview.value}
+                            alt="Last result"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        </div>
+                        <div style={{ fontSize: 12, color: '#aaa' }}>
+                          Previous output
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 13, color: '#ccc', lineHeight: 1.4, maxHeight: 68, overflow: 'hidden' }}>
+                        {statePreview.value}
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
 
-              {/* App Info and Stats - Main section */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {/* App Name and Status */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                  <h3 
-                    style={{ margin: 0, fontSize: 18, cursor: 'pointer' }}
-                    onClick={() => setSelectedApp(app)}
-                  >
-                    {app.icon && <span style={{ marginRight: 8 }}>{app.icon}</span>}
-                    {app.name}
-                  </h3>
-                  <span style={{
-                    fontSize: 11,
-                    padding: '3px 10px',
-                    borderRadius: 12,
-                    background: app.is_published ? '#10b981' : '#fbbf24',
-                    color: app.is_published ? 'white' : '#000',
-                    fontWeight: 600
-                  }}>
-                    {app.is_published ? 'PUBLISHED' : 'UNPUBLISHED'}
-                  </span>
+                <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#888', flexWrap: 'wrap' }}>
+                  <span>👁️ {app.view_count || 0}</span>
+                  <span>🎯 {app.try_count || 0}</span>
+                  <span>🔖 {app.save_count || 0}</span>
+                  <span>🔄 {app.remix_count || 0}</span>
+                  {stateMeta?.updated_at && (
+                    <span style={{ opacity: 0.7 }}>Last opened {new Date(stateMeta.updated_at).toLocaleString()}</span>
+                  )}
                 </div>
 
-                {/* Description */}
-                <p style={{
-                  margin: '0 0 12px 0',
-                  fontSize: 14,
-                  color: '#888',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical'
-                }}>
-                  {app.description}
-                </p>
-
-                {/* Stats Row */}
-                <div style={{
-                  display: 'flex',
-                  gap: 20,
-                  fontSize: 13,
-                  color: '#888',
-                  marginBottom: 12,
-                  flexWrap: 'wrap'
-                }}>
-                  <div>
-                    <span style={{ opacity: 0.7 }}>👁️</span> {(app.view_count || 0).toLocaleString()}
-                  </div>
-                  <div>
-                    <span style={{ opacity: 0.7 }}>🎯</span> {(app.try_count || 0).toLocaleString()}
-                  </div>
-                  <div>
-                    <span style={{ opacity: 0.7 }}>💾</span> {(app.save_count || 0).toLocaleString()}
-                  </div>
-                  <div>
-                    <span style={{ opacity: 0.7 }}>🔄</span> {(app.remix_count || 0).toLocaleString()}
-                  </div>
-                  <div style={{ opacity: 0.6, fontSize: 12 }}>
-                    ID: {app.id}
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <Link
+                    href={`/app/${app.id}`}
+                    className="btn primary"
+                    style={{ flex: 1, minWidth: 120, textAlign: 'center', textDecoration: 'none' }}
+                  >
+                    ▶️ Open / Resume
+                  </Link>
                   <button
                     onClick={() => openAssetsOverlay(app)}
                     className="btn ghost"
-                    style={{
-                      padding: '6px 14px',
-                      fontSize: 13,
-                      textDecoration: 'none'
-                    }}
+                    style={{ flex: 1, minWidth: 120 }}
                   >
-                    🖼️ Marketing Assets
+                    🖼️ Assets
                   </button>
-                  <Link
-                    href={`/app/${app.id}`}
-                    className="btn ghost"
-                    style={{
-                      padding: '6px 14px',
-                      fontSize: 13,
-                      textDecoration: 'none'
-                    }}
-                    target="_blank"
-                  >
-                    👁️ View
-                  </Link>
-                  
-                  <Link
-                    href={`/app/${app.id}`}
-                    className="btn ghost"
-                    style={{
-                      padding: '6px 14px',
-                      fontSize: 13,
-                      textDecoration: 'none'
-                    }}
-                  >
-                    ✏️ Edit
-                  </Link>
+                </div>
 
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 12, color: '#aaa' }}>
                   <button
                     onClick={() => handleTogglePublish(app)}
                     className="btn ghost"
                     style={{
                       color: app.is_published ? '#fbbf24' : '#10b981',
                       border: `1px solid ${app.is_published ? '#fbbf24' : '#10b981'}`,
-                      padding: '6px 14px',
-                      fontSize: 13
+                      padding: '6px 12px',
+                      fontSize: 12
                     }}
                   >
-                    {app.is_published ? '📤 Unpublish' : '✅ Publish'}
+                    {app.is_published ? 'Unpublish' : 'Publish'}
                   </button>
-
                   <button
                     onClick={() => handleDelete(app)}
                     className="btn ghost"
                     style={{
                       color: '#ef4444',
                       border: '1px solid #ef4444',
-                      padding: '6px 14px',
-                      fontSize: 13
+                      padding: '6px 12px',
+                      fontSize: 12
                     }}
                   >
-                    🗑️ Delete
+                    Delete
                   </button>
+                  <Link
+                    href={`/app/${app.id}`}
+                    className="btn ghost"
+                    style={{ padding: '6px 12px', fontSize: 12, textDecoration: 'none' }}
+                  >
+                    Edit
+                  </Link>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

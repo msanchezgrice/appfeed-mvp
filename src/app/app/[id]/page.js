@@ -24,6 +24,7 @@ export default function AppDetailPage() {
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [savedState, setSavedState] = useState(null);
 
   // Detect mobile on mount (prevents hydration mismatch)
   useEffect(() => {
@@ -86,6 +87,24 @@ export default function AppDetailPage() {
         console.error('Error loading app:', err);
       } finally {
         setLoading(false);
+      }
+    })();
+  }, [appId]);
+
+  // Load saved state for this app (if signed in)
+  useEffect(() => {
+    if (!appId) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/user-state?appId=${encodeURIComponent(appId)}`, { cache: 'no-store' });
+        if (!res.ok) {
+          setSavedState(null);
+          return;
+        }
+        const data = await res.json();
+        setSavedState(data.state || null);
+      } catch {
+        setSavedState(null);
       }
     })();
   }, [appId]);
@@ -316,7 +335,7 @@ export default function AppDetailPage() {
       {/* App Preview Card */}
       <div style={{ marginBottom: 40 }}>
         <h2 id="try" style={{ marginBottom: 16 }}>Try This App</h2>
-        <TikTokFeedCard app={app} />
+        <TikTokFeedCard app={app} savedState={savedState} presetDefaults={savedState?.inputs} />
       </div>
 
       {/* Remixes Section */}
