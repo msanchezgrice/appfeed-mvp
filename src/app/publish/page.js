@@ -2602,7 +2602,7 @@ POST /run
                     onChange={(e) => setPosterPrompt(e.target.value)}
                   />
                   <div className="small" style={{ color: '#9ca3af', marginTop: 6 }}>
-                    Current: {posterPrompt ? posterPrompt : 'Empty'}
+                    Current: {posterPrompt ? `${posterPrompt.slice(0, 80)}${posterPrompt.length > 80 ? '…' : ''}` : 'Empty'}
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                     <button
@@ -2634,7 +2634,7 @@ POST /run
                     onChange={(e) => setThumbPrompt(e.target.value)}
                   />
                   <div className="small" style={{ color: '#9ca3af', marginTop: 6 }}>
-                    Current: {thumbPrompt ? thumbPrompt : 'Empty'}
+                    Current: {thumbPrompt ? `${thumbPrompt.slice(0, 80)}${thumbPrompt.length > 80 ? '…' : ''}` : 'Empty'}
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                     <button
@@ -2658,7 +2658,7 @@ POST /run
                     onChange={(e) => setOgPrompt(e.target.value)}
                   />
                   <div className="small" style={{ color: '#9ca3af', marginTop: 6 }}>
-                    Current: {ogPrompt ? ogPrompt : 'Empty'}
+                    Current: {ogPrompt ? `${ogPrompt.slice(0, 80)}${ogPrompt.length > 80 ? '…' : ''}` : 'Empty'}
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                     <button
@@ -2682,7 +2682,7 @@ POST /run
                     onChange={(e) => setDemoPrompt(e.target.value)}
                   />
                   <div className="small" style={{ color: '#9ca3af', marginTop: 6 }}>
-                    Current: {demoPrompt ? demoPrompt : 'Empty'}
+                    Current: {demoPrompt ? `${demoPrompt.slice(0, 80)}${demoPrompt.length > 80 ? '…' : ''}` : 'Empty'}
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                     <button

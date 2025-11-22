@@ -511,13 +511,6 @@ export default function MyAppsPage() {
               >
                 ✕ Close
               </button>
-              <Link
-                href="/publish"
-                className="btn primary"
-                style={{ padding: '6px 12px', textDecoration: 'none', marginLeft: 8 }}
-              >
-                Generate assets →
-              </Link>
             </div>
 
             <div style={{ padding: 20 }}>
