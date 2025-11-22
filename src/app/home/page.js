@@ -9,6 +9,7 @@ export default function HomeAppsPage() {
   const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   const [apps, setApps] = useState([]);
+  const [states, setStates] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,7 +28,23 @@ export default function HomeAppsPage() {
           return;
         }
         const data = await res.json();
-        setApps(Array.isArray(data.items) ? data.items : []);
+        const items = Array.isArray(data.items) ? data.items : [];
+        setApps(items);
+
+        // Optionally load per-app state for notification badges
+        try {
+          const stateRes = await fetch('/api/user-state', { cache: 'no-store' });
+          if (stateRes.ok) {
+            const stateData = await stateRes.json();
+            const map = {};
+            (stateData.states || []).forEach((s) => {
+              if (s?.app_id) map[s.app_id] = s;
+            });
+            setStates(map);
+          }
+        } catch {
+          // ignore
+        }
       } catch (err) {
         console.error('[Home] Error loading library', err);
         setApps([]);
@@ -80,43 +97,63 @@ export default function HomeAppsPage() {
           gap: 12
         }}
       >
-        {apps.map((app) => (
-          <Link
-            key={app.id}
-            href={`/me/app/${app.id}`}
-            style={{
-              textDecoration: 'none',
-              color: 'inherit',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 6
-            }}
-          >
-            <div
+        {apps.map((app) => {
+          const s = states[app.id];
+          const lastUpdate = s?.last_update_at ? new Date(s.last_update_at) : null;
+          const lastOpened = s?.last_opened_at ? new Date(s.last_opened_at) : null;
+          const hasNew = lastUpdate && (!lastOpened || lastUpdate > lastOpened);
+          return (
+            <Link
+              key={app.id}
+              href={`/me/app/${app.id}`}
               style={{
-                width: 64,
-                height: 64,
-                borderRadius: 20,
-                background: app.preview_gradient || 'linear-gradient(135deg,#111,#222)',
+                textDecoration: 'none',
+                color: 'inherit',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'center',
-                border: '1px solid rgba(255,255,255,0.08)',
-                overflow: 'hidden',
-                boxShadow: '0 10px 20px rgba(0,0,0,0.4)'
+                gap: 6
               }}
             >
-              {app.preview_url ? (
-                <img
-                  src={app.preview_url}
-                  alt={app.name}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : (
-                <span style={{ fontSize: 28 }}>{app.icon || '📱'}</span>
-              )}
-            </div>
+              <div
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 20,
+                  background: app.preview_gradient || 'linear-gradient(135deg,#111,#222)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  overflow: 'hidden',
+                  boxShadow: '0 10px 20px rgba(0,0,0,0.4)',
+                  position: 'relative'
+                }}
+              >
+                {app.preview_url ? (
+                  <img
+                    src={app.preview_url}
+                    alt={app.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 28 }}>{app.icon || '📱'}</span>
+                )}
+                {hasNew && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: 6,
+                      right: 6,
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      background: '#22c55e',
+                      boxShadow: '0 0 0 2px rgba(0,0,0,0.7)'
+                    }}
+                  />
+                )}
+              </div>
             <div
               style={{
                 fontSize: 11,
@@ -147,7 +184,8 @@ export default function HomeAppsPage() {
               </div>
             )}
           </Link>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

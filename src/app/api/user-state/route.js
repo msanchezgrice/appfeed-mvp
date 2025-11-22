@@ -101,7 +101,9 @@ export async function GET(req) {
           last_run_id: run.id,
           created_at: run.created_at,
           updated_at: run.created_at,
-          updated_by: userId
+          updated_by: userId,
+          last_update_at: run.created_at,
+          last_opened_at: null
         });
       }
     }
@@ -132,6 +134,7 @@ export async function PUT(req) {
       return NextResponse.json({ error: 'State too large' }, { status: 413 });
     }
 
+    const nowIso = new Date().toISOString();
     const payload = {
       user_id: userId,
       app_id: appId,
@@ -140,7 +143,8 @@ export async function PUT(req) {
       state_schema_version,
       last_run_id,
       updated_by: userId,
-      updated_at: new Date().toISOString()
+      updated_at: nowIso,
+      last_update_at: nowIso
     };
 
     const { data, error } = await supabase
