@@ -480,7 +480,11 @@ export default function MyAppsPage() {
 
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <Link
-                    href={`/app/${app.id}`}
+                    href={
+                      stateMeta?.last_run_id
+                        ? `/app/${app.id}?run=${encodeURIComponent(stateMeta.last_run_id)}`
+                        : `/app/${app.id}#try`
+                    }
                     className="btn primary"
                     style={{ flex: 1, minWidth: 120, textAlign: 'center', textDecoration: 'none' }}
                   >
