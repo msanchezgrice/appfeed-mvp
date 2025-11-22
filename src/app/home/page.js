@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -12,6 +12,15 @@ export default function HomeAppsPage() {
   const [states, setStates] = useState({});
   const [loading, setLoading] = useState(true);
   const cacheKey = user ? `cc_home_apps:${user.id}` : null;
+
+  // Compute badge count for nav/home (no hooks so it runs regardless of branch)
+  let badgeCount = 0;
+  apps.forEach((app) => {
+    const s = states[app.id];
+    const lastUpdate = s?.last_update_at ? new Date(s.last_update_at) : null;
+    const lastOpened = s?.last_opened_at ? new Date(s.last_opened_at) : null;
+    if (lastUpdate && (!lastOpened || lastUpdate > lastOpened)) badgeCount += 1;
+  });
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -107,18 +116,6 @@ export default function HomeAppsPage() {
       </div>
     );
   }
-
-  // Compute badge count for nav/home if needed
-  const badgeCount = useMemo(() => {
-    let count = 0;
-    apps.forEach((app) => {
-      const s = states[app.id];
-      const lastUpdate = s?.last_update_at ? new Date(s.last_update_at) : null;
-      const lastOpened = s?.last_opened_at ? new Date(s.last_opened_at) : null;
-      if (lastUpdate && (!lastOpened || lastUpdate > lastOpened)) count += 1;
-    });
-    return count;
-  }, [apps, states]);
 
   // Persist badge count so BottomNav can render without hitting APIs
   useEffect(() => {
