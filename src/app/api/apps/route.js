@@ -24,8 +24,12 @@ export async function GET(req) {
     const creatorId = searchParams.get('creator');
     const search = searchParams.get('q');
     const deviceType = searchParams.get('device');
-    const limit = parseInt(searchParams.get('limit') || '100');
-    const offset = parseInt(searchParams.get('offset') || '0');
+
+    // Defensive caps to protect Supabase and avoid huge scans
+    const rawLimit = parseInt(searchParams.get('limit') || '60', 10);
+    const rawOffset = parseInt(searchParams.get('offset') || '0', 10);
+    const limit = Math.min(Math.max(rawLimit || 1, 1), 60); // 1–60
+    const offset = Math.min(Math.max(rawOffset || 0, 0), 500); // cap offset at 500
     const requestUserId = searchParams.get('userId');
     
     console.log('[API /apps] GET request:', { tag, creatorId, search, deviceType, includeUnpublished, requestUserId, authUserId: userId });
